@@ -1,5 +1,21 @@
 # @buildonspark/spark-sdk
 
+## 0.1.28
+
+### Patch Changes
+
+- - Separate entry point for NodeJS environments and refactor some NodeJS dependencies out
+  - Added `LEAVES_LOCKED` status to `SparkLeavesSwapRequestStatus` enum.
+  - Added support for `GetTransferPackageSigningPayload` in `SparkTransferToLeavesConnection`.
+  - Added GraphQL for managing static deposit addresses.
+  - Begin adding "Transfer V2", a new mechanism for handling transfers.
+    - A new method `sendTransferWithKeyTweaks` added to `TransferService`.
+    - SparkWallet primary transfer initiation now utilizes this V2 flow.
+  - Export the `createDummyTx` function from WASM bindings. Primarily for testing or example purposes.
+  - The `swapLeaves` method in `SparkWallet` now processes leaves in batches of 100, potentially improving performance and reliability for operations involving a large number of leaves.
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.51
+
 ## 0.1.27
 
 ### Patch Changes

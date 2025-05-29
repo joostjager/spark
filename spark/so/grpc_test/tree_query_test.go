@@ -165,8 +165,51 @@ func TestTreeQuery(t *testing.T) {
 		resp, err := client.QueryNodesDistribution(ctx, req)
 		require.NoError(t, err)
 		require.Equal(t, len(resp.NodeDistribution), 1)
+		t.Logf("resp.NodeDistribution: %v", resp.NodeDistribution)
 		for _, v := range resp.NodeDistribution {
-			require.Equal(t, v, int64(uint64(2)))
+			require.Equal(t, v, uint64(2))
 		}
+	})
+
+	t.Run("query nodes by value", func(t *testing.T) {
+		rootPrivKey2, err := secp256k1.GeneratePrivateKey()
+		require.NoError(t, err)
+		tree2, err := testutil.CreateNewTree(config, faucet, rootPrivKey2, 32768)
+		require.NoError(t, err)
+		rootTree2, err := wallet.GenerateDepositAddressesForTree(ctx, config, nil, tree2, uint32(0), rootPrivKey2.Serialize(), 1)
+		require.NoError(t, err)
+		tree2Nodes, err := wallet.CreateTree(ctx, config, nil, tree2, uint32(0), rootTree2, true)
+		require.NoError(t, err)
+		require.Len(t, tree2Nodes.Nodes, 5)
+
+		req := &pb.QueryNodesByValueRequest{
+			OwnerIdentityPublicKey: leafNode.OwnerIdentityPublicKey,
+			Limit:                  1,
+			Offset:                 0,
+			Value:                  30857,
+		}
+		resp, err := client.QueryNodesByValue(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.Nodes, 1)
+		require.Equal(t, int(resp.Offset), 1)
+
+		req.Offset = 1
+		resp, err = client.QueryNodesByValue(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.Nodes, 1)
+		require.Equal(t, int(resp.Offset), 2)
+
+		req.Offset = 2
+		resp, err = client.QueryNodesByValue(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.Nodes, 0)
+		require.Equal(t, int(resp.Offset), -1)
+
+		req.Value = 14473
+		req.Offset = 0
+		resp, err = client.QueryNodesByValue(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.Nodes, 1)
+		require.Equal(t, int(resp.Offset), 1)
 	})
 }

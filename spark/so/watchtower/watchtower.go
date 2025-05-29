@@ -10,7 +10,38 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/so/ent"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
+
+var (
+	meter = otel.Meter("watchtower")
+
+	// Metrics
+	nodeTxBroadcastCounter   metric.Int64Counter
+	refundTxBroadcastCounter metric.Int64Counter
+)
+
+func init() {
+	var err error
+
+	nodeTxBroadcastCounter, err = meter.Int64Counter(
+		"watchtower.node_tx.broadcast_total",
+		metric.WithDescription("Total number of node transactions broadcast by watchtower"),
+	)
+	if err != nil {
+		slog.Error("Failed to create node tx broadcast counter", "error", err)
+	}
+
+	refundTxBroadcastCounter, err = meter.Int64Counter(
+		"watchtower.refund_tx.broadcast_total",
+		metric.WithDescription("Total number of refund transactions broadcast by watchtower"),
+	)
+	if err != nil {
+		slog.Error("Failed to create refund tx broadcast counter", "error", err)
+	}
+}
 
 // BroadcastTransaction broadcasts a transaction to the network
 func BroadcastTransaction(ctx context.Context, bitcoinClient *rpcclient.Client, nodeID string, txBytes []byte) error {
@@ -28,6 +59,7 @@ func BroadcastTransaction(ctx context.Context, bitcoinClient *rpcclient.Client, 
 			slog.InfoContext(ctx, "Transaction already in mempool", "node_id", nodeID)
 			return nil
 		}
+
 		return fmt.Errorf("failed to broadcast transaction: %v", err)
 	}
 
@@ -36,7 +68,7 @@ func BroadcastTransaction(ctx context.Context, bitcoinClient *rpcclient.Client, 
 }
 
 // CheckExpiredTimeLocks checks for TXs with expired time locks and broadcasts them if needed.
-func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client, node *ent.TreeNode, blockHeight int64) error {
+func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client, node *ent.TreeNode, blockHeight int64, network common.Network) error {
 	if node.NodeConfirmationHeight == 0 {
 		nodeTx, err := common.TxFromRawTxBytes(node.RawTx)
 		if err != nil {
@@ -53,8 +85,23 @@ func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client,
 				timelockExpiryHeight := uint64(nodeTx.TxIn[0].Sequence&0xFFFF) + parent.NodeConfirmationHeight
 				if timelockExpiryHeight <= uint64(blockHeight) {
 					if err := BroadcastTransaction(ctx, bitcoinClient, node.ID.String(), node.RawTx); err != nil {
+						// Record node tx broadcast failure
+						if nodeTxBroadcastCounter != nil {
+							nodeTxBroadcastCounter.Add(ctx, 1, metric.WithAttributes(
+								attribute.String("network", network.String()),
+								attribute.String("result", "failure"),
+							))
+						}
 						slog.InfoContext(ctx, "Failed to broadcast node tx", "error", err)
 						return fmt.Errorf("failed to broadcast node tx: %v", err)
+					}
+
+					// Record successful node tx broadcast
+					if nodeTxBroadcastCounter != nil {
+						nodeTxBroadcastCounter.Add(ctx, 1, metric.WithAttributes(
+							attribute.String("network", network.String()),
+							attribute.String("result", "success"),
+						))
 					}
 				}
 			}
@@ -68,8 +115,23 @@ func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client,
 		timelockExpiryHeight := uint64(refundTx.TxIn[0].Sequence&0xFFFF) + node.NodeConfirmationHeight
 		if timelockExpiryHeight <= uint64(blockHeight) {
 			if err := BroadcastTransaction(ctx, bitcoinClient, node.ID.String(), node.RawRefundTx); err != nil {
+				// Record refund tx broadcast failure
+				if refundTxBroadcastCounter != nil {
+					refundTxBroadcastCounter.Add(ctx, 1, metric.WithAttributes(
+						attribute.String("network", network.String()),
+						attribute.String("result", "failure"),
+					))
+				}
 				slog.InfoContext(ctx, "Failed to broadcast refund tx", "error", err)
 				return fmt.Errorf("failed to broadcast refund tx: %v", err)
+			}
+
+			// Record successful refund tx broadcast
+			if refundTxBroadcastCounter != nil {
+				refundTxBroadcastCounter.Add(ctx, 1, metric.WithAttributes(
+					attribute.String("network", network.String()),
+					attribute.String("result", "success"),
+				))
 			}
 		}
 	}

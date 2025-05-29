@@ -47,6 +47,7 @@ const (
 	SparkService_GetSigningOperatorList_FullMethodName      = "/spark.SparkService/get_signing_operator_list"
 	SparkService_QueryNodes_FullMethodName                  = "/spark.SparkService/query_nodes"
 	SparkService_QueryNodesDistribution_FullMethodName      = "/spark.SparkService/query_nodes_distribution"
+	SparkService_QueryNodesByValue_FullMethodName           = "/spark.SparkService/query_nodes_by_value"
 	SparkService_QueryBalance_FullMethodName                = "/spark.SparkService/query_balance"
 	SparkService_QueryUserSignedRefunds_FullMethodName      = "/spark.SparkService/query_user_signed_refunds"
 	SparkService_StartTokenTransaction_FullMethodName       = "/spark.SparkService/start_token_transaction"
@@ -101,6 +102,7 @@ type SparkServiceClient interface {
 	GetSigningOperatorList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetSigningOperatorListResponse, error)
 	QueryNodes(ctx context.Context, in *QueryNodesRequest, opts ...grpc.CallOption) (*QueryNodesResponse, error)
 	QueryNodesDistribution(ctx context.Context, in *QueryNodesDistributionRequest, opts ...grpc.CallOption) (*QueryNodesDistributionResponse, error)
+	QueryNodesByValue(ctx context.Context, in *QueryNodesByValueRequest, opts ...grpc.CallOption) (*QueryNodesByValueResponse, error)
 	QueryBalance(ctx context.Context, in *QueryBalanceRequest, opts ...grpc.CallOption) (*QueryBalanceResponse, error)
 	QueryUserSignedRefunds(ctx context.Context, in *QueryUserSignedRefundsRequest, opts ...grpc.CallOption) (*QueryUserSignedRefundsResponse, error)
 	// Token RPCs
@@ -398,6 +400,16 @@ func (c *sparkServiceClient) QueryNodesDistribution(ctx context.Context, in *Que
 	return out, nil
 }
 
+func (c *sparkServiceClient) QueryNodesByValue(ctx context.Context, in *QueryNodesByValueRequest, opts ...grpc.CallOption) (*QueryNodesByValueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryNodesByValueResponse)
+	err := c.cc.Invoke(ctx, SparkService_QueryNodesByValue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sparkServiceClient) QueryBalance(ctx context.Context, in *QueryBalanceRequest, opts ...grpc.CallOption) (*QueryBalanceResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(QueryBalanceResponse)
@@ -576,6 +588,7 @@ type SparkServiceServer interface {
 	GetSigningOperatorList(context.Context, *emptypb.Empty) (*GetSigningOperatorListResponse, error)
 	QueryNodes(context.Context, *QueryNodesRequest) (*QueryNodesResponse, error)
 	QueryNodesDistribution(context.Context, *QueryNodesDistributionRequest) (*QueryNodesDistributionResponse, error)
+	QueryNodesByValue(context.Context, *QueryNodesByValueRequest) (*QueryNodesByValueResponse, error)
 	QueryBalance(context.Context, *QueryBalanceRequest) (*QueryBalanceResponse, error)
 	QueryUserSignedRefunds(context.Context, *QueryUserSignedRefundsRequest) (*QueryUserSignedRefundsResponse, error)
 	// Token RPCs
@@ -681,6 +694,9 @@ func (UnimplementedSparkServiceServer) QueryNodes(context.Context, *QueryNodesRe
 }
 func (UnimplementedSparkServiceServer) QueryNodesDistribution(context.Context, *QueryNodesDistributionRequest) (*QueryNodesDistributionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryNodesDistribution not implemented")
+}
+func (UnimplementedSparkServiceServer) QueryNodesByValue(context.Context, *QueryNodesByValueRequest) (*QueryNodesByValueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryNodesByValue not implemented")
 }
 func (UnimplementedSparkServiceServer) QueryBalance(context.Context, *QueryBalanceRequest) (*QueryBalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryBalance not implemented")
@@ -1228,6 +1244,24 @@ func _SparkService_QueryNodesDistribution_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SparkService_QueryNodesByValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryNodesByValueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkServiceServer).QueryNodesByValue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkService_QueryNodesByValue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).QueryNodesByValue(ctx, req.(*QueryNodesByValueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SparkService_QueryBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryBalanceRequest)
 	if err := dec(in); err != nil {
@@ -1569,6 +1603,10 @@ var SparkService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "query_nodes_distribution",
 			Handler:    _SparkService_QueryNodesDistribution_Handler,
+		},
+		{
+			MethodName: "query_nodes_by_value",
+			Handler:    _SparkService_QueryNodesByValue_Handler,
 		},
 		{
 			MethodName: "query_balance",

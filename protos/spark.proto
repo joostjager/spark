@@ -50,6 +50,7 @@ service SparkService {
 
     rpc query_nodes(QueryNodesRequest) returns (QueryNodesResponse) {}
     rpc query_nodes_distribution(QueryNodesDistributionRequest) returns (QueryNodesDistributionResponse) {}
+    rpc query_nodes_by_value(QueryNodesByValueRequest) returns (QueryNodesByValueResponse) {}
 
     rpc query_balance(QueryBalanceRequest) returns (QueryBalanceResponse) {}
 
@@ -1117,4 +1118,16 @@ message QueryNodesDistributionRequest {
 
 message QueryNodesDistributionResponse {
     map<uint64, uint64> node_distribution = 1;
+}
+
+message QueryNodesByValueRequest {
+    bytes owner_identity_public_key = 1;
+    int64 value = 2;
+    int64 offset = 3;
+    int64 limit = 4;
+}
+
+message QueryNodesByValueResponse {
+    map<string, TreeNode> nodes = 1;
+    int64 offset = 2;
 }

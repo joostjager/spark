@@ -340,13 +340,21 @@ func main() {
 	cronCtx, cronCancel := context.WithCancel(errCtx)
 	defer cronCancel()
 
-	logger := slog.Default().With("component", "cron")
-	cronCtx = logging.Inject(cronCtx, logger)
+	taskLogger := slog.Default().With("component", "cron")
+	cronCtx = logging.Inject(cronCtx, taskLogger)
 
-	logger.Info("Starting scheduler")
+	taskLogger.Info("Starting scheduler")
+	taskMonitor, err := task.NewMonitor()
+	if err != nil {
+		log.Fatalf("Failed to create task monitor: %v", err)
+	}
 	scheduler, err := gocron.NewScheduler(
-		gocron.WithGlobalJobOptions(gocron.WithContext(cronCtx)),
-		gocron.WithLogger(logger),
+		gocron.WithGlobalJobOptions(
+			gocron.WithContext(cronCtx),
+			gocron.WithSingletonMode(gocron.LimitModeReschedule),
+		),
+		gocron.WithLogger(taskLogger),
+		gocron.WithMonitor(taskMonitor),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create scheduler: %v", err)
@@ -563,7 +571,15 @@ func main() {
 
 func runDKGOnStartup(ctx context.Context, dbClient *ent.Client, config *so.Config) {
 	time.Sleep(5 * time.Second)
-	err := ent.RunDKGIfNeeded(ctx, dbClient, config)
+
+	tx, err := dbClient.Tx(ctx)
+	if err != nil {
+		slog.Error("Failed to start transaction for DKG", "error", err)
+		return
+	}
+
+	ctx = ent.Inject(ctx, tx)
+	err = ent.RunDKGIfNeeded(ctx, config)
 	if err != nil {
 		slog.Error("Failed to run DKG", "error", err)
 	}

@@ -32,5 +32,3 @@ pre-commit:
             run: yarn run build
           - name: yarn format
             run: yarn run format
-          - name: yarn test
-            run: yarn run test

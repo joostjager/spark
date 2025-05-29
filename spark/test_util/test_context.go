@@ -24,7 +24,7 @@ func TestContext(config *so.Config) (context.Context, *ent.Client, error) {
 		return nil, nil, err
 	}
 
-	return context.WithValue(ctx, ent.TxKey, tx), dbClient, nil
+	return ent.Inject(ctx, tx), dbClient, nil
 }
 
 func OnErrFatal(t *testing.T, err error) {

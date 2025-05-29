@@ -8,18 +8,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ContextKey is a type for context keys.
-type ContextKey string
-
-// TxKey is the context key for the database transaction.
-const TxKey ContextKey = "tx"
-
 // ErrNoRollback is an error indicating that we should not rollback the DB transaction.
 var ErrNoRollback = errors.New("no rollback performed")
 
 // DbSessionMiddleware is a middleware to manage database sessions for each gRPC call.
 func DbSessionMiddleware(dbClient *Client) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if info != nil && info.FullMethod == "/grpc.health.v1.Health/Check" {
 			return handler(ctx, req)
 		}
@@ -31,7 +25,7 @@ func DbSessionMiddleware(dbClient *Client) grpc.UnaryServerInterceptor {
 		}
 
 		// Attach the transaction to the context
-		ctx = context.WithValue(ctx, TxKey, tx)
+		ctx = Inject(ctx, tx)
 		// Ensure rollback on panic
 		defer func() {
 			if r := recover(); r != nil {
@@ -65,9 +59,4 @@ func DbSessionMiddleware(dbClient *Client) grpc.UnaryServerInterceptor {
 
 		return resp, nil
 	}
-}
-
-// GetDbFromContext returns the database transaction from the context.
-func GetDbFromContext(ctx context.Context) *Tx {
-	return ctx.Value(TxKey).(*Tx)
 }

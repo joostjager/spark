@@ -20,7 +20,7 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 	tx, err := dbClient.Tx(ctx)
 	require.NoError(t, err)
 
-	ctx = context.WithValue(ctx, ent.TxKey, tx)
+	ctx = ent.Inject(ctx, tx)
 	defer dbClient.Close()
 
 	// Create test data

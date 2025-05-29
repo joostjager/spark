@@ -1412,6 +1412,14 @@ func TestTokenTransferTransactionSigning(t *testing.T) {
 			expiredSign:          true,
 			expectedSigningError: true,
 		},
+		// {
+		// 	name:                        "transfer should succeed with partially signed outputs recovered via expiry",
+		// 	partialSignExpireAndRecover: true,
+		// },
+		// {
+		// 	name:                            "transfer should succeed with partially finalized outputs finalized after expiry",
+		// 	partialFinalizeExpireAndRecover: true,
+		// },
 		{
 			name: "sign transfer should fail with duplicate operator specific owner signing private keys",
 			signingOwnerPrivateKeysModifier: func(tokenOutputs []*secp256k1.PrivateKey) []*secp256k1.PrivateKey {

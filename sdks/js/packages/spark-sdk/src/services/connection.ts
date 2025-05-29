@@ -160,7 +160,7 @@ export class ConnectionManager {
     const authToken = await this.authenticate(address);
     const channel = await this.createChannelWithTLS(address, certPath);
 
-    const authMiddleware = this.createAuthMiddleWare(address, authToken);
+    const authMiddleware = this.createMiddleware(address, authToken);
     const client = await this.createGrpcClient<SparkServiceClient>(
       SparkServiceDefinition,
       channel,
@@ -182,7 +182,7 @@ export class ConnectionManager {
     const authToken = await this.authenticate(address);
     const channel = await this.createChannelWithTLS(address, certPath);
 
-    const authMiddleware = this.createAuthMiddleWare(address, authToken);
+    const authMiddleware = this.createMiddleware(address, authToken);
     const client = await this.createGrpcClient<SparkServiceClient>(
       SparkServiceDefinition,
       channel,
@@ -258,7 +258,7 @@ export class ConnectionManager {
     );
   }
 
-  private createAuthMiddleWare(address: string, authToken: string) {
+  private createMiddleware(address: string, authToken: string) {
     if (isNode) {
       return this.createNodeMiddleware(address, authToken);
     } else {

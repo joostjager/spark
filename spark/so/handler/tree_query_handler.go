@@ -58,7 +58,7 @@ func (h *TreeQueryHandler) QueryNodes(ctx context.Context, req *pb.QueryNodesReq
 				tree.NetworkEQ(network),
 			)).
 			Where(treenode.OwnerIdentityPubkey(req.GetOwnerIdentityPubkey())).
-			Order(ent.Desc(enttreenode.FieldUpdateTime))
+			Order(ent.Desc(enttreenode.FieldID))
 
 		if limit > 0 {
 			if limit > 100 {
@@ -256,4 +256,54 @@ func (h *TreeQueryHandler) QueryNodesDistribution(ctx context.Context, req *pb.Q
 	return &pb.QueryNodesDistributionResponse{
 		NodeDistribution: resultMap,
 	}, nil
+}
+
+func (h *TreeQueryHandler) QueryNodesByValue(ctx context.Context, req *pb.QueryNodesByValueRequest) (*pb.QueryNodesByValueResponse, error) {
+	db := ent.GetDbFromContext(ctx)
+
+	limit := int(req.GetLimit())
+	offset := int(req.GetOffset())
+
+	if limit < 0 || offset < 0 {
+		return nil, fmt.Errorf("expect non-negative offset and limit")
+	}
+
+	query := db.TreeNode.Query()
+	query = query.
+		Where(treenode.OwnerIdentityPubkey(req.GetOwnerIdentityPublicKey())).
+		Where(treenode.StatusEQ(schema.TreeNodeStatusAvailable)).
+		Where(treenode.ValueEQ(uint64(req.GetValue()))).
+		Order(ent.Desc(treenode.FieldID))
+
+	if limit > 100 {
+		limit = 100
+	} else if limit == 0 {
+		limit = 100
+	}
+	query = query.Offset(offset).Limit(limit)
+
+	nodes, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tree nodes: %w", err)
+	}
+
+	protoNodeMap := make(map[string]*pb.TreeNode)
+	for _, node := range nodes {
+		protoNodeMap[node.ID.String()], err = node.MarshalSparkProto(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal node %s: %w", node.ID.String(), err)
+		}
+	}
+
+	response := &pb.QueryNodesByValueResponse{
+		Nodes: protoNodeMap,
+	}
+
+	nextOffset := -1
+	if len(nodes) == limit {
+		nextOffset = offset + len(nodes)
+	}
+	response.Offset = int64(nextOffset)
+
+	return response, nil
 }

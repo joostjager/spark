@@ -12,6 +12,7 @@ export default defineConfig([
     ...commonConfig,
     entry: [
       "src/index.ts",
+      "src/index.node.ts",
       "src/signer/signer.ts",
       "src/services/config.ts",
       "src/services/index.ts",

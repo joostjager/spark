@@ -30,15 +30,7 @@ const SPARK_MNEMONIC_PATH = ".spark-mnemonic";
 export const createSparkRouter = (
   walletClass: typeof SparkWallet | typeof IssuerSparkWallet,
   mnemonicPath: string
-): {
-  router: Router;
-  getWallet: () => SparkWallet | IssuerSparkWallet | undefined;
-  checkWalletInitialized: (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => void;
-} => {
+) => {
   const router: Router = Router();
 
   let walletInstance: SparkWallet | IssuerSparkWallet | undefined = undefined;
@@ -61,22 +53,18 @@ export const createSparkRouter = (
   };
 
   const initWallet = async (mnemonicOrSeed: string) => {
-    let res:
-      | {
-          mnemonic?: string | null;
-          wallet: SparkWallet | IssuerSparkWallet;
-        }
-      | undefined = undefined;
-    if (!walletInstance) {
-      res = await walletClass.initialize({
-        mnemonicOrSeed: mnemonicOrSeed,
-        options: {
-          ...parseConfig(),
-          network: BITCOIN_NETWORK,
-        },
-      });
-      walletInstance = res?.wallet;
+    if (walletInstance) {
+      return undefined;
     }
+
+    const res = await walletClass.initialize({
+      mnemonicOrSeed: mnemonicOrSeed,
+      options: {
+        ...parseConfig(),
+        network: BITCOIN_NETWORK,
+      },
+    });
+    walletInstance = res?.wallet as SparkWallet | IssuerSparkWallet | undefined;
     return res;
   };
 

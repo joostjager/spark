@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/spark-sdk",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "author": "",
   "license": "Apache-2.0",
   "main": "./dist/index.js",
@@ -19,8 +19,26 @@
   ],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "node": {
+          "types": "./dist/index.node.d.ts",
+          "default": "./dist/index.node.js"
+        },
+        "default": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        }
+      },
+      "require": {
+        "node": {
+          "types": "./dist/index.node.d.cts",
+          "default": "./dist/index.node.cjs"
+        },
+        "default": {
+          "types": "./dist/index.d.cts",
+          "default": "./dist/index.cjs"
+        }
+      }
     },
     "./signer": {
       "import": "./dist/signer/signer.js",
@@ -119,7 +137,7 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.2.5",
-    "@buildonspark/lrc20-sdk": "0.0.50",
+    "@buildonspark/lrc20-sdk": "0.0.51",
     "@lightsparkdev/core": "^1.4.0",
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.1",

@@ -29,8 +29,39 @@ import (
 	"github.com/lightsparkdev/spark/so/lrc20"
 	events "github.com/lightsparkdev/spark/so/stream"
 	"github.com/lightsparkdev/spark/so/watchtower"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/proto"
 )
+
+var (
+	meter = otel.Meter("chain_watcher")
+
+	// Metrics
+	eligibleNodesGauge metric.Int64Gauge
+	blockHeightGauge   metric.Int64Gauge
+)
+
+func init() {
+	var err error
+
+	eligibleNodesGauge, err = meter.Int64Gauge(
+		"chain_watcher.eligible_nodes",
+		metric.WithDescription("Number of nodes eligible for timelock expiry checks"),
+	)
+	if err != nil {
+		logging.GetLoggerFromContext(context.Background()).Error("Failed to create eligible nodes gauge", "error", err)
+	}
+
+	blockHeightGauge, err = meter.Int64Gauge(
+		"chain_watcher.current_block_height",
+		metric.WithDescription("Current block height processed by chain watcher"),
+	)
+	if err != nil {
+		logging.GetLoggerFromContext(context.Background()).Error("Failed to create block height gauge", "error", err)
+	}
+}
 
 func pollInterval(network common.Network) time.Duration {
 	switch network {
@@ -304,6 +335,13 @@ func connectBlocks(
 		if err != nil {
 			return err
 		}
+
+		// Record current block height
+		if blockHeightGauge != nil {
+			blockHeightGauge.Record(ctx, chainTip.Height, metric.WithAttributes(
+				attribute.String("network", network.String()),
+			))
+		}
 	}
 	return nil
 }
@@ -410,6 +448,13 @@ func handleBlock(
 		return fmt.Errorf("failed to query nodes: %v", err)
 	}
 
+	// Record number of eligible nodes for timelock checks
+	if eligibleNodesGauge != nil {
+		eligibleNodesGauge.Record(ctx, int64(len(nodes)), metric.WithAttributes(
+			attribute.String("network", network.String()),
+		))
+	}
+
 	for _, node := range nodes {
 		tx, err := common.TxFromRawTxBytes(node.RawTx)
 		if err != nil {
@@ -420,31 +465,41 @@ func handleBlock(
 		if confirmedTxHashSet[txid] {
 			_, err = dbTx.TreeNode.UpdateOne(node).
 				SetNodeConfirmationHeight(uint64(blockHeight)).
+				SetStatus(schema.TreeNodeStatusOnChain).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to update node status: %v", err)
 			}
+			logger.Info("Updated tree node status to ON_CHAIN",
+				"node_id", node.ID,
+				"tx_hash", txid.String(),
+				"block_height", blockHeight)
 		}
 
 		if len(node.RawRefundTx) > 0 {
 			refundTx, err := common.TxFromRawTxBytes(node.RawRefundTx)
 			if err != nil {
-				return fmt.Errorf("failed to parse node tx: %v", err)
+				return fmt.Errorf("failed to parse refund tx: %v", err)
 			}
 
 			refundTxid := refundTx.TxHash()
 			if confirmedTxHashSet[refundTxid] {
 				_, err = dbTx.TreeNode.UpdateOne(node).
 					SetRefundConfirmationHeight(uint64(blockHeight)).
+					SetStatus(schema.TreeNodeStatusExited).
 					Save(ctx)
 				if err != nil {
-					return fmt.Errorf("failed to update node status: %v", err)
+					return fmt.Errorf("failed to update node refund status: %v", err)
 				}
+				logger.Info("Updated tree node status to EXITED",
+					"node_id", node.ID,
+					"refund_tx_hash", refundTxid.String(),
+					"block_height", blockHeight)
 			}
 		}
 
 		// Check if node or refund TX timelock has expired
-		if err := watchtower.CheckExpiredTimeLocks(ctx, bitcoinClient, node, blockHeight); err != nil {
+		if err := watchtower.CheckExpiredTimeLocks(ctx, bitcoinClient, node, blockHeight, network); err != nil {
 			logger.Error("Failed to check expired time locks", "error", err)
 		}
 	}

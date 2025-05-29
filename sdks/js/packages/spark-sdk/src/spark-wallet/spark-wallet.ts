@@ -21,9 +21,8 @@ import {
   NetworkError,
   RPCError,
   ValidationError,
-} from "./errors/types.js";
-
-import SspClient from "./graphql/client.js";
+} from "../errors/types.js";
+import SspClient from "../graphql/client.js";
 import {
   BitcoinNetwork,
   CoopExitFeeEstimatesOutput,
@@ -36,7 +35,7 @@ import {
   LightningSendRequest,
   SwapLeaf,
   UserLeafInput,
-} from "./graphql/objects/index.js";
+} from "../graphql/objects/index.js";
 import {
   DepositAddressQueryResult,
   OutputWithPreviousTransactionData,
@@ -47,29 +46,28 @@ import {
   TransferStatus,
   TransferType,
   TreeNode,
-} from "./proto/spark.js";
-import { WalletConfigService } from "./services/config.js";
-import { ConnectionManager } from "./services/connection.js";
-import { CoopExitService } from "./services/coop-exit.js";
-import { DepositService } from "./services/deposit.js";
-import { LightningService } from "./services/lightning.js";
-import { SigningService } from "./services/signing.js";
-import { TokenTransactionService } from "./services/token-transactions.js";
-import { TransferService } from "./services/transfer.js";
-import type { LeafKeyTweak } from "./services/transfer.js";
+} from "../proto/spark.js";
+import { WalletConfigService } from "../services/config.js";
+import { ConnectionManager } from "../services/connection.js";
+import { CoopExitService } from "../services/coop-exit.js";
+import { DepositService } from "../services/deposit.js";
+import { LightningService } from "../services/lightning.js";
+import { TokenTransactionService } from "../services/token-transactions.js";
+import type { LeafKeyTweak } from "../services/transfer.js";
+import { TransferService } from "../services/transfer.js";
 import {
   DepositAddressTree,
   TreeCreationService,
-} from "./services/tree-creation.js";
+} from "../services/tree-creation.js";
 import {
   ConfigOptions,
   ELECTRS_CREDENTIALS,
-} from "./services/wallet-config.js";
+} from "../services/wallet-config.js";
 import {
   applyAdaptorToSignature,
   generateAdaptorFromSignature,
   generateSignatureFromExistingAdaptor,
-} from "./utils/adaptor-signature.js";
+} from "../utils/adaptor-signature.js";
 import {
   computeTaprootKeyNoScript,
   getP2WPKHAddressFromPublicKey,
@@ -77,95 +75,47 @@ import {
   getTxFromRawTxBytes,
   getTxFromRawTxHex,
   getTxId,
-} from "./utils/bitcoin.js";
+} from "../utils/bitcoin.js";
 import {
   getNetwork,
   LRC_WALLET_NETWORK,
   LRC_WALLET_NETWORK_TYPE,
   Network,
   NetworkToProto,
-} from "./utils/network.js";
-import { calculateAvailableTokenAmount } from "./utils/token-transactions.js";
-import { getNextTransactionSequence } from "./utils/transaction.js";
+} from "../utils/network.js";
+import { calculateAvailableTokenAmount } from "../utils/token-transactions.js";
+import { getNextTransactionSequence } from "../utils/transaction.js";
 
 import { LRCWallet } from "@buildonspark/lrc20-sdk";
-import type { Tracer } from "@opentelemetry/api";
 import { EventEmitter } from "eventemitter3";
 import {
   decodeSparkAddress,
   encodeSparkAddress,
   SparkAddressFormat,
-} from "./address/index.js";
-import { isReactNative } from "./constants.js";
-import { SparkSigner } from "./signer/signer.js";
-import { BitcoinFaucet } from "./tests/utils/test-faucet.js";
+} from "../address/index.js";
+import { isReactNative } from "../constants.js";
+import { SparkSigner } from "../signer/signer.js";
+import { BitcoinFaucet } from "../tests/utils/test-faucet.js";
 import {
   mapTransferToWalletTransfer,
   mapTreeNodeToWalletLeaf,
   WalletLeaf,
   WalletTransfer,
-} from "./types/sdk-types.js";
-import { getMasterHDKeyFromSeed } from "./utils/index.js";
-import { chunkArray } from "./utils/chunkArray.js";
-
-export type CreateLightningInvoiceParams = {
-  amountSats: number;
-  memo?: string;
-  expirySeconds?: number;
-};
-
-export type PayLightningInvoiceParams = {
-  invoice: string;
-  maxFeeSats: number;
-};
-
-export type TransferParams = {
-  amountSats: number;
-  receiverSparkAddress: string;
-};
-
-type DepositParams = {
-  signingPubKey: Uint8Array;
-  verifyingKey: Uint8Array;
-  depositTx: Transaction;
-  vout: number;
-};
-
-export type TokenInfo = {
-  tokenPublicKey: string;
-  tokenName: string;
-  tokenSymbol: string;
-  tokenDecimals: number;
-  maxSupply: bigint;
-};
-
-export type InitWalletResponse = {
-  mnemonic?: string | undefined;
-};
-export interface SparkWalletProps {
-  mnemonicOrSeed?: Uint8Array | string;
-  accountNumber?: number;
-  signer?: SparkSigner;
-  options?: ConfigOptions;
-}
-
-export interface SparkWalletEvents {
-  /** Emitted when an incoming transfer is successfully claimed. Includes the transfer ID and new total balance. */
-  "transfer:claimed": (transferId: string, updatedBalance: number) => void;
-  /** Emitted when a deposit is marked as available. Includes the deposit ID and new total balance. */
-  "deposit:confirmed": (depositId: string, updatedBalance: number) => void;
-  /** Emitted when the stream is connected */
-  "stream:connected": () => void;
-  /** Emitted when the stream disconnects and fails to reconnect after max attempts */
-  "stream:disconnected": (reason: string) => void;
-  /** Emitted when attempting to reconnect the stream */
-  "stream:reconnecting": (
-    attempt: number,
-    maxAttempts: number,
-    delayMs: number,
-    error: string,
-  ) => void;
-}
+} from "../types/sdk-types.js";
+import { chunkArray } from "../utils/chunkArray.js";
+import { getCrypto } from "../utils/crypto.js";
+import { getMasterHDKeyFromSeed } from "../utils/index.js";
+import type {
+  CreateLightningInvoiceParams,
+  PayLightningInvoiceParams,
+  TransferParams,
+  DepositParams,
+  TokenInfo,
+  InitWalletResponse,
+  SparkWalletProps,
+  SparkWalletEvents,
+} from "./types.js";
+import { SigningService } from "../services/signing.js";
 
 /**
  * The SparkWallet class is the primary interface for interacting with the Spark network.
@@ -173,8 +123,6 @@ export interface SparkWalletEvents {
  * and interacting with the Lightning Network.
  */
 export class SparkWallet extends EventEmitter {
-  private tracer: Tracer | null = null;
-
   protected config: WalletConfigService;
 
   protected connectionManager: ConnectionManager;
@@ -215,110 +163,8 @@ export class SparkWallet extends EventEmitter {
     fn: (...args: any[]) => Promise<T>,
   ): (...args: any[]) => Promise<T> {
     return async (...args: any[]): Promise<T> => {
-      if (!this.tracer) {
-        throw new Error("Tracer not initialized");
-      }
-
-      return await this.tracer.startActiveSpan(name, async (span) => {
-        const traceId = span.spanContext().traceId;
-        try {
-          return await fn(...args);
-        } catch (error) {
-          if (error instanceof Error) {
-            error.message += ` [traceId: ${traceId}]`;
-          } else if (typeof error === "object" && error !== null) {
-            (error as any).traceId = traceId;
-          }
-          throw error;
-        } finally {
-          span.end();
-        }
-      });
+      return await fn(...args);
     };
-  }
-
-  protected async initializeTracer(tracerName: string) {
-    const { trace, propagation, context } = await import("@opentelemetry/api");
-    const { W3CTraceContextPropagator } = await import("@opentelemetry/core");
-    const { AsyncLocalStorageContextManager } = await import(
-      "@opentelemetry/context-async-hooks"
-    );
-    const { BasicTracerProvider } = await import(
-      "@opentelemetry/sdk-trace-base"
-    );
-
-    trace.setGlobalTracerProvider(new BasicTracerProvider());
-    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
-    context.setGlobalContextManager(new AsyncLocalStorageContextManager());
-
-    this.tracer = trace.getTracer(tracerName);
-  }
-
-  private wrapSparkWalletWithTracing() {
-    this.getIdentityPublicKey = this.wrapWithOtelSpan(
-      "SparkWallet.getIdentityPublicKey",
-      this.getIdentityPublicKey.bind(this),
-    );
-    this.getSparkAddress = this.wrapWithOtelSpan(
-      "SparkWallet.getSparkAddress",
-      this.getSparkAddress.bind(this),
-    );
-    this.getSwapFeeEstimate = this.wrapWithOtelSpan(
-      "SparkWallet.getSwapFeeEstimate",
-      this.getSwapFeeEstimate.bind(this),
-    );
-    this.getTransfers = this.wrapWithOtelSpan(
-      "SparkWallet.getTransfers",
-      this.getTransfers.bind(this),
-    );
-    this.getTokenInfo = this.wrapWithOtelSpan(
-      "SparkWallet.getTokenInfo",
-      this.getTokenInfo.bind(this),
-    );
-    this.getBalance = this.wrapWithOtelSpan(
-      "SparkWallet.getBalance",
-      this.getBalance.bind(this),
-    );
-    this.getSingleUseDepositAddress = this.wrapWithOtelSpan(
-      "SparkWallet.getSingleUseDepositAddress",
-      this.getSingleUseDepositAddress.bind(this),
-    );
-    this.getUnusedDepositAddresses = this.wrapWithOtelSpan(
-      "SparkWallet.getUnusedDepositAddresses",
-      this.getUnusedDepositAddresses.bind(this),
-    );
-    this.claimDeposit = this.wrapWithOtelSpan(
-      "SparkWallet.claimDeposit",
-      this.claimDeposit.bind(this),
-    );
-    this.advancedDeposit = this.wrapWithOtelSpan(
-      "SparkWallet.advancedDeposit",
-      this.advancedDeposit.bind(this),
-    );
-    this.transfer = this.wrapWithOtelSpan(
-      "SparkWallet.transfer",
-      this.transfer.bind(this),
-    );
-    this.createLightningInvoice = this.wrapWithOtelSpan(
-      "SparkWallet.createLightningInvoice",
-      this.createLightningInvoice.bind(this),
-    );
-    this.payLightningInvoice = this.wrapWithOtelSpan(
-      "SparkWallet.payLightningInvoice",
-      this.payLightningInvoice.bind(this),
-    );
-    this.getLightningSendFeeEstimate = this.wrapWithOtelSpan(
-      "SparkWallet.getLightningSendFeeEstimate",
-      this.getLightningSendFeeEstimate.bind(this),
-    );
-    this.withdraw = this.wrapWithOtelSpan(
-      "SparkWallet.withdraw",
-      this.withdraw.bind(this),
-    );
-    this.getWithdrawalFeeEstimate = this.wrapWithOtelSpan(
-      "SparkWallet.getWithdrawalFeeEstimate",
-      this.getWithdrawalFeeEstimate.bind(this),
-    );
   }
 
   protected constructor(options?: ConfigOptions, signer?: SparkSigner) {
@@ -825,11 +671,6 @@ export class SparkWallet extends EventEmitter {
       LRC_WALLET_NETWORK_TYPE[network],
       this.config.lrc20ApiConfig,
     );
-
-    if (isNode) {
-      await this.initializeTracer(this.tracerId);
-      this.wrapSparkWalletWithTracing();
-    }
 
     return {
       mnemonic,
@@ -1538,12 +1379,18 @@ export class SparkWallet extends EventEmitter {
       })),
     );
 
-    const transfer = await this.transferService.sendTransfer(
+    const transfer = await this.transferService.sendTransferWithKeyTweaks(
       leafKeyTweaks,
       await this.config.signer.getIdentityPublicKey(),
     );
 
-    const resultNodes = await this.claimTransfer(transfer);
+    const pendingTransfer = await this.transferService.queryTransfer(
+      transfer.id,
+    );
+
+    const resultNodes = !pendingTransfer
+      ? []
+      : await this.claimTransfer(pendingTransfer);
 
     const leavesToRemove = new Set(leaves.map((leaf) => leaf.id));
     this.leaves = [
@@ -1593,8 +1440,11 @@ export class SparkWallet extends EventEmitter {
       this.config.getNetworkType(),
     );
 
+    const signerIdentityPublicKey =
+      await this.config.signer.getIdentityPublicKey();
+
     const isSelfTransfer = equalBytes(
-      await this.config.signer.getIdentityPublicKey(),
+      signerIdentityPublicKey,
       hexToBytes(receiverAddress),
     );
 
@@ -1624,7 +1474,12 @@ export class SparkWallet extends EventEmitter {
 
       // If this is a self-transfer, lets claim it immediately
       if (isSelfTransfer) {
-        await this.claimTransfer(transfer);
+        const transactionId = transfer.id;
+        const pendingTransfer =
+          await this.transferService.queryTransfer(transactionId);
+        if (pendingTransfer) {
+          await this.claimTransfer(pendingTransfer);
+        }
       }
 
       return mapTransferToWalletTransfer(

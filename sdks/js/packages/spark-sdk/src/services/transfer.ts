@@ -662,6 +662,22 @@ export class TransferService extends BaseTransferService {
     return leafPubKeyMap;
   }
 
+  async queryTransfer(transferId: string): Promise<Transfer | undefined> {
+    const sparkClient = await this.connectionManager.createSparkClient(
+      this.config.getCoordinatorAddress(),
+    );
+    const transferResp = await sparkClient.query_all_transfers({
+      participant: {
+        $case: "senderOrReceiverIdentityPublicKey",
+        senderOrReceiverIdentityPublicKey:
+          await this.config.signer.getIdentityPublicKey(),
+      },
+      transferIds: [transferId],
+      network: NetworkToProto[this.config.getNetwork()],
+    });
+    return transferResp.transfers[0];
+  }
+
   async sendTransferSignRefund(
     leaves: LeafKeyTweak[],
     receiverIdentityPubkey: Uint8Array,

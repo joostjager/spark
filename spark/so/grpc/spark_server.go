@@ -301,3 +301,8 @@ func (s *SparkServer) QueryNodesDistribution(ctx context.Context, req *pb.QueryN
 	treeQueryHandler := handler.NewTreeQueryHandler(s.config)
 	return errors.WrapWithGRPCError(treeQueryHandler.QueryNodesDistribution(ctx, req))
 }
+
+func (s *SparkServer) QueryNodesByValue(ctx context.Context, req *pb.QueryNodesByValueRequest) (*pb.QueryNodesByValueResponse, error) {
+	treeQueryHandler := handler.NewTreeQueryHandler(s.config)
+	return errors.WrapWithGRPCError(treeQueryHandler.QueryNodesByValue(ctx, req))
+}

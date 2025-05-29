@@ -898,7 +898,7 @@ func prepareRefundSoSigningJobs(
 		if err != nil {
 			return nil, fmt.Errorf("failed to get next sequence: %v", err)
 		}
-		cpfpRefundTx, _, err := createRefundTxs(nextSequence, &nodeOutPoint, amountSats, receivingPubkey, false)
+		_, cpfpRefundTx, err := createRefundTxs(nextSequence, &nodeOutPoint, amountSats, receivingPubkey, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create refund tx: %v", err)
 		}
