@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
-import { sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
 import {
   applyAdaptorToSignature,
   generateAdaptorFromSignature,

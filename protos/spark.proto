@@ -68,6 +68,7 @@ service SparkService {
 
 
     rpc query_unused_deposit_addresses(QueryUnusedDepositAddressesRequest) returns (QueryUnusedDepositAddressesResponse) {}
+    rpc query_static_deposit_addresses(QueryStaticDepositAddressesRequest) returns (QueryStaticDepositAddressesResponse) {}
 
     rpc subscribe_to_events(SubscribeToEventsRequest) returns (stream SubscribeToEventsResponse) {}
 
@@ -216,6 +217,8 @@ message SigningKeyshare {
     repeated string owner_identifiers = 1;
     // The threshold of the keyshare.
     uint32 threshold = 2;
+    // The public key of the keyshare.
+    bytes public_key = 3;
 }
 
 /**
@@ -1023,6 +1026,13 @@ message QueryUnusedDepositAddressesRequest {
     Network network = 2; // defaults to mainnet when no network is provided.
 }
 
+message QueryStaticDepositAddressesRequest {
+    bytes identity_public_key = 1;
+    Network network = 2; // defaults to mainnet when no network is provided.
+    int64 limit = 4;
+    int64 offset = 5;
+}
+
 message DepositAddressQueryResult {
     string deposit_address = 1;
     bytes user_signing_public_key = 2;
@@ -1031,6 +1041,9 @@ message DepositAddressQueryResult {
 }
 
 message QueryUnusedDepositAddressesResponse {
+    repeated DepositAddressQueryResult deposit_addresses = 1;
+}
+message QueryStaticDepositAddressesResponse {
     repeated DepositAddressQueryResult deposit_addresses = 1;
 }
 

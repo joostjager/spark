@@ -5,9 +5,9 @@ import {
   numberToBytesBE,
 } from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
+import { sha256 } from "@noble/hashes/sha2";
 import { Transaction } from "@scure/btc-signer";
 import { TransactionInput } from "@scure/btc-signer/psbt";
-import { sha256 } from "@scure/btc-signer/utils";
 import * as ecies from "eciesjs";
 import { uuidv7 } from "uuidv7";
 import {
@@ -27,14 +27,14 @@ import {
   QueryTransfersResponse,
   SecretProof,
   SendLeafKeyTweak,
+  SendLeafKeyTweaks,
   SigningJob,
+  StartTransferResponse,
   Transfer,
+  TransferPackage,
   TransferStatus,
   TransferType,
   TreeNode,
-  TransferPackage,
-  SendLeafKeyTweaks,
-  StartTransferResponse,
 } from "../proto/spark.js";
 import { SigningCommitment } from "../signer/signer.js";
 import {
@@ -42,6 +42,7 @@ import {
   getTxFromRawTxBytes,
   getTxId,
 } from "../utils/bitcoin.js";
+import { NetworkToProto } from "../utils/network.js";
 import { VerifiableSecretShare } from "../utils/secret-sharing.js";
 import {
   createRefundTx,
@@ -54,7 +55,6 @@ import { WalletConfigService } from "./config.js";
 import { ConnectionManager } from "./connection.js";
 import { SigningService } from "./signing.js";
 import { SigningOperator } from "./wallet-config.js";
-import { NetworkToProto } from "../utils/network.js";
 const INITIAL_TIME_LOCK = 2000;
 
 const DEFAULT_EXPIRY_TIME = 10 * 60 * 1000;

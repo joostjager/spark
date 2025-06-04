@@ -81,6 +81,7 @@ message MarkKeyshareForDepositAddressResponse {
 
 message FrostRound1Request {
     repeated string keyshare_ids = 1;
+    map<string, bytes> public_keys = 2;
 }
 
 message FrostRound1Response {

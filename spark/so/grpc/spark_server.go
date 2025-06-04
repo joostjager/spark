@@ -271,6 +271,12 @@ func (s *SparkServer) QueryUnusedDepositAddresses(ctx context.Context, req *pb.Q
 	return errors.WrapWithGRPCError(treeQueryHandler.QueryUnusedDepositAddresses(ctx, req))
 }
 
+func (s *SparkServer) QueryStaticDepositAddresses(ctx context.Context, req *pb.QueryStaticDepositAddressesRequest) (*pb.QueryStaticDepositAddressesResponse, error) {
+	ctx, _ = logging.WithIdentityPubkey(ctx, req.IdentityPublicKey)
+	treeQueryHandler := handler.NewTreeQueryHandler(s.config)
+	return errors.WrapWithGRPCError(treeQueryHandler.QueryStaticDepositAddresses(ctx, req))
+}
+
 func (s *SparkServer) QueryBalance(ctx context.Context, req *pb.QueryBalanceRequest) (*pb.QueryBalanceResponse, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.IdentityPublicKey)
 	treeQueryHandler := handler.NewTreeQueryHandler(s.config)

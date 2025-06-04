@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"time"
@@ -162,11 +163,28 @@ func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.Sta
 		// cron job to retry the key commit.
 		err = h.settleSenderKeyTweaks(ctx, req.TransferId, pbinternal.SettleKeyTweakAction_COMMIT)
 		if err == nil {
-			err = h.commitSenderKeyTweaks(ctx, transfer)
+			transfer, err = h.commitSenderKeyTweaks(ctx, transfer)
 			if err != nil {
 				// Too bad, at this point there's a bug where all other SOs has tweaked the key but
 				// the coordinator failed so the fund is lost.
 				return nil, err
+			}
+
+			transferProto, err = transfer.MarshalProto(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal transfer: %w", err)
+			}
+
+			eventRouter := events.GetDefaultRouter()
+			err = eventRouter.NotifyUser(req.ReceiverIdentityPublicKey, &pb.SubscribeToEventsResponse{
+				Event: &pb.SubscribeToEventsResponse_Transfer{
+					Transfer: &pb.TransferEvent{
+						Transfer: transferProto,
+					},
+				},
+			})
+			if err != nil {
+				logger.Error("failed to notify user about transfer event", "error", err, "identity_public_key", logging.Pubkey{Pubkey: transfer.ReceiverIdentityPubkey})
 			}
 		}
 	}
@@ -250,7 +268,6 @@ func (h *TransferHandler) syncTransferInit(ctx context.Context, req *pb.StartTra
 		transferTypeKey.String(string(transferType)),
 	))
 	defer span.End()
-
 	leaves := make([]*pbinternal.InitiateTransferLeaf, 0)
 	for _, leaf := range req.LeavesToSend {
 		leaves = append(leaves, &pbinternal.InitiateTransferLeaf{
@@ -468,7 +485,9 @@ func aggregateSignatures(
 	for _, userSignedRefund := range userSignedRefunds {
 		userRefundMap[userSignedRefund.LeafId] = userSignedRefund
 	}
+	logger := logging.GetLoggerFromContext(ctx)
 	for leafID, signingResult := range signingResultMap {
+		logger.Info("aggregating frost signature", "leaf_id", leafID, "signing_msg", hex.EncodeToString(signingResult.Message))
 		userSignedRefund := userRefundMap[leafID]
 		leaf := leafMap[leafID]
 		signatureResult, err := frostClient.AggregateFrost(ctx, &pbfrost.AggregateFrostRequest{
@@ -1416,6 +1435,8 @@ func (h *TransferHandler) ResumeSendTransfer(ctx context.Context, transfer *ent.
 	ctx, span := tracer.Start(ctx, "TransferHandler.ResumeSendTransfer")
 	defer span.End()
 
+	logger := logging.GetLoggerFromContext(ctx)
+
 	if transfer.Status != schema.TransferStatusSenderInitiatedCoordinator {
 		// Noop
 		return nil
@@ -1424,11 +1445,29 @@ func (h *TransferHandler) ResumeSendTransfer(ctx context.Context, transfer *ent.
 	err := h.settleSenderKeyTweaks(ctx, transfer.ID.String(), pbinternal.SettleKeyTweakAction_COMMIT)
 	if err == nil {
 		// If there's no error, it means all SOs have tweaked the key. The coordinator can tweak the key here.
-		return h.commitSenderKeyTweaks(ctx, transfer)
+		transfer, err = h.commitSenderKeyTweaks(ctx, transfer)
+		if err != nil {
+			return err
+		}
+		transferProto, err := transfer.MarshalProto(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to marshal transfer %s: %w", transfer.ID.String(), err)
+		}
+
+		eventRouter := events.GetDefaultRouter()
+		err = eventRouter.NotifyUser(transfer.ReceiverIdentityPubkey, &pb.SubscribeToEventsResponse{
+			Event: &pb.SubscribeToEventsResponse_Transfer{
+				Transfer: &pb.TransferEvent{
+					Transfer: transferProto,
+				},
+			},
+		})
+		if err != nil {
+			logger.Error("failed to notify user about transfer event", "error", err, "identity_public_key", logging.Pubkey{Pubkey: transfer.ReceiverIdentityPubkey})
+		}
 	}
 
 	// If there's an error, it means some SOs are not online. We can retry later.
-	logger := logging.GetLoggerFromContext(ctx)
 	logger.Warn("Failed to settle sender key tweaks", "error", err, "transfer_id", transfer.ID.String())
 	return nil
 }

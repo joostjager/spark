@@ -61,6 +61,7 @@ func (keyshare *SigningKeyshare) MarshalProto() *pb.SigningKeyshare {
 	return &pb.SigningKeyshare{
 		OwnerIdentifiers: ownerIdentifiers,
 		Threshold:        uint32(keyshare.MinSigners),
+		PublicKey:        keyshare.PublicKey,
 	}
 }
 

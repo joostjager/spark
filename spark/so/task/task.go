@@ -99,39 +99,59 @@ func AllTasks() []Task {
 			Task: func(ctx context.Context, _ *so.Config, _ *lrc20.Client) error {
 				logger := logging.GetLoggerFromContext(ctx)
 				tx := ent.GetDbFromContext(ctx)
-				query := tx.Tree.Query().Where(
-					tree.And(
-						tree.StatusEQ(schema.TreeStatusPending),
-						tree.CreateTimeLTE(time.Now().Add(-5*24*time.Hour)),
+
+				// Find tree nodes that are:
+				// 1. Older than 5 days
+				// 2. Have status "CREATING"
+				// 3. Belong to trees with status "PENDING"
+				query := tx.TreeNode.Query().Where(
+					treenode.And(
+						treenode.StatusEQ(schema.TreeNodeStatusCreating),
+						treenode.CreateTimeLTE(time.Now().Add(-5*24*time.Hour)),
+						treenode.HasTreeWith(tree.StatusEQ(schema.TreeStatusPending)),
 					),
 				)
 
-				trees, err := query.All(ctx)
+				treeNodes, err := query.All(ctx)
 				if err != nil {
-					logger.Error("failed to query trees", "error", err)
+					logger.Error("failed to query tree nodes", "error", err)
 					return err
 				}
 
-				if len(trees) == 0 {
-					logger.Info("Found no stale trees.")
+				if len(treeNodes) == 0 {
+					logger.Info("Found no stale tree nodes.")
 					return nil
 				}
 
-				treeIDs := make([]uuid.UUID, len(trees))
-				for i, tree := range trees {
-					treeIDs[i] = tree.ID
+				// Get Tree IDs + Tree Node IDs from results
+				treeIDSet := make(map[uuid.UUID]bool)
+				treeNodeIDs := []uuid.UUID{}
+				for _, node := range treeNodes {
+					treeIDSet[node.Edges.Tree.ID] = true
+					treeNodeIDs = append(treeNodeIDs, node.ID)
+				}
+				treeIDs := make([]uuid.UUID, 0, len(treeIDSet))
+				for id := range treeIDSet {
+					treeIDs = append(treeIDs, id)
 				}
 
-				// Log the trees that will be deleted
-				logger.Info(fmt.Sprintf("Deleting %d trees with pending status older than 5 days: %v", len(treeIDs), treeIDs))
+				// Log the tree nodes and trees that will be deleted
+				logger.Info("Deleting tree nodes with CREATING status older than 5 days.", "numTreeNodes", len(treeNodes), "numTrees", len(treeIDs))
 
-				numDeleted, err := tx.TreeNode.Delete().Where(treenode.HasTreeWith(tree.IDIn(treeIDs...))).Exec(ctx)
+				// Delete the tree nodes
+				numDeleted, err := tx.TreeNode.Delete().Where(
+					treenode.IDIn(treeNodeIDs...),
+				).Exec(ctx)
 				if err != nil {
 					logger.Error("failed to delete tree nodes", "error", err)
 					return err
 				}
 				logger.Info(fmt.Sprintf("Deleted %d tree nodes.", numDeleted))
-				numDeleted, err = tx.Tree.Delete().Where(tree.IDIn(treeIDs...)).Exec(ctx)
+
+				// Delete the associated trees
+				numDeleted, err = tx.Tree.Delete().Where(
+					tree.IDIn(treeIDs...),
+				).Exec(ctx)
 				if err != nil {
 					logger.Error("failed to delete trees", "error", err)
 					return err
@@ -246,7 +266,6 @@ func (t *Task) Schedule(scheduler gocron.Scheduler, config *so.Config, db *ent.C
 	return nil
 }
 
-// TODO(mhr): Refactor this as proper middleware.
 func (t *Task) createWrappedTask() func(context.Context, *so.Config, *ent.Client, *lrc20.Client) error {
 	return func(ctx context.Context, config *so.Config, db *ent.Client, lrc20Client *lrc20.Client) error {
 		logger := logging.GetLoggerFromContext(ctx).
@@ -282,6 +301,8 @@ func (t *Task) createWrappedTask() func(context.Context, *so.Config, *ent.Client
 			return tx.Commit()
 		}
 
+		logger.Info("Starting task")
+
 		go func() {
 			done <- inner(ctx, config, lrc20Client)
 		}()
@@ -290,7 +311,7 @@ func (t *Task) createWrappedTask() func(context.Context, *so.Config, *ent.Client
 		case err := <-done:
 			return err
 		case <-ctx.Done():
-			if ctx.Err() == errTaskTimeout {
+			if context.Cause(ctx) == errTaskTimeout {
 				logger.Warn("Task timed out!")
 				return ctx.Err()
 			}
@@ -317,12 +338,24 @@ type Monitor struct {
 func NewMonitor() (*Monitor, error) {
 	meter := otel.Meter("gocron")
 
-	jobCount, err := meter.Int64Counter("gocron.task_count_total", metric.WithDescription("Total number of tasks executed"))
+	jobCount, err := meter.Int64Counter(
+		"gocron.task_count_total",
+		metric.WithDescription("Total number of tasks executed"),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task count metric: %w", err)
 	}
 
-	jobDuration, err := meter.Float64Histogram("gocron.task_duration_seconds", metric.WithDescription("Duration of tasks in seconds."))
+	jobDuration, err := meter.Float64Histogram(
+		"gocron.task_duration_milliseconds",
+		metric.WithDescription("Duration of tasks in milliseconds."),
+		metric.WithUnit("ms"),
+		metric.WithExplicitBucketBoundaries(
+			// Replace the buckets at the lower end (e.g. 5, 10, 25, 50, 75ms) with buckets up to 60s, to
+			// capture the longer task durations.
+			100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000, 15000, 30000, 45000, 60000,
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task duration metric: %w", err)
 	}
@@ -345,10 +378,10 @@ func (t *Monitor) IncrementJob(_ uuid.UUID, name string, _ []string, status gocr
 }
 
 func (t *Monitor) RecordJobTiming(startTime, endTime time.Time, _ uuid.UUID, name string, _ []string) {
-	duration := endTime.Sub(startTime).Seconds()
+	duration := endTime.Sub(startTime).Milliseconds()
 	t.taskDuration.Record(
 		context.Background(),
-		duration,
+		float64(duration),
 		metric.WithAttributes(
 			attribute.String("task.name", name),
 		),

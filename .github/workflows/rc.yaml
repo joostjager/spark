@@ -8,8 +8,80 @@ on:
   schedule:
     - cron: "0 * * * *"
 
+
+
 jobs:
+  pick-sha:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      git_sha: ${{ steps.find-image-tag.outputs.git_sha }}
+      tag: ${{ steps.find-image-tag.outputs.tag }}
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+      - name: "Configure AWS credentials"
+        uses: "aws-actions/configure-aws-credentials@v4"
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_DEV }}:role/github-actions-spark"
+          aws-region: "us-west-2"
+      - name: "Log into ECR"
+        id: ecr-login
+        uses: "aws-actions/amazon-ecr-login@v2"
+      - name: "Find latest SO ECR image and associated SHA"
+        id: find-image-tag
+        run: |
+          COMMITS=$(git rev-list HEAD | cut -c 1-8)
+
+          SO_IMAGES=$(aws ecr describe-images \
+              --filter tagStatus="TAGGED" \
+              --repository-name=spark-go \
+              --max-items 1000 \
+              --query 'reverse(sort_by(imageDetails || `[]`, &imagePushedAt))[].imageTags[]' \
+              --output json | grep -E '"git_[0-9a-f]{8}"' -o | sed 's/"git_\([0-9a-f]*\)"/\1/g')
+
+          for hash in $SO_IMAGES; do
+              if echo "$COMMITS" 2>/dev/null | grep -q "^$hash$"; then
+                  echo "git_sha=$hash" >> $GITHUB_OUTPUT
+                  echo "tag=git_$hash" >> $GITHUB_OUTPUT
+                  echo "Found SO image git_$hash"
+                  exit 0
+              fi
+          done
+
+          exit 1
+
+  ecr-tag-rc:
+    needs: ["pick-sha"]
+    runs-on: "ubuntu-latest"
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+      - name: "Configure AWS credentials"
+        uses: "aws-actions/configure-aws-credentials@v4"
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_DEV }}:role/github-actions-spark"
+          aws-region: "us-west-2"
+      - name: "Log into ECR"
+        id: ecr-login
+        uses: "aws-actions/amazon-ecr-login@v2"
+
+      - name: Copy tag to RC tag
+        run: |
+          skopeo copy --all docker://${{ steps.ecr-login.outputs.registry }}/spark-go:${{ needs.pick-sha.outputs.tag }} docker://${{ steps.ecr-login.outputs.registry }}/spark-go:rc
+
+
   loadtest:
+    needs: ["ecr-tag-rc"]
     runs-on: "self-hosted"
     permissions:
       id-token: write
@@ -30,13 +102,17 @@ jobs:
         run: "aws --region us-west-2 eks update-kubeconfig --name loadtest"
 
       - name: "Restart pods"
-        run: "kubectl -n spark rollout restart sts/spark"
+        run: |
+          kubectl -n spark rollout restart sts/spark
+          kubectl -n yuv rollout restart sts/regtest-yuvd sts/mainnet-yuvd
       - name: "Check pod status"
         run: |
           for i in `seq 12`; do
             sleep 10s
             date
             kubectl -n spark get pods -l 'app.kubernetes.io/name=spark' -o jsonpath='{range .items[*]}{.metadata.name} {.status.phase} {.status.conditions[?(@.type=="Ready")].status}{ "\n"}{end}' | grep -v 'spark-db-backup' | grep -v ' Running True$' | tee /tmp/status
+            # TODO(mhr): Remove `app.kubernetes.io/instance=regtest` once mainnet is fixed (LPT-381).
+            kubectl -n yuv get pods -l 'app.kubernetes.io/name=yuvd,app.kubernetes.io/instance=regtest' -o jsonpath='{range .items[*]}{.metadata.name} {.status.phase} {.status.conditions[?(@.type=="Ready")].status}{ "\n"}{end}' | grep -v ' Running True$' | tee -a /tmp/status
             if [ ! -s /tmp/status ]; then break; fi
           done
           if [ -s /tmp/status ]; then exit 1; fi

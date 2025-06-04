@@ -136,8 +136,9 @@ func TestTreeQuery(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, resp.Nodes, 1)
-		_, exists := resp.Nodes[leafNode.Id]
+		node, exists := resp.Nodes[leafNode.Id]
 		require.True(t, exists)
+		require.Greater(t, len(node.SigningKeyshare.PublicKey), 0)
 	})
 
 	t.Run("query by node id with parents", func(t *testing.T) {

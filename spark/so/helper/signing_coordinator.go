@@ -56,7 +56,7 @@ func (s *SigningResult) MarshalProto() (*pbspark.SigningResult, error) {
 }
 
 // frostRound1 performs the first round of the Frost signing. It gathers the signing commitments from all operators.
-func frostRound1(ctx context.Context, config *so.Config, signingKeyshareIDs []uuid.UUID, operatorSelection *OperatorSelection) (map[string][]objects.SigningCommitment, error) {
+func frostRound1(ctx context.Context, config *so.Config, signingKeyshareIDs []uuid.UUID, operatorSelection *OperatorSelection, publicKeyMap map[string][]byte) (map[string][]objects.SigningCommitment, error) {
 	return ExecuteTaskWithAllOperators(ctx, config, operatorSelection, func(ctx context.Context, operator *so.SigningOperator) ([]objects.SigningCommitment, error) {
 		conn, err := operator.NewGRPCConnection()
 		if err != nil {
@@ -72,6 +72,7 @@ func frostRound1(ctx context.Context, config *so.Config, signingKeyshareIDs []uu
 		client := pbinternal.NewSparkInternalServiceClient(conn)
 		response, err := client.FrostRound1(ctx, &pbinternal.FrostRound1Request{
 			KeyshareIds: keyshareIDs,
+			PublicKeys:  publicKeyMap,
 		})
 		if err != nil {
 			return nil, err
@@ -248,10 +249,14 @@ func SignFrost(
 	selection := OperatorSelection{Option: OperatorSelectionOptionThreshold, Threshold: int(config.Threshold)}
 	signingKeyshareIDs := SigningKeyshareIDsFromSigningJobs(jobs)
 	signingKeyshares, err := ent.GetKeyPackages(ctx, config, signingKeyshareIDs)
+	publicKeyMap := make(map[string][]byte)
+	for _, id := range signingKeyshareIDs {
+		publicKeyMap[id.String()] = signingKeyshares[id].PublicKey
+	}
 	if err != nil {
 		return nil, err
 	}
-	round1, err := frostRound1(ctx, config, signingKeyshareIDs, &selection)
+	round1, err := frostRound1(ctx, config, signingKeyshareIDs, &selection, publicKeyMap)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +341,15 @@ func prepareResults(
 // GetSigningCommitments gets the signing commitments for the given keyshare ids.
 func GetSigningCommitments(ctx context.Context, config *so.Config, keyshareIDs []uuid.UUID) (map[string][]objects.SigningCommitment, error) {
 	selection := OperatorSelection{Option: OperatorSelectionOptionThreshold, Threshold: int(config.Threshold)}
-	round1, err := frostRound1(ctx, config, keyshareIDs, &selection)
+	signingKeyshares, err := ent.GetKeyPackages(ctx, config, keyshareIDs)
+	if err != nil {
+		return nil, err
+	}
+	publicKeyMap := make(map[string][]byte)
+	for _, id := range keyshareIDs {
+		publicKeyMap[id.String()] = signingKeyshares[id].PublicKey
+	}
+	round1, err := frostRound1(ctx, config, keyshareIDs, &selection, make(map[string][]byte))
 	if err != nil {
 		return nil, err
 	}

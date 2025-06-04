@@ -6,7 +6,7 @@ import {
   Query,
   Requester,
 } from "@lightsparkdev/core";
-import { sha256 } from "@noble/hashes/sha256";
+import { sha256 } from "@noble/hashes/sha2";
 import { AuthenticationError, NetworkError } from "../errors/index.js";
 import { SparkSigner } from "../signer/signer.js";
 import { CompleteCoopExit } from "./mutations/CompleteCoopExit.js";

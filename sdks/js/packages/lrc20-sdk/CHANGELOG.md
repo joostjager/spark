@@ -1,5 +1,18 @@
 # @buildonspark/lrc20-sdk
 
+## 0.0.53
+
+### Patch Changes
+
+- Fixes
+
+## 0.0.52
+
+### Patch Changes
+
+- - Proto files for lrc20 monitoring operations have been moved to @buildonspark/issuer-sdk/proto/lrc20
+  - The monitoring operations have been modified to accept either strings or enums, generated from protos
+
 ## 0.0.51
 
 ### Patch Changes

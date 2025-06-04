@@ -18,6 +18,22 @@ describe("deposit", () => {
     expect(depositAddress).toBeDefined();
   }, 30000);
 
+  it("should generate a staticdeposit address", async () => {
+    const { wallet: sdk } = await SparkWalletTesting.initialize({
+      options: {
+        network: "LOCAL",
+      },
+    });
+
+    const depositAddress = await sdk.getStaticDepositAddress();
+
+    expect(depositAddress).toBeDefined();
+
+    // Verify that static deposit addresses don't appear in unused deposit addresses
+    const unusedDepositAddresses = await sdk.getUnusedDepositAddresses();
+    expect(unusedDepositAddresses).toHaveLength(0);
+  }, 30000);
+
   it("should create a tree root", async () => {
     const faucet = BitcoinFaucet.getInstance();
 

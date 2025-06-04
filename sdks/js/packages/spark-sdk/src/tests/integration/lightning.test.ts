@@ -1,14 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it } from "@jest/globals";
 import { hexToBytes } from "@noble/curves/abstract/utils";
-import { equalBytes, sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
+import { equalBytes } from "@scure/btc-signer/utils";
 import LightningReceiveRequest from "../../graphql/objects/LightningReceiveRequest.js";
 import { TransferStatus } from "../../proto/spark.js";
 import { WalletConfigService } from "../../services/config.js";
 import { ConnectionManager } from "../../services/connection.js";
 import { LightningService } from "../../services/lightning.js";
-import { TransferService } from "../../services/transfer.js";
 import { SigningService } from "../../services/signing.js";
 import type { LeafKeyTweak } from "../../services/transfer.js";
+import { TransferService } from "../../services/transfer.js";
 import {
   BitcoinNetwork,
   CurrencyUnit,

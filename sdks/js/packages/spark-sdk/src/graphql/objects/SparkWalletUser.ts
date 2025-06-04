@@ -1,43 +1,45 @@
-
 // Copyright ©, 2023-present, Lightspark Group, Inc. - All Rights Reserved
 
-import Entity from './Entity.js';
-import SparkWalletUserToUserRequestsConnection from './SparkWalletUserToUserRequestsConnection.js';
-import SparkUserRequestType from './SparkUserRequestType.js';
-import BitcoinNetwork from './BitcoinNetwork.js';
-import { Query, isObject } from '@lightsparkdev/core';
-import SparkUserRequestStatus from './SparkUserRequestStatus.js';
-import autoBind from '../../auto-bind.js';
+import { Query, isObject } from "@lightsparkdev/core";
+import autoBind from "../../auto-bind.js";
 import LightsparkClient from "../client.js";
-import {SparkWalletUserToUserRequestsConnectionFromJson} from './SparkWalletUserToUserRequestsConnection.js';
-
+import BitcoinNetwork from "./BitcoinNetwork.js";
+import Entity from "./Entity.js";
+import SparkUserRequestStatus from "./SparkUserRequestStatus.js";
+import SparkUserRequestType from "./SparkUserRequestType.js";
+import SparkWalletUserToUserRequestsConnection, {
+  SparkWalletUserToUserRequestsConnectionFromJson,
+} from "./SparkWalletUserToUserRequestsConnection.js";
 
 class SparkWalletUser implements Entity {
-
-    constructor(
-        
+  constructor(
     /**
- * The unique identifier of this entity across all Lightspark systems. Should be treated as an opaque
- * string.
-**/
-public readonly id: string,
+     * The unique identifier of this entity across all Lightspark systems. Should be treated as an opaque
+     * string.
+     **/
+    public readonly id: string,
     /** The date and time when the entity was first created. **/
-public readonly createdAt: string,
+    public readonly createdAt: string,
     /** The date and time when the entity was last updated. **/
-public readonly updatedAt: string,
+    public readonly updatedAt: string,
     /** The identity public key of the user. **/
-public readonly identityPublicKey: string,
+    public readonly identityPublicKey: string,
     /** The typename of the object **/
-public readonly typename: string,
-    ) {
-        autoBind(this);
-    }
+    public readonly typename: string,
+  ) {
+    autoBind(this);
+  }
 
-
-
-    public async getUserRequests(client: LightsparkClient, first: number|undefined= undefined, after: string|undefined= undefined, types: SparkUserRequestType[]|undefined= undefined, statuses: SparkUserRequestStatus[]|undefined= undefined, networks: BitcoinNetwork[]|undefined= undefined): Promise<SparkWalletUserToUserRequestsConnection> {
-        return (await client.executeRawQuery({
-            queryPayload: ` 
+  public async getUserRequests(
+    client: LightsparkClient,
+    first: number | undefined = undefined,
+    after: string | undefined = undefined,
+    types: SparkUserRequestType[] | undefined = undefined,
+    statuses: SparkUserRequestStatus[] | undefined = undefined,
+    networks: BitcoinNetwork[] | undefined = undefined,
+  ): Promise<SparkWalletUserToUserRequestsConnection> {
+    return (await client.executeRawQuery({
+      queryPayload: ` 
 query FetchSparkWalletUserToUserRequestsConnection($entity_id: ID!, $first: Int, $after: String, $types: [SparkUserRequestType!], $statuses: [SparkUserRequestStatus!], $networks: [BitcoinNetwork!]) {
     entity(id: $entity_id) {
         ... on SparkWalletUser {
@@ -53,6 +55,34 @@ query FetchSparkWalletUserToUserRequestsConnection($entity_id: ID!, $first: Int,
                 }
                 spark_wallet_user_to_user_requests_connection_entities: entities {
                     __typename
+                    ... on ClaimStaticDeposit {
+                        __typename
+                        claim_static_deposit_id: id
+                        claim_static_deposit_created_at: created_at
+                        claim_static_deposit_updated_at: updated_at
+                        claim_static_deposit_network: network
+                        claim_static_deposit_credit_amount: credit_amount {
+                            __typename
+                            currency_amount_original_value: original_value
+                            currency_amount_original_unit: original_unit
+                            currency_amount_preferred_currency_unit: preferred_currency_unit
+                            currency_amount_preferred_currency_value_rounded: preferred_currency_value_rounded
+                            currency_amount_preferred_currency_value_approx: preferred_currency_value_approx
+                        }
+                        claim_static_deposit_max_fee: max_fee {
+                            __typename
+                            currency_amount_original_value: original_value
+                            currency_amount_original_unit: original_unit
+                            currency_amount_preferred_currency_unit: preferred_currency_unit
+                            currency_amount_preferred_currency_value_rounded: preferred_currency_value_rounded
+                            currency_amount_preferred_currency_value_approx: preferred_currency_value_approx
+                        }
+                        claim_static_deposit_status: status
+                        claim_static_deposit_transaction_id: transaction_id
+                        claim_static_deposit_output_index: output_index
+                        claim_static_deposit_bitcoin_network: bitcoin_network
+                        claim_static_deposit_transfer_spark_id: transfer_spark_id
+                    }
                     ... on CoopExitRequest {
                         __typename
                         coop_exit_request_id: id
@@ -231,18 +261,24 @@ query FetchSparkWalletUserToUserRequestsConnection($entity_id: ID!, $first: Int,
     }
 }
 `,
-            variables: {entity_id: this.id, "first": first, "after": after, "types": types, "statuses": statuses, "networks": networks},
-            constructObject: (json) => {
-                const connection = json["entity"]["user_requests"];
-                return SparkWalletUserToUserRequestsConnectionFromJson(connection);
-            }
-        }))!;
-    }
+      variables: {
+        entity_id: this.id,
+        first: first,
+        after: after,
+        types: types,
+        statuses: statuses,
+        networks: networks,
+      },
+      constructObject: (json) => {
+        const connection = json["entity"]["user_requests"];
+        return SparkWalletUserToUserRequestsConnectionFromJson(connection);
+      },
+    }))!;
+  }
 
-
-    static getSparkWalletUserQuery(id: string): Query<SparkWalletUser> {
-        return {
-            queryPayload: `
+  static getSparkWalletUserQuery(id: string): Query<SparkWalletUser> {
+    return {
+      queryPayload: `
 query GetSparkWalletUser($id: ID!) {
     entity(id: $id) {
         ... on SparkWalletUser {
@@ -253,37 +289,36 @@ query GetSparkWalletUser($id: ID!) {
 
 ${FRAGMENT}    
 `,
-            variables: {id},
-            constructObject: (data: unknown) => isObject(data) && "entity" in data && isObject(data.entity) ? SparkWalletUserFromJson(data.entity) : null,
-        }
-    }
+      variables: { id },
+      constructObject: (data: unknown) =>
+        isObject(data) && "entity" in data && isObject(data.entity)
+          ? SparkWalletUserFromJson(data.entity)
+          : null,
+    };
+  }
 
-public toJson() {
-return {
-__typename: "SparkWalletUser",spark_wallet_user_id: this.id,
-spark_wallet_user_created_at: this.createdAt,
-spark_wallet_user_updated_at: this.updatedAt,
-spark_wallet_user_identity_public_key: this.identityPublicKey,
-
-        }
-
-}
+  public toJson() {
+    return {
+      __typename: "SparkWalletUser",
+      spark_wallet_user_id: this.id,
+      spark_wallet_user_created_at: this.createdAt,
+      spark_wallet_user_updated_at: this.updatedAt,
+      spark_wallet_user_identity_public_key: this.identityPublicKey,
+    };
+  }
 }
 
 export const SparkWalletUserFromJson = (obj: any): SparkWalletUser => {
-    return new SparkWalletUser(
-        obj["spark_wallet_user_id"],
-        obj["spark_wallet_user_created_at"],
-        obj["spark_wallet_user_updated_at"],
-        obj["spark_wallet_user_identity_public_key"],
-"SparkWalletUser",
-        );
+  return new SparkWalletUser(
+    obj["spark_wallet_user_id"],
+    obj["spark_wallet_user_created_at"],
+    obj["spark_wallet_user_updated_at"],
+    obj["spark_wallet_user_identity_public_key"],
+    "SparkWalletUser",
+  );
+};
 
-}
-
-
-
-    export const FRAGMENT = `
+export const FRAGMENT = `
 fragment SparkWalletUserFragment on SparkWalletUser {
     __typename
     spark_wallet_user_id: id
@@ -291,8 +326,5 @@ fragment SparkWalletUserFragment on SparkWalletUser {
     spark_wallet_user_updated_at: updated_at
     spark_wallet_user_identity_public_key: identity_public_key
 }`;
-
-
-
 
 export default SparkWalletUser;

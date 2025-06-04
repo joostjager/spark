@@ -1,9 +1,8 @@
 import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
 
-import { Lrc20Protos } from "@buildonspark/lrc20-sdk";
 import { createSparkRouter } from "./sparkRoutes.js";
 import { isError } from "@lightsparkdev/core";
-import { hexToBytes } from "@noble/curves/abstract/utils";
+import { ListAllTokenTransactionsCursor } from "@buildonspark/issuer-sdk/proto/lrc20";
 
 const ISSUER_MNEMONIC_PATH = ".issuer-mnemonic";
 
@@ -74,7 +73,7 @@ router.get(
  * @param {number} [pageSize = 20] - The number of transactions to return
  * @param {string} [lastTransactionHash] - The hash of the last transaction as a hex string
  * @param {string} [layer] - The layer of the last transaction "L1" or "SPARK"
- * @param {Lrc20Protos.ListAllTokenTransactionsCursor} cursor - The cursor to start from
+ * @param {ListAllTokenTransactionsCursor} cursor - The cursor to start from
  * @returns {Promise<{
  *   data: {
  *     transactions: Transaction[]
@@ -88,21 +87,12 @@ router.get(
   async (req, res) => {
     const {
       pageSize = 20,
-      lastTransactionHash,
-      layer,
+      cursor,
     } = req.query as {
       pageSize: number | undefined;
-      lastTransactionHash: string | undefined;
-      layer: string | undefined;
+      cursor: ListAllTokenTransactionsCursor | undefined;
     };
     const wallet = getWallet() as IssuerSparkWallet;
-    const cursor =
-      lastTransactionHash && layer
-        ? {
-            lastTransactionHash: hexToBytes(lastTransactionHash),
-            layer: Lrc20Protos.Layer[layer as keyof typeof Lrc20Protos.Layer],
-          }
-        : undefined;
     try {
       const tokenActivity = await wallet!.getIssuerTokenActivity(
         Number(pageSize),
@@ -141,21 +131,12 @@ router.get(
   async (req, res) => {
     const {
       pageSize = 20,
-      lastTransactionHash,
-      layer,
+      cursor,
     } = req.query as {
       pageSize: number | undefined;
-      lastTransactionHash: string | undefined;
-      layer: string | undefined;
+      cursor: ListAllTokenTransactionsCursor | undefined;
     };
     const wallet = getWallet() as IssuerSparkWallet;
-    const cursor =
-      lastTransactionHash && layer
-        ? {
-            lastTransactionHash: hexToBytes(lastTransactionHash),
-            layer: Lrc20Protos.Layer[layer as keyof typeof Lrc20Protos.Layer],
-          }
-        : undefined;
     try {
       const issuerTokenActivity = await wallet!.getIssuerTokenActivity(
         pageSize ? Number(pageSize) : undefined,

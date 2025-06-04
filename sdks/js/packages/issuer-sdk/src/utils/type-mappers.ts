@@ -1,15 +1,13 @@
-import {
-  ListAllTokenTransactionsResponse,
-  TokenPubkeyInfo,
-} from "@buildonspark/lrc20-sdk";
-import { GetTokenActivityResponse, TokenPubKeyInfoResponse } from "../types.js";
+import { TokenPubkeyInfo } from "@buildonspark/lrc20-sdk";
+import { TokenActivityResponse, TokenPubKeyInfoResponse } from "../types.js";
 import { bytesToHex, bytesToNumberBE } from "@noble/curves/abstract/utils";
 import {
-  mapOperationType,
-  mapOnChainTransactionStatus,
-  mapSparkTransactionStatus,
-  mapLayer,
-} from "./enum-mappers.js";
+  ListAllTokenTransactionsResponse,
+  OperationType,
+  OnChainTransactionStatus,
+  SparkTransactionStatus,
+  Layer,
+} from "@buildonspark/spark-sdk/proto/lrc20";
 
 export function convertToTokenPubKeyInfoResponse(
   tokenPubkeyInfo: TokenPubkeyInfo,
@@ -31,10 +29,16 @@ export function convertToTokenPubKeyInfoResponse(
   };
 }
 
-export function convertTokenActivityToHexEncoded(
+/**
+ * Converts a ListAllTokenTransactionsResponse to a TokenActivityResponse
+ * Main purpose is to convert Uint8Arrays to hex strings
+ * @param rawTransactions - The ListAllTokenTransactionsResponse to convert
+ * @returns The converted TokenActivityResponse
+ */
+export function convertToTokenActivity(
   rawTransactions: ListAllTokenTransactionsResponse,
-): GetTokenActivityResponse {
-  const response: GetTokenActivityResponse = {
+): TokenActivityResponse {
+  const response: TokenActivityResponse = {
     transactions: rawTransactions.transactions.map((transaction) => {
       if (!transaction.transaction) {
         return { transaction: undefined };
@@ -46,10 +50,10 @@ export function convertTokenActivityToHexEncoded(
           transaction: {
             $case: "onChain",
             onChain: {
-              operationType: mapOperationType(onChain.operationType),
+              operationType: getEnumName(OperationType, onChain.operationType),
               transactionHash: bytesToHex(onChain.transactionHash),
               rawtx: bytesToHex(onChain.rawtx),
-              status: mapOnChainTransactionStatus(onChain.status),
+              status: getEnumName(OnChainTransactionStatus, onChain.status),
               inputs: onChain.inputs.map((input) => ({
                 rawTx: bytesToHex(input.rawTx),
                 vout: input.vout,
@@ -79,9 +83,9 @@ export function convertTokenActivityToHexEncoded(
           transaction: {
             $case: "spark",
             spark: {
-              operationType: mapOperationType(spark.operationType),
+              operationType: getEnumName(OperationType, spark.operationType),
               transactionHash: bytesToHex(spark.transactionHash),
-              status: mapSparkTransactionStatus(spark.status),
+              status: getEnumName(SparkTransactionStatus, spark.status),
               confirmedAt: spark.confirmedAt,
               leavesToCreate: spark.leavesToCreate.map((leaf) => ({
                 tokenPublicKey: bytesToHex(leaf.tokenPublicKey),
@@ -131,10 +135,14 @@ export function convertTokenActivityToHexEncoded(
           lastTransactionHash: bytesToHex(
             rawTransactions.nextCursor.lastTransactionHash,
           ),
-          layer: mapLayer(rawTransactions.nextCursor.layer),
+          layer: getEnumName(Layer, rawTransactions.nextCursor.layer),
         }
       : undefined,
   };
 
   return response;
+}
+
+export function getEnumName(enumObj: any, value: number): string {
+  return enumObj[value];
 }

@@ -1,5 +1,5 @@
 import { isNode } from "@lightsparkdev/core";
-import { sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
 import type { Channel, ClientFactory } from "nice-grpc";
 import { retryMiddleware } from "nice-grpc-client-middleware-retry";
 import { ClientMiddlewareCall, Metadata } from "nice-grpc-common";
@@ -19,7 +19,6 @@ import {
 import { RetryOptions, SparkCallOptions } from "../types/grpc.js";
 import { WalletConfigService } from "./config.js";
 
-// TODO: Some sort of client cleanup
 export class ConnectionManager {
   private config: WalletConfigService;
   private clients: Map<
@@ -160,12 +159,12 @@ export class ConnectionManager {
     const authToken = await this.authenticate(address);
     const channel = await this.createChannelWithTLS(address, certPath);
 
-    const authMiddleware = this.createMiddleware(address, authToken);
+    const middleware = this.createMiddleware(address, authToken);
     const client = await this.createGrpcClient<SparkServiceClient>(
       SparkServiceDefinition,
       channel,
       true,
-      authMiddleware,
+      middleware,
     );
 
     this.streamClients.set(address, { client, authToken, channel });
@@ -182,12 +181,12 @@ export class ConnectionManager {
     const authToken = await this.authenticate(address);
     const channel = await this.createChannelWithTLS(address, certPath);
 
-    const authMiddleware = this.createMiddleware(address, authToken);
+    const middleware = this.createMiddleware(address, authToken);
     const client = await this.createGrpcClient<SparkServiceClient>(
       SparkServiceDefinition,
       channel,
       true,
-      authMiddleware,
+      middleware,
     );
 
     this.clients.set(address, { client, authToken });

@@ -1,7 +1,7 @@
 PODS:
   - boost (1.84.0)
   - DoubleConversion (1.1.6)
-  - EXConstants (17.1.5):
+  - EXConstants (17.1.6):
     - ExpoModulesCore
   - Expo (53.0.7):
     - DoubleConversion
@@ -2068,7 +2068,7 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - SocketRocket (0.7.1)
-  - spark-sdk (0.1.18):
+  - spark-sdk (0.1.28):
     - React
     - React-Core
   - Yoga (0.0.0)
@@ -2373,7 +2373,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
-  EXConstants: a1112af878fddfe6acc0399473ac56a07ced0f47
+  EXConstants: 9f310f44bfedba09087042756802040e464323c0
   Expo: add141aa1cdd34f2590f1f2a33e304e7f87be2f9
   ExpoAsset: 3bc9adb7dbbf27ae82c18ca97eb988a3ae7e73b1
   ExpoBlur: 7f9379db213e4a56aeceda82e94a7fea1b1d8c48
@@ -2470,7 +2470,7 @@ SPEC CHECKSUMS:
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
-  spark-sdk: e27c95dd5363d228a1764310ffa133ff4cd37dea
+  spark-sdk: c4d727fe128280ea3a14638876d05a95dff764df
   Yoga: c758bfb934100bb4bf9cbaccb52557cee35e8bdf
 
 PODFILE CHECKSUM: 493be683bb48c26aeb4ac060dc73b141176acb15

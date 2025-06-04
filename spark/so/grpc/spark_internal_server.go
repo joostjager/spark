@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
+	"github.com/lightsparkdev/spark/common/logging"
 	pbcommon "github.com/lightsparkdev/spark/proto/common"
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
 	pbspark "github.com/lightsparkdev/spark/proto/spark"
@@ -73,6 +74,17 @@ func (s *SparkInternalServer) FrostRound1(ctx context.Context, req *pb.FrostRoun
 	if err != nil {
 		return nil, err
 	}
+	badKeyshares := []string{}
+	for id, kp := range keyPackages {
+		if !bytes.Equal(kp.PublicKey, req.PublicKeys[id.String()]) {
+			badKeyshares = append(badKeyshares, id.String())
+		}
+	}
+	logger := logging.GetLoggerFromContext(ctx)
+	if len(badKeyshares) != 0 {
+		logger.Warn("Detected bad keyshares.", "numBadKeyshares", len(badKeyshares), "badKeyshares", badKeyshares)
+	}
+
 	keyPackagesArray := make([]*pbfrost.KeyPackage, 0)
 	for _, uuid := range uuids {
 		keyPackagesArray = append(keyPackagesArray, keyPackages[uuid])

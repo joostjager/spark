@@ -4,10 +4,10 @@ import {
   hexToBytes,
 } from "@noble/curves/abstract/utils";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
+import { sha256 } from "@noble/hashes/sha2";
 import { HDKey } from "@scure/bip32";
 import { generateMnemonic, mnemonicToSeed } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
-import { sha256 } from "@scure/btc-signer/utils";
 import * as ecies from "eciesjs";
 import { isReactNative } from "../constants.js";
 import { ConfigurationError, ValidationError } from "../errors/types.js";
@@ -15,7 +15,6 @@ import { TreeNode } from "../proto/spark.js";
 import { IKeyPackage, ISigningCommitment } from "../spark_bindings/types.js";
 import { generateAdaptorFromSignature } from "../utils/adaptor-signature.js";
 import { getMasterHDKeyFromSeed, subtractPrivateKeys } from "../utils/keys.js";
-import { Network } from "../utils/network.js";
 import {
   splitSecretWithProofs,
   VerifiableSecretShare,

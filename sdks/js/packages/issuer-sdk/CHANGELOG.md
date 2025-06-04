@@ -1,5 +1,25 @@
 # @buildonspark/issuer-sdk
 
+## 0.0.61
+
+### Patch Changes
+
+- Update issuer-wallet directory
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.53
+  - @buildonspark/spark-sdk@0.1.30
+
+## 0.0.60
+
+### Patch Changes
+
+- - Proto files for lrc20 monitoring operations have been moved to @buildonspark/issuer-sdk/proto/lrc20
+  - The monitoring operations have been modified to accept either strings or enums, generated from protos
+- Updated dependencies
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.52
+  - @buildonspark/spark-sdk@0.1.29
+
 ## 0.0.59
 
 ### Patch Changes

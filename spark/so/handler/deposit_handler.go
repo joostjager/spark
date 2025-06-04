@@ -26,7 +26,7 @@ import (
 	"github.com/lightsparkdev/spark/so/objects"
 )
 
-const DepositConfirmationThreshold = 6
+const DepositConfirmationThreshold = 2
 
 // The DepositHandler is responsible for handling deposit related requests.
 type DepositHandler struct {
@@ -58,6 +58,21 @@ func (o *DepositHandler) GenerateDepositAddress(ctx context.Context, config *so.
 	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.config, req.IdentityPublicKey); err != nil {
 		return nil, err
 	}
+
+	// TODO(LPT-385): remove when we have a way to support multiple static deposit addresses per identity.
+	if req.IsStatic != nil && *req.IsStatic {
+		depositAddress, err := ent.GetDbFromContext(ctx).DepositAddress.Query().
+			Where(depositaddress.OwnerIdentityPubkey(req.IdentityPublicKey)).
+			Where(depositaddress.IsStatic(true)).
+			Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return nil, err
+		}
+		if depositAddress != nil {
+			return nil, fmt.Errorf("static deposit address already exists: %s", depositAddress.Address)
+		}
+	}
+
 	logger.Info("Generating deposit address for public key", "public_key", hex.EncodeToString(req.SigningPublicKey), "identity_public_key", hex.EncodeToString(req.IdentityPublicKey))
 	keyshares, err := ent.GetUnusedSigningKeyshares(ctx, o.db, config, 1)
 	if err != nil {

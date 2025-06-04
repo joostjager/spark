@@ -58,6 +58,7 @@ const (
 	SparkService_QueryTokenTransactions_FullMethodName      = "/spark.SparkService/query_token_transactions"
 	SparkService_ReturnLightningPayment_FullMethodName      = "/spark.SparkService/return_lightning_payment"
 	SparkService_QueryUnusedDepositAddresses_FullMethodName = "/spark.SparkService/query_unused_deposit_addresses"
+	SparkService_QueryStaticDepositAddresses_FullMethodName = "/spark.SparkService/query_static_deposit_addresses"
 	SparkService_SubscribeToEvents_FullMethodName           = "/spark.SparkService/subscribe_to_events"
 	SparkService_InitiateUtxoSwap_FullMethodName            = "/spark.SparkService/initiate_utxo_swap"
 	SparkService_ExitSingleNodeTrees_FullMethodName         = "/spark.SparkService/exit_single_node_trees"
@@ -114,6 +115,7 @@ type SparkServiceClient interface {
 	QueryTokenTransactions(ctx context.Context, in *QueryTokenTransactionsRequest, opts ...grpc.CallOption) (*QueryTokenTransactionsResponse, error)
 	ReturnLightningPayment(ctx context.Context, in *ReturnLightningPaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	QueryUnusedDepositAddresses(ctx context.Context, in *QueryUnusedDepositAddressesRequest, opts ...grpc.CallOption) (*QueryUnusedDepositAddressesResponse, error)
+	QueryStaticDepositAddresses(ctx context.Context, in *QueryStaticDepositAddressesRequest, opts ...grpc.CallOption) (*QueryStaticDepositAddressesResponse, error)
 	SubscribeToEvents(ctx context.Context, in *SubscribeToEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeToEventsResponse], error)
 	// Claim a deposit to a static address from SSP side
 	InitiateUtxoSwap(ctx context.Context, in *InitiateUtxoSwapRequest, opts ...grpc.CallOption) (*InitiateUtxoSwapResponse, error)
@@ -510,6 +512,16 @@ func (c *sparkServiceClient) QueryUnusedDepositAddresses(ctx context.Context, in
 	return out, nil
 }
 
+func (c *sparkServiceClient) QueryStaticDepositAddresses(ctx context.Context, in *QueryStaticDepositAddressesRequest, opts ...grpc.CallOption) (*QueryStaticDepositAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryStaticDepositAddressesResponse)
+	err := c.cc.Invoke(ctx, SparkService_QueryStaticDepositAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sparkServiceClient) SubscribeToEvents(ctx context.Context, in *SubscribeToEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeToEventsResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &SparkService_ServiceDesc.Streams[0], SparkService_SubscribeToEvents_FullMethodName, cOpts...)
@@ -600,6 +612,7 @@ type SparkServiceServer interface {
 	QueryTokenTransactions(context.Context, *QueryTokenTransactionsRequest) (*QueryTokenTransactionsResponse, error)
 	ReturnLightningPayment(context.Context, *ReturnLightningPaymentRequest) (*emptypb.Empty, error)
 	QueryUnusedDepositAddresses(context.Context, *QueryUnusedDepositAddressesRequest) (*QueryUnusedDepositAddressesResponse, error)
+	QueryStaticDepositAddresses(context.Context, *QueryStaticDepositAddressesRequest) (*QueryStaticDepositAddressesResponse, error)
 	SubscribeToEvents(*SubscribeToEventsRequest, grpc.ServerStreamingServer[SubscribeToEventsResponse]) error
 	// Claim a deposit to a static address from SSP side
 	InitiateUtxoSwap(context.Context, *InitiateUtxoSwapRequest) (*InitiateUtxoSwapResponse, error)
@@ -727,6 +740,9 @@ func (UnimplementedSparkServiceServer) ReturnLightningPayment(context.Context, *
 }
 func (UnimplementedSparkServiceServer) QueryUnusedDepositAddresses(context.Context, *QueryUnusedDepositAddressesRequest) (*QueryUnusedDepositAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryUnusedDepositAddresses not implemented")
+}
+func (UnimplementedSparkServiceServer) QueryStaticDepositAddresses(context.Context, *QueryStaticDepositAddressesRequest) (*QueryStaticDepositAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryStaticDepositAddresses not implemented")
 }
 func (UnimplementedSparkServiceServer) SubscribeToEvents(*SubscribeToEventsRequest, grpc.ServerStreamingServer[SubscribeToEventsResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeToEvents not implemented")
@@ -1442,6 +1458,24 @@ func _SparkService_QueryUnusedDepositAddresses_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SparkService_QueryStaticDepositAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryStaticDepositAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkServiceServer).QueryStaticDepositAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkService_QueryStaticDepositAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).QueryStaticDepositAddresses(ctx, req.(*QueryStaticDepositAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SparkService_SubscribeToEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeToEventsRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -1647,6 +1681,10 @@ var SparkService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "query_unused_deposit_addresses",
 			Handler:    _SparkService_QueryUnusedDepositAddresses_Handler,
+		},
+		{
+			MethodName: "query_static_deposit_addresses",
+			Handler:    _SparkService_QueryStaticDepositAddresses_Handler,
 		},
 		{
 			MethodName: "initiate_utxo_swap",

@@ -70,7 +70,7 @@ export function getNextTransactionSequence(
 
 export function getEphemeralAnchorOutput(): TransactionOutput {
   return {
-    script: new Uint8Array([0x51]), // OP_TRUE
+    script: new Uint8Array([0x51, 0x02, 0x4e, 0x73]), // Pay-to-anchor (P2A) ephemeral anchor output
     amount: 0n,
   };
 }

@@ -1,36 +1,4 @@
-// String enums to replace numeric enums
-export enum LayerType {
-  L1 = "L1",
-  SPARK = "SPARK",
-}
-
-export enum OperationType {
-  USER_TRANSFER = "USER_TRANSFER",
-  USER_BURN = "USER_BURN",
-  ISSUER_ANNOUNCE = "ISSUER_ANNOUNCE",
-  ISSUER_MINT = "ISSUER_MINT",
-  ISSUER_TRANSFER = "ISSUER_TRANSFER",
-  ISSUER_FREEZE = "ISSUER_FREEZE",
-  ISSUER_UNFREEZE = "ISSUER_UNFREEZE",
-  ISSUER_BURN = "ISSUER_BURN",
-}
-
-export enum OnChainTransactionStatus {
-  PENDING = "PENDING",
-  CONFIRMED = "CONFIRMED",
-  WAITING_MINED = "WAITING_MINED",
-  MINED = "MINED",
-  ATTACHING = "ATTACHING",
-  ATTACHED = "ATTACHED",
-}
-
-export enum SparkTransactionStatus {
-  STARTED = "STARTED",
-  SIGNED = "SIGNED",
-  FINALIZED = "FINALIZED",
-}
-
-export type GetTokenActivityResponse = {
+export type TokenActivityResponse = {
   transactions: Transaction[];
   nextCursor?: ListAllTokenTransactionsCursor | undefined;
 };
@@ -70,19 +38,19 @@ export interface OnChainTokenOutput {
   tokenAmount?: string | undefined;
 }
 export interface OnChainTransaction {
-  operationType: OperationType;
+  operationType: string;
   transactionHash: string;
   rawtx: string;
-  status: OnChainTransactionStatus;
+  status: string;
   inputs: OnChainTokenOutput[];
   outputs: OnChainTokenOutput[];
   broadcastedAt: Date | undefined;
   confirmedAt: Date | undefined;
 }
 export interface SparkTransaction {
-  operationType: OperationType;
+  operationType: string;
   transactionHash: string;
-  status: SparkTransactionStatus;
+  status: string;
   confirmedAt: Date | undefined;
   leavesToCreate: SparkLeaf[];
   leavesToSpend: SparkLeaf[];
@@ -105,7 +73,7 @@ export interface SparkLeaf {
 
 export interface ListAllTokenTransactionsCursor {
   lastTransactionHash: string;
-  layer: LayerType;
+  layer: string;
 }
 
 export interface TokenDistribution {

@@ -172,11 +172,11 @@ func (h *BaseTransferHandler) createTransfer(
 	switch transferType {
 	case schema.TransferTypeCooperativeExit:
 		err = h.validateCooperativeExitLeaves(ctx, transfer, leaves, leafRefundMap, receiverIdentityPublicKey)
-	case schema.TransferTypeTransfer:
+	case schema.TransferTypeTransfer, schema.TransferTypeSwap, schema.TransferTypeCounterSwap:
 		err = h.validateTransferLeaves(ctx, transfer, leaves, leafRefundMap, receiverIdentityPublicKey)
 	case schema.TransferTypeUtxoSwap:
 		err = h.validateUtxoSwapLeaves(ctx, transfer, leaves, leafRefundMap, receiverIdentityPublicKey)
-	case schema.TransferTypePreimageSwap, schema.TransferTypeSwap, schema.TransferTypeCounterSwap:
+	case schema.TransferTypePreimageSwap:
 		// do nothing
 	}
 	if err != nil {
@@ -627,30 +627,30 @@ func (h *BaseTransferHandler) validateTransferPackage(_ context.Context, transfe
 	return leafTweaksMap, nil
 }
 
-func (h *BaseTransferHandler) commitSenderKeyTweaks(ctx context.Context, transfer *ent.Transfer) error {
+func (h *BaseTransferHandler) commitSenderKeyTweaks(ctx context.Context, transfer *ent.Transfer) (*ent.Transfer, error) {
 	if transfer.Status == schema.TransferStatusSenderKeyTweaked {
-		return nil
+		return nil, nil
 	}
 	if transfer.Status != schema.TransferStatusSenderKeyTweakPending && transfer.Status != schema.TransferStatusSenderInitiatedCoordinator {
-		return fmt.Errorf("transfer %s is not in sender key tweak pending status", transfer.ID.String())
+		return nil, fmt.Errorf("transfer %s is not in sender key tweak pending status", transfer.ID.String())
 	}
 	transferLeaves, err := transfer.QueryTransferLeaves().All(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to get transfer leaves: %w", err)
+		return nil, fmt.Errorf("unable to get transfer leaves: %v", err)
 	}
 	for _, leaf := range transferLeaves {
 		keyTweak := &pbspark.SendLeafKeyTweak{}
 		err := proto.Unmarshal(leaf.KeyTweak, keyTweak)
 		if err != nil {
-			return fmt.Errorf("unable to unmarshal key tweak: %w", err)
+			return nil, fmt.Errorf("unable to unmarshal key tweak: %v", err)
 		}
 		treeNode, err := leaf.QueryLeaf().Only(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to get tree node: %w", err)
+			return nil, fmt.Errorf("unable to get tree node: %v", err)
 		}
 		err = helper.TweakLeafKey(ctx, treeNode, keyTweak, nil)
 		if err != nil {
-			return fmt.Errorf("unable to tweak leaf key: %w", err)
+			return nil, fmt.Errorf("unable to tweak leaf key: %v", err)
 		}
 		_, err = leaf.Update().
 			SetKeyTweak(nil).
@@ -658,12 +658,12 @@ func (h *BaseTransferHandler) commitSenderKeyTweaks(ctx context.Context, transfe
 			SetSignature(keyTweak.Signature).
 			Save(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to update leaf key tweak: %w", err)
+			return nil, fmt.Errorf("unable to update leaf key tweak: %v", err)
 		}
 	}
-	_, err = transfer.Update().SetStatus(schema.TransferStatusSenderKeyTweaked).Save(ctx)
+	transfer, err = transfer.Update().SetStatus(schema.TransferStatusSenderKeyTweaked).Save(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to update transfer status: %w", err)
+		return nil, fmt.Errorf("unable to update transfer status: %v", err)
 	}
-	return nil
+	return transfer, nil
 }

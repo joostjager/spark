@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/lrc20-sdk",
-  "version": "0.0.51",
+  "version": "0.0.53",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,14 +11,6 @@
     ".": {
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
-    },
-    "./grpc": {
-      "require": "./dist/lrc/api/grpc/index.cjs",
-      "import": "./dist/lrc/api/grpc/index.js"
-    },
-    "./grpc/types": {
-      "require": "./dist/lrc/api/grpc/types.cjs",
-      "import": "./dist/lrc/api/grpc/types.js"
     },
     "./lrc/types": {
       "require": "./dist/lrc/types/index.cjs",
@@ -32,10 +24,6 @@
       "require": "./dist/lrc/wallet/index.cjs",
       "import": "./dist/lrc/wallet/index.js"
     },
-    "./proto/rpc/v1/types": {
-      "require": "./dist/proto/rpc/v1/types.cjs",
-      "import": "./dist/proto/rpc/v1/types.js"
-    },
     "./types": {
       "require": "./dist/types.cjs",
       "import": "./dist/types.js"
@@ -46,7 +34,6 @@
     "crypto": false,
     "fs": false,
     "fs/promises": false,
-    "nice-grpc": "nice-grpc-web",
     "path": false,
     "url": false
   },
@@ -69,23 +56,16 @@
     "lint-fix": "npm run lint-ts-fix && npm run lint-js-fix && npm run lint-json-fix",
     "lint-ts-fix": "prettier --write \"./**/*.ts\"",
     "lint-js-fix": "prettier --write \"./**/*.js\"",
-    "lint-json-fix": "prettier --write \"./[a-zA-Z0-9.]+(?!-lock).json\"",
-    "generate:proto": "PATH=\"$PATH:./node_modules/.bin\" protoc --ts_proto_out=./src/proto --ts_proto_opt=outputServices=nice-grpc,useExactTypes=false,outputServices=generic-definitions,oneof=unions,importSuffix=.js --proto_path=./protos rpc/v1/service.proto && yarn format:fix"
+    "lint-json-fix": "prettier --write \"./[a-zA-Z0-9.]+(?!-lock).json\""
   },
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.1.1",
-    "@bufbuild/protobuf": "^2.2.5",
-    "@lightsparkdev/core": "^1.4.0",
     "@sapphire/utilities": "^3.17.0",
     "bignumber.js": "^9.1.2",
     "bitcoinjs-lib": "^6.1.5",
     "buffer": "^6.0.3",
     "class-transformer": "^0.5.1",
     "ecpair": "^2.1.0",
-    "nice-grpc": "^2.1.10",
-    "nice-grpc-client-middleware-retry": "^3.1.10",
-    "nice-grpc-common": "^2.0.2",
-    "nice-grpc-web": "^3.3.5",
     "stream": "^0.0.3",
     "ts-proto": "^2.6.1",
     "varuint-bitcoin": "^1.1.2"
@@ -95,8 +75,6 @@
     "@jest/globals": "^29.7.0",
     "@swc/core": "^1.7.6",
     "@types/node": "^22.13.2",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
     "depcheck": "^1.4.7",
     "husky": "^7.0.2",
     "jest": "^29.7.0",

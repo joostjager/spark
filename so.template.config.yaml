@@ -16,3 +16,6 @@ lrc20:
     withdrawrelativeblocklocktime: 1000
     grpcpagesize: 200
     grpcpoolsize: 10
+database:
+  uri: {DATABASE_URI}
+  is_rds: false

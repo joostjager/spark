@@ -9,7 +9,7 @@ export {
   scriptPkToAddress,
 } from "./address/index.ts";
 
-export { basicAuth, ElectrsApi, Lrc20JsonRPC, Lrc20ConnectionManager } from "./lrc/api/index.ts";
+export { basicAuth, ElectrsApi, Lrc20JsonRPC } from "./lrc/api/index.ts";
 export type { BasicAuth, JsonRpcAuth } from "./lrc/api/index.ts";
 export { BtcUtxosCoinSelection } from "./lrc/coinselection/index.ts";
 export { TransactionBuilder } from "./lrc/transaction/index.ts";
@@ -131,6 +131,3 @@ export type {
   ToSignInput,
   UnspentOutput,
 } from "./types.ts";
-
-export * from "./proto/rpc/v1/service.ts";
-export * as Lrc20Protos from "./proto/rpc/v1/types.js";

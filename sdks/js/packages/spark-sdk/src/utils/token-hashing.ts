@@ -1,9 +1,9 @@
-import { sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
+import { ValidationError } from "../errors/types.js";
 import {
   OperatorSpecificTokenTransactionSignablePayload,
   TokenTransaction,
 } from "../proto/spark.js";
-import { ValidationError } from "../errors/types.js";
 
 export function hashTokenTransaction(
   tokenTransaction: TokenTransaction,

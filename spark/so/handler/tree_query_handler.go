@@ -226,6 +226,67 @@ func (h *TreeQueryHandler) QueryUnusedDepositAddresses(ctx context.Context, req 
 	}, nil
 }
 
+func (h *TreeQueryHandler) QueryStaticDepositAddresses(ctx context.Context, req *pb.QueryStaticDepositAddressesRequest) (*pb.QueryStaticDepositAddressesResponse, error) {
+	db := ent.GetDbFromContext(ctx)
+
+	limit := int(req.GetLimit())
+	offset := int(req.GetOffset())
+	if limit < 0 || offset < 0 {
+		return nil, fmt.Errorf("expect non-negative offset and limit")
+	}
+	if limit > 100 {
+		limit = 100
+	} else if limit == 0 {
+		limit = 100
+	}
+
+	query := db.DepositAddress.Query()
+	query = query.
+		Where(depositaddress.OwnerIdentityPubkey(req.GetIdentityPublicKey())).
+		Where(depositaddress.IsStatic(true)).
+		Order(ent.Desc(depositaddress.FieldID)).
+		WithSigningKeyshare().
+		Offset(offset).
+		Limit(limit)
+
+	depositAddresses, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var network common.Network
+	if req.GetNetwork() == pb.Network_UNSPECIFIED {
+		network = common.Mainnet
+	} else {
+		var err error
+		network, err = common.NetworkFromProtoNetwork(req.GetNetwork())
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert proto network to common network: %w", err)
+		}
+	}
+
+	staticDepositAddresses := make([]*pb.DepositAddressQueryResult, 0)
+	for _, depositAddress := range depositAddresses {
+		verifyingPublicKey, err := common.AddPublicKeys(depositAddress.OwnerSigningPubkey, depositAddress.Edges.SigningKeyshare.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+		nodeIDStr := depositAddress.NodeID.String()
+		if utils.IsBitcoinAddressForNetwork(depositAddress.Address, network) {
+			staticDepositAddresses = append(staticDepositAddresses, &pb.DepositAddressQueryResult{
+				DepositAddress:       depositAddress.Address,
+				UserSigningPublicKey: depositAddress.OwnerSigningPubkey,
+				VerifyingPublicKey:   verifyingPublicKey,
+				LeafId:               &nodeIDStr,
+			})
+		}
+	}
+
+	return &pb.QueryStaticDepositAddressesResponse{
+		DepositAddresses: staticDepositAddresses,
+	}, nil
+}
+
 func (h *TreeQueryHandler) QueryNodesDistribution(ctx context.Context, req *pb.QueryNodesDistributionRequest) (*pb.QueryNodesDistributionResponse, error) {
 	db := ent.GetDbFromContext(ctx)
 

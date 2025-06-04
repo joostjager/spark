@@ -1,5 +1,3 @@
-import { createLrc20ConnectionManager } from "@buildonspark/lrc20-sdk/grpc";
-import { ILrc20ConnectionManager } from "@buildonspark/lrc20-sdk/grpc/types";
 import { isNode, mapCurrencyAmount } from "@lightsparkdev/core";
 import {
   bytesToHex,
@@ -12,7 +10,6 @@ import { validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { TransactionInput } from "@scure/btc-signer/psbt";
-import { sha256 } from "@scure/btc-signer/utils";
 import { Mutex } from "async-mutex";
 import { decode } from "light-bolt11-decoder";
 import { uuidv7 } from "uuidv7";
@@ -52,6 +49,7 @@ import { ConnectionManager } from "../services/connection.js";
 import { CoopExitService } from "../services/coop-exit.js";
 import { DepositService } from "../services/deposit.js";
 import { LightningService } from "../services/lightning.js";
+import { Lrc20ConnectionManager } from "../services/lrc-connection.js";
 import { TokenTransactionService } from "../services/token-transactions.js";
 import type { LeafKeyTweak } from "../services/transfer.js";
 import { TransferService } from "../services/transfer.js";
@@ -87,6 +85,7 @@ import { calculateAvailableTokenAmount } from "../utils/token-transactions.js";
 import { getNextTransactionSequence } from "../utils/transaction.js";
 
 import { LRCWallet } from "@buildonspark/lrc20-sdk";
+import { sha256 } from "@noble/hashes/sha2";
 import { EventEmitter } from "eventemitter3";
 import {
   decodeSparkAddress,
@@ -94,6 +93,7 @@ import {
   SparkAddressFormat,
 } from "../address/index.js";
 import { isReactNative } from "../constants.js";
+import { SigningService } from "../services/signing.js";
 import { SparkSigner } from "../signer/signer.js";
 import { BitcoinFaucet } from "../tests/utils/test-faucet.js";
 import {
@@ -103,19 +103,16 @@ import {
   WalletTransfer,
 } from "../types/sdk-types.js";
 import { chunkArray } from "../utils/chunkArray.js";
-import { getCrypto } from "../utils/crypto.js";
 import { getMasterHDKeyFromSeed } from "../utils/index.js";
 import type {
   CreateLightningInvoiceParams,
-  PayLightningInvoiceParams,
-  TransferParams,
   DepositParams,
-  TokenInfo,
   InitWalletResponse,
+  PayLightningInvoiceParams,
   SparkWalletProps,
-  SparkWalletEvents,
+  TokenInfo,
+  TransferParams,
 } from "./types.js";
-import { SigningService } from "../services/signing.js";
 
 /**
  * The SparkWallet class is the primary interface for interacting with the Spark network.
@@ -126,7 +123,7 @@ export class SparkWallet extends EventEmitter {
   protected config: WalletConfigService;
 
   protected connectionManager: ConnectionManager;
-  protected lrc20ConnectionManager: ILrc20ConnectionManager;
+  protected lrc20ConnectionManager: Lrc20ConnectionManager;
   protected lrc20Wallet: LRCWallet | undefined;
   protected transferService: TransferService;
   protected tracerId = "spark-sdk";
@@ -173,9 +170,7 @@ export class SparkWallet extends EventEmitter {
     this.config = new WalletConfigService(options, signer);
     this.connectionManager = new ConnectionManager(this.config);
     this.signingService = new SigningService(this.config);
-    this.lrc20ConnectionManager = createLrc20ConnectionManager(
-      this.config.getLrc20Address(),
-    );
+    this.lrc20ConnectionManager = new Lrc20ConnectionManager(this.config);
     this.depositService = new DepositService(
       this.config,
       this.connectionManager,
@@ -364,7 +359,6 @@ export class SparkWallet extends EventEmitter {
             }
 
             if (data.event?.$case === "connected") {
-              console.log("connected");
               this.emit("stream:connected");
               retryCount = 0;
             }
@@ -421,7 +415,9 @@ export class SparkWallet extends EventEmitter {
     }
   }
 
-  private async getLeaves(): Promise<TreeNode[]> {
+  private async getLeaves(
+    isBalanceCheck: boolean = false,
+  ): Promise<TreeNode[]> {
     const sparkClient = await this.connectionManager.createSparkClient(
       this.config.getCoordinatorAddress(),
     );
@@ -434,8 +430,57 @@ export class SparkWallet extends EventEmitter {
       network: NetworkToProto[this.config.getNetwork()],
     });
 
+    const leavesToIgnore: Set<string> = new Set();
+    // Query the leaf states from other operators.
+    // We'll ignore the leaves that are out of sync for now.
+    // Still include the leaves that are out of sync for balance check.
+    if (!isBalanceCheck) {
+      for (const [id, operator] of Object.entries(
+        this.config.getSigningOperators(),
+      )) {
+        if (id !== this.config.getCoordinatorIdentifier()) {
+          const client = await this.connectionManager.createSparkClient(
+            operator.address,
+          );
+          const operatorLeaves = await client.query_nodes({
+            source: {
+              $case: "ownerIdentityPubkey",
+              ownerIdentityPubkey:
+                await this.config.signer.getIdentityPublicKey(),
+            },
+            includeParents: false,
+            network: NetworkToProto[this.config.getNetwork()],
+          });
+
+          // Loop over leaves returned by coordinator.
+          // If the leaf is not present in the operator's leaves, we'll ignore it.
+          // If the leaf is present, we'll check if the leaf is in sync with the operator's leaf.
+          // If the leaf is not in sync, we'll ignore it.
+          for (const [nodeId, leaf] of Object.entries(leaves.nodes)) {
+            const operatorLeaf = operatorLeaves.nodes[nodeId];
+
+            if (!operatorLeaf) {
+              leavesToIgnore.add(nodeId);
+              continue;
+            }
+
+            if (
+              leaf.status !== operatorLeaf.status ||
+              !equalBytes(leaf.nodeTx, operatorLeaf.nodeTx) ||
+              !equalBytes(leaf.refundTx, operatorLeaf.refundTx)
+            ) {
+              leavesToIgnore.add(nodeId);
+            }
+          }
+        }
+      }
+    }
+
     return Object.entries(leaves.nodes)
-      .filter(([_, node]) => node.status === "AVAILABLE")
+      .filter(
+        ([_, node]) =>
+          node.status === "AVAILABLE" && !leavesToIgnore.has(node.id),
+      )
       .map(([_, node]) => node);
   }
 
@@ -1019,7 +1064,7 @@ export class SparkWallet extends EventEmitter {
     balance: bigint;
     tokenBalances: Map<string, { balance: bigint; tokenInfo: TokenInfo }>;
   }> {
-    this.leaves = await this.getLeaves();
+    const leaves = await this.getLeaves(true);
     await this.syncTokenOutputs();
 
     let tokenBalances: Map<string, { balance: bigint; tokenInfo: TokenInfo }>;
@@ -1034,7 +1079,7 @@ export class SparkWallet extends EventEmitter {
     }
 
     return {
-      balance: BigInt(this.getInternalBalance()),
+      balance: BigInt(leaves.reduce((acc, leaf) => acc + leaf.value, 0)),
       tokenBalances,
     };
   }
@@ -1088,16 +1133,27 @@ export class SparkWallet extends EventEmitter {
    * @returns {Promise<string>} A Bitcoin address for depositing funds
    */
   public async getSingleUseDepositAddress(): Promise<string> {
-    return await this.generateDepositAddress();
+    return await this.generateDepositAddress(false);
+  }
+
+  /**
+   * Generates a new static deposit address for receiving bitcoin funds.
+   * This address is permanent and can be used multiple times.
+   *
+   * @returns {Promise<string>} A Bitcoin address for depositing funds
+   */
+  public async getStaticDepositAddress(): Promise<string> {
+    return await this.generateDepositAddress(true);
   }
 
   /**
    * Generates a deposit address for receiving funds.
    *
+   * @param {boolean} static - Whether the address is static or single use
    * @returns {Promise<string>} A deposit address
    * @private
    */
-  private async generateDepositAddress(): Promise<string> {
+  private async generateDepositAddress(isStatic?: boolean): Promise<string> {
     const leafId = uuidv7();
     const signingPubkey = await this.config.signer.generatePublicKey(
       sha256(leafId),
@@ -1105,6 +1161,7 @@ export class SparkWallet extends EventEmitter {
     const address = await this.depositService!.generateDepositAddress({
       signingPubkey,
       leafId,
+      isStatic,
     });
     if (!address.depositAddress) {
       throw new RPCError("Failed to generate deposit address", {
@@ -1671,11 +1728,14 @@ export class SparkWallet extends EventEmitter {
       return result;
     } catch (error) {
       if (retryCount < MAX_RETRIES) {
-        console.error("Failed to claim transfer, retrying...", error);
         this.claimTransfer(transfer, emit, retryCount + 1);
         return [];
       } else if (retryCount > 0) {
-        console.error("Failed to claim transfer", error);
+        console.warn(
+          "Failed to claim transfer. Please try reinitializing your wallet in a few minutes. Transfer ID: " +
+            transfer.id,
+          error,
+        );
         return [];
       } else {
         throw new NetworkError(
@@ -1835,6 +1895,7 @@ export class SparkWallet extends EventEmitter {
         paymentHash: bytesToHex(paymentHash),
         expirySecs: expirySeconds,
         memo,
+        includeSparkAddress: false,
       });
 
       return invoice;
@@ -2506,6 +2567,7 @@ export class SparkWallet extends EventEmitter {
   public async cleanupConnections() {
     this.cleanup();
     await this.connectionManager.closeConnections();
+    await this.lrc20ConnectionManager.closeConnection();
   }
 
   // Add this new method to start periodic claiming

@@ -63,16 +63,19 @@ class SparkFrostModule(reactContext: ReactApplicationContext) : ReactContextBase
             
             val statechainCommitments = mutableMapOf<String, SigningCommitment>()
             statechainCommitmentsMap.toHashMap().forEach { (key, value) ->
-                val commitMap = (value as? ReadableMap)
+                val commitMap = value as? Map<*, *>
                     ?: throw Exception("Invalid statechain commitment format")
+                
+                val hidingArray = (commitMap["hiding"] as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
+                    ?: throw Exception("Invalid statechain commitment hiding format")
+                val bindingArray = (commitMap["binding"] as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
+                    ?: throw Exception("Invalid statechain commitment binding format")
+                
                 statechainCommitments[key] = SigningCommitment(
-                    hiding = commitMap.getArray("hiding")?.toByteArray()
-                        ?: throw Exception("Invalid statechain commitment hiding format"),
-                    binding = commitMap.getArray("binding")?.toByteArray()
-                        ?: throw Exception("Invalid statechain commitment binding format")
+                    hiding = hidingArray,
+                    binding = bindingArray
                 )
             }
-
             val adaptorPubKey = params.getArray("adaptorPubKey")?.toByteArray()
 
             val result = signFrost(
@@ -100,13 +103,17 @@ class SparkFrostModule(reactContext: ReactApplicationContext) : ReactContextBase
                 ?: throw Exception("StatechainCommitments is required")
             val statechainCommitments = mutableMapOf<String, SigningCommitment>()
             statechainCommitmentsMap.toHashMap().forEach { (key, value) ->
-                val commitMap = (value as? ReadableMap)
+                val commitMap = value as? Map<*, *>
                     ?: throw Exception("Invalid statechain commitment format")
+                
+                val hidingArray = (commitMap["hiding"] as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
+                    ?: throw Exception("Invalid statechain commitment hiding format")
+                val bindingArray = (commitMap["binding"] as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
+                    ?: throw Exception("Invalid statechain commitment binding format")
+                
                 statechainCommitments[key] = SigningCommitment(
-                    hiding = commitMap.getArray("hiding")?.toByteArray()
-                        ?: throw Exception("Invalid statechain commitment hiding format"),
-                    binding = commitMap.getArray("binding")?.toByteArray()
-                        ?: throw Exception("Invalid statechain commitment binding format")
+                    hiding = hidingArray,
+                    binding = bindingArray
                 )
             }
 
@@ -123,7 +130,7 @@ class SparkFrostModule(reactContext: ReactApplicationContext) : ReactContextBase
                 ?: throw Exception("StatechainSignatures is required")
             val statechainSignatures = mutableMapOf<String, ByteArray>()
             statechainSignaturesMap.toHashMap().forEach { (key, value) ->
-                val sigArray = (value as? ReadableArray)?.toByteArray()
+                val sigArray = (value as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
                     ?: throw Exception("Invalid statechain signature format")
                 statechainSignatures[key] = sigArray
             }
@@ -135,7 +142,7 @@ class SparkFrostModule(reactContext: ReactApplicationContext) : ReactContextBase
                 ?: throw Exception("StatechainPublicKeys is required")
             val statechainPublicKeys = mutableMapOf<String, ByteArray>()
             statechainPublicKeysMap.toHashMap().forEach { (key, value) ->
-                val pubKeyArray = (value as? ReadableArray)?.toByteArray()
+                val pubKeyArray = (value as? List<*>)?.map { (it as Number).toByte() }?.toByteArray()
                     ?: throw Exception("Invalid statechain public key format")
                 statechainPublicKeys[key] = pubKeyArray
             }

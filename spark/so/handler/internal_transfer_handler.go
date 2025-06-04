@@ -220,7 +220,8 @@ func (h *InternalTransferHandler) SettleSenderKeyTweak(ctx context.Context, req 
 		if err != nil {
 			return fmt.Errorf("unable to load transfer %s: %w", req.TransferId, err)
 		}
-		return h.commitSenderKeyTweaks(ctx, transfer)
+		_, err = h.commitSenderKeyTweaks(ctx, transfer)
+		return err
 	case pbinternal.SettleKeyTweakAction_ROLLBACK:
 		transfer, err := h.loadTransfer(ctx, req.TransferId)
 		if err != nil {

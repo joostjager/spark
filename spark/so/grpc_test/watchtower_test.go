@@ -2,8 +2,6 @@ package grpctest
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -559,12 +557,11 @@ func TestTimelockExpirationAfterLightningTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// User creates an invoice
-	preimage, err := hex.DecodeString("2d059c3ede82a107aa1452c0bea47759be3c5c6e5342be6a310f6c3a907d9f4c")
-	require.NoError(t, err)
-	paymentHash := sha256.Sum256(preimage)
+	preimage, paymentHash := testPreimageHash(t)
+	defer cleanUp(t, userConfig, paymentHash)
 
 	fakeInvoiceCreator := &FakeLightningInvoiceCreator{
-		invoice: "lnbcrt123450n1pnj6uf4pp5l26hsdxssmr52vd4xmn5xran7puzx34hpr6uevaq7ta0ayzrp8esdqqcqzpgxqyz5vqrzjqtr2vd60g57hu63rdqk87u3clac6jlfhej4kldrrjvfcw3mphcw8sqqqqzp3jlj6zyqqqqqqqqqqqqqq9qsp5w22fd8aqn7sdum7hxdf59ptgk322fkv589ejxjltngvgehlcqcyq9qxpqysgqvykwsxdx64qrj0s5pgcgygmrpj8w25jsjgltwn09yp24l9nvghe3dl3y0ycy70ksrlqmcn42hxn24e0ucuy3g9fjltudvhv4lrhhamgq3stqgp",
+		invoice: testInvoice,
 	}
 
 	invoice, _, err := wallet.CreateLightningInvoiceWithPreimage(context.Background(), userConfig, fakeInvoiceCreator, 100, "test", [32]byte(preimage))

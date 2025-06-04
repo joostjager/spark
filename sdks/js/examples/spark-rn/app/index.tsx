@@ -98,6 +98,7 @@ export default function Index() {
         options: {
           network: "REGTEST",
         },
+        signer: new ReactNativeSparkSigner(),
       });
 
       const balance1 = await wallet1.wallet.getBalance();

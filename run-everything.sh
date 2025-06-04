@@ -487,14 +487,17 @@ run_operators_tmux() {
        local lrc20_address="127.0.0.1:1853${i}"
 
        local temp_config_file="temp_config_operator_$i.dev.yaml"
+       local db_file="postgresql://127.0.0.1:5432/sparkoperator_${i}?sslmode=disable"
        
        # If tokens are disabled, modify the template to set disablerpcs: true
        if [ "$disable_tokens" = true ]; then
            sed -e "s|{LRC20_ADDRESS}|$lrc20_address|g" \
                -e "s|disablerpcs: false|disablerpcs: true|g" \
+               -e "s|{DATABASE_URI}|$db_file|g" \
                so.template.config.yaml >"$temp_config_file"
        else
            sed -e "s|{LRC20_ADDRESS}|$lrc20_address|g" \
+               -e "s|{DATABASE_URI}|$db_file|g" \
                so.template.config.yaml >"$temp_config_file"
        fi
 
@@ -520,7 +523,6 @@ run_operators_tmux() {
            -threshold ${min_signers} \
            -signer '${signer_socket}' \
            -port ${port} \
-           -database '${db_file}' \
            ${cert_config} \
            -dkg-limit-override 100 \
            -run-dir '${run_dir}' \

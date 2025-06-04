@@ -35,6 +35,34 @@ typename: string;
     export const FRAGMENT = `
 fragment EntityFragment on Entity {
     __typename
+    ... on ClaimStaticDeposit {
+        __typename
+        claim_static_deposit_id: id
+        claim_static_deposit_created_at: created_at
+        claim_static_deposit_updated_at: updated_at
+        claim_static_deposit_network: network
+        claim_static_deposit_credit_amount: credit_amount {
+            __typename
+            currency_amount_original_value: original_value
+            currency_amount_original_unit: original_unit
+            currency_amount_preferred_currency_unit: preferred_currency_unit
+            currency_amount_preferred_currency_value_rounded: preferred_currency_value_rounded
+            currency_amount_preferred_currency_value_approx: preferred_currency_value_approx
+        }
+        claim_static_deposit_max_fee: max_fee {
+            __typename
+            currency_amount_original_value: original_value
+            currency_amount_original_unit: original_unit
+            currency_amount_preferred_currency_unit: preferred_currency_unit
+            currency_amount_preferred_currency_value_rounded: preferred_currency_value_rounded
+            currency_amount_preferred_currency_value_approx: preferred_currency_value_approx
+        }
+        claim_static_deposit_status: status
+        claim_static_deposit_transaction_id: transaction_id
+        claim_static_deposit_output_index: output_index
+        claim_static_deposit_bitcoin_network: bitcoin_network
+        claim_static_deposit_transfer_spark_id: transfer_spark_id
+    }
     ... on CoopExitRequest {
         __typename
         coop_exit_request_id: id

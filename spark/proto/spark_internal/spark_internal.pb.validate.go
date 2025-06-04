@@ -387,6 +387,8 @@ func (m *FrostRound1Request) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for PublicKeys
+
 	if len(errors) > 0 {
 		return FrostRound1RequestMultiError(errors)
 	}

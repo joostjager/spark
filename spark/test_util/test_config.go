@@ -158,8 +158,10 @@ func TestConfig() (*so.Config, error) {
 		SigningOperatorMap:    signingOperators,
 		Threshold:             3,
 		SignerAddress:         getLocalFrostSignerAddress(),
-		DatabasePath:          getTestDatabasePath(),
 		DKGCoordinatorAddress: signingOperators[identifier].Address,
+		Database: so.DatabaseConfig{
+			URI: getTestDatabasePath(),
+		},
 	}
 	return &config, nil
 }

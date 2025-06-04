@@ -1,6 +1,6 @@
 import { filterTokenBalanceForTokenPublicKey } from "@buildonspark/spark-sdk/utils";
 import { jest } from "@jest/globals";
-import { hexToBytes } from "@noble/curves/abstract/utils";
+import { encodeSparkAddress } from "@buildonspark/spark-sdk/address";
 import {
   LOCAL_WALLET_CONFIG_ECDSA,
   LOCAL_WALLET_CONFIG_SCHNORR,
@@ -8,8 +8,23 @@ import {
 import { BitcoinFaucet } from "../../../../spark-sdk/src/tests/utils/test-faucet.js";
 import { IssuerSparkWalletTesting } from "../utils/issuer-test-wallet.js";
 import { SparkWalletTesting } from "../utils/spark-testing-wallet.js";
-import { SparkWallet } from "@buildonspark/spark-sdk";
 import { IssuerSparkWallet } from "../../index.js";
+import { OperationType } from "@buildonspark/spark-sdk/proto/lrc20";
+
+function hexStringToUint8Array(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw new Error("Hex string must have an even number of characters.");
+  }
+
+  const uint8Array = new Uint8Array(hexString.length / 2);
+
+  for (let i = 0; i < hexString.length; i += 2) {
+    const byte = parseInt(hexString.substring(i, i + 2), 16);
+    uint8Array[i / 2] = byte;
+  }
+
+  return uint8Array;
+}
 
 const brokenTestFn = process.env.GITHUB_ACTIONS ? it.skip : it;
 describe("token integration tests", () => {
@@ -111,6 +126,138 @@ describe("token integration tests", () => {
       tokenPublicKey,
     );
     expect(destinationBalance.balance).toEqual(tokenAmount);
+  });
+
+  it("should announce, mint, get list all transactions, and transfer tokens with ECDSA multiple times, get list all transactions again and check difference", async () => {
+    const tokenAmount: bigint = 100n;
+
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_ECDSA,
+    });
+
+    const { wallet: destinationWallet } = await SparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_ECDSA,
+    });
+
+    await fundAndAnnounce(issuerWallet, 100000n, 0, "ECDSATransfer", "ETT");
+
+    {
+      const transactions = await issuerWallet.getIssuerTokenActivity();
+      const amount_of_transactions = transactions.transactions.length;
+      expect(amount_of_transactions).toEqual(0);
+    }
+
+    await issuerWallet.mintTokens(tokenAmount);
+
+    {
+      const transactions = await issuerWallet.getIssuerTokenActivity();
+      const amount_of_transactions = transactions.transactions.length;
+      expect(amount_of_transactions).toEqual(1);
+    }
+
+    await issuerWallet.transferTokens({
+      tokenAmount,
+      tokenPublicKey: await issuerWallet.getIdentityPublicKey(),
+      receiverSparkAddress: await destinationWallet.getSparkAddress(),
+    });
+
+    {
+      const transactions = await issuerWallet.getIssuerTokenActivity();
+      const amount_of_transactions = transactions.transactions.length;
+      expect(amount_of_transactions).toEqual(2);
+    }
+
+    for (let index = 0; index < 100; ++index) {
+      await issuerWallet.mintTokens(tokenAmount);
+      await issuerWallet.transferTokens({
+        tokenAmount,
+        tokenPublicKey: await issuerWallet.getIdentityPublicKey(),
+        receiverSparkAddress: await destinationWallet.getSparkAddress(),
+      });
+    } // 202 in total
+
+    let all_transactions = await issuerWallet.getIssuerTokenActivity(250);
+    const amount_of_transactions = all_transactions.transactions.length;
+    expect(amount_of_transactions).toEqual(202);
+
+    {
+      const transactions = await issuerWallet.getIssuerTokenActivity(10);
+      const amount_of_transactions = transactions.transactions.length;
+      expect(amount_of_transactions).toEqual(10);
+    }
+
+    {
+      let hashset_of_all_transactions: Set<String> = new Set();
+
+      let transactions = await issuerWallet.getIssuerTokenActivity(10);
+      let amount_of_transactions = transactions.transactions.length;
+      expect(amount_of_transactions).toEqual(10);
+      let page_num = 0;
+      for (let index = 0; index < transactions.transactions.length; ++index) {
+        const element = transactions.transactions[index];
+        if (!(element.transaction === undefined)) {
+          let hash: String = "";
+          if (element.transaction.$case === "spark") {
+            hash = element.transaction.spark.transactionHash;
+          } else if (element.transaction.$case === "onChain") {
+            hash = element.transaction.onChain.transactionHash;
+          }
+          if (hashset_of_all_transactions.has(hash)) {
+            expect(
+              `Dublicate found. Pagination is broken? Index of transaction: ${index} ; page №: ${page_num} ; page size: 10 ; hash_dublicate: ${hash}`,
+            ).toEqual("");
+          } else {
+            hashset_of_all_transactions.add(hash);
+          }
+        } else {
+          expect(
+            `Transaction is undefined. Something is really wrong. Index of transaction: ${index} ; page №: ${page_num} ; page size: 10`,
+          ).toEqual("");
+        }
+      }
+
+      while (!(undefined === transactions.nextCursor)) {
+        let transactions_2 = await issuerWallet.getIssuerTokenActivity(10, {
+          lastTransactionHash: hexStringToUint8Array(
+            transactions.nextCursor.lastTransactionHash,
+          ),
+          layer: transactions.nextCursor.layer,
+        });
+
+        ++page_num;
+
+        for (
+          let index = 0;
+          index < transactions_2.transactions.length;
+          ++index
+        ) {
+          const element = transactions_2.transactions[index];
+          if (!(element.transaction === undefined)) {
+            let hash: String = "";
+            if (element.transaction.$case === "spark") {
+              hash = element.transaction.spark.transactionHash;
+            } else if (element.transaction.$case === "onChain") {
+              hash = element.transaction.onChain.transactionHash;
+            }
+            if (hashset_of_all_transactions.has(hash)) {
+              expect(
+                `Dublicate found. Pagination is broken? Index of transaction: ${index} ; page №: ${page_num} ; page size: 10 ; hash_dublicate: ${hash}`,
+              ).toEqual("");
+            } else {
+              hashset_of_all_transactions.add(hash);
+            }
+          } else {
+            expect(
+              `Transaction is undefined. Something is really wrong. Index of transaction: ${index} ; page №: ${page_num} ; page size: 10`,
+            ).toEqual("");
+          }
+        }
+
+        transactions = transactions_2;
+      }
+
+      expect(hashset_of_all_transactions.size == 202);
+    }
   });
 
   it("should announce, mint, and batchtransfer tokens with ECDSA", async () => {
@@ -270,8 +417,7 @@ describe("token integration tests", () => {
     expect(destinationBalance.balance).toEqual(tokenAmount);
   });
 
-  // broken because LRC20 does not yet have ISSUER operation types.
-  brokenTestFn("should track token operations in monitoring", async () => {
+  it("should track token operations in monitoring", async () => {
     const tokenAmount: bigint = 1000n;
 
     const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
@@ -500,6 +646,26 @@ describe("token integration tests", () => {
     expect(issuerTokenBalanceAfterBurn).toEqual(0n);
   });
 
+  it("should announce, mint, and burn tokens with ECDSA and totalSupply has to be equal amount of token minted minus burned tokens", async () => {
+    const tokenAmount_init: bigint = 2000n;
+    const tokenAmount_burn: bigint = 1000n;
+
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_ECDSA,
+    });
+
+    await fundAndAnnounce(issuerWallet, 100000n, 0, "ECDSATotalSupply", "ETS");
+    await issuerWallet.mintTokens(tokenAmount_init);
+
+    await issuerWallet.burnTokens(tokenAmount_burn);
+
+    const smth_with_total_supply = await issuerWallet.getIssuerTokenInfo();
+
+    expect(smth_with_total_supply?.totalSupply).toEqual(
+      tokenAmount_init - tokenAmount_burn,
+    );
+  });
+
   it("should announce, mint, and burn tokens with Schnorr", async () => {
     const tokenAmount: bigint = 200n;
     const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
@@ -645,6 +811,87 @@ describe("token integration tests", () => {
       await issuerWallet.getIssuerTokenBalance()
     ).balance;
     expect(issuerTokenBalanceAfterBurn).toEqual(0n);
+  });
+  it("should correctly assign operation types for complete token lifecycle operations", async () => {
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    const { wallet: userWallet } = await SparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    const tokenAmount = 1000n;
+
+    await fundAndAnnounce(issuerWallet, 100000n, 0, "OperationTypeTest", "OTT");
+    await issuerWallet.mintTokens(tokenAmount);
+
+    await issuerWallet.transferTokens({
+      tokenAmount: 500n,
+      tokenPublicKey: await issuerWallet.getIdentityPublicKey(),
+      receiverSparkAddress: await userWallet.getSparkAddress(),
+    });
+
+    const tokenPublicKeyHex = await issuerWallet.getIdentityPublicKey();
+
+    await userWallet.transferTokens({
+      tokenPublicKey: tokenPublicKeyHex,
+      tokenAmount: 250n,
+      receiverSparkAddress: await issuerWallet.getSparkAddress(),
+    });
+
+    // as in userWallet we didn't have burnTokens method, we need to transfer tokens to burn address manually
+    const BURN_ADDRESS = "02".repeat(33);
+    const burnAddress = encodeSparkAddress({
+      identityPublicKey: BURN_ADDRESS,
+      network: "LOCAL",
+    });
+
+    await userWallet.transferTokens({
+      tokenPublicKey: tokenPublicKeyHex,
+      tokenAmount: 250n,
+      receiverSparkAddress: burnAddress,
+    });
+
+    await issuerWallet.burnTokens(250n);
+
+    const activity = await issuerWallet.getIssuerTokenActivity();
+
+    const mintTransaction = activity.transactions.find(
+      (tx) =>
+        tx.transaction?.$case === "spark" &&
+        tx.transaction.spark.operationType === "ISSUER_MINT",
+    );
+
+    const transferTransaction = activity.transactions.find(
+      (tx) =>
+        tx.transaction?.$case === "spark" &&
+        tx.transaction.spark.operationType === "ISSUER_TRANSFER",
+    );
+
+    const burnTransaction = activity.transactions.find(
+      (tx) =>
+        tx.transaction?.$case === "spark" &&
+        tx.transaction.spark.operationType === "ISSUER_BURN",
+    );
+
+    const transferBackTransaction = activity.transactions.find(
+      (tx) =>
+        tx.transaction?.$case === "spark" &&
+        tx.transaction.spark.operationType === "USER_TRANSFER",
+    );
+
+    const userBurnTransaction = activity.transactions.find(
+      (tx) =>
+        tx.transaction?.$case === "spark" &&
+        tx.transaction.spark.operationType === "USER_BURN",
+    );
+
+    expect(mintTransaction).toBeDefined();
+    expect(transferTransaction).toBeDefined();
+    expect(burnTransaction).toBeDefined();
+    expect(transferBackTransaction).toBeDefined();
+    expect(userBurnTransaction).toBeDefined();
   });
 });
 

@@ -17,11 +17,24 @@ amountSats: number;
     /** The 32-byte hash of the payment preimage to use when generating the lightning invoice. **/
 paymentHash: string;
 
+    /**
+ * Whether to embed the spark address in the fallback address field of the Bolt 11 lightning invoice.
+ * Spark-aware wallets can use this field to preferentially pay over spark if they find a spark
+ * address in the fallback address field.
+**/
+includeSparkAddress: boolean;
+
     /** The expiry of the lightning invoice in seconds. Default value is 86400 (1 day). **/
 expirySecs?: number | undefined;
 
     /** The memo to include in the lightning invoice. **/
 memo?: string | undefined;
+
+    /**
+ * The public key of the user receiving the lightning invoice. If not present, the receiver will be
+ * the creator of this request.
+**/
+receiverIdentityPubkey?: string | undefined;
 
 
 
@@ -33,8 +46,10 @@ export const RequestLightningReceiveInputFromJson = (obj: any): RequestLightning
         network: BitcoinNetwork[obj["request_lightning_receive_input_network"]] ?? BitcoinNetwork.FUTURE_VALUE,
         amountSats: obj["request_lightning_receive_input_amount_sats"],
         paymentHash: obj["request_lightning_receive_input_payment_hash"],
+        includeSparkAddress: obj["request_lightning_receive_input_include_spark_address"],
         expirySecs: obj["request_lightning_receive_input_expiry_secs"],
         memo: obj["request_lightning_receive_input_memo"],
+        receiverIdentityPubkey: obj["request_lightning_receive_input_receiver_identity_pubkey"],
 
         } as RequestLightningReceiveInput;
 
@@ -46,6 +61,8 @@ request_lightning_receive_input_amount_sats: obj.amountSats,
 request_lightning_receive_input_payment_hash: obj.paymentHash,
 request_lightning_receive_input_expiry_secs: obj.expirySecs,
 request_lightning_receive_input_memo: obj.memo,
+request_lightning_receive_input_receiver_identity_pubkey: obj.receiverIdentityPubkey,
+request_lightning_receive_input_include_spark_address: obj.includeSparkAddress,
 
         }
 

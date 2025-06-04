@@ -1,15 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
 import { hexToBytes } from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
+import { sha256 } from "@noble/hashes/sha2";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { TransactionInput } from "@scure/btc-signer/psbt";
-import { equalBytes, sha256 } from "@scure/btc-signer/utils";
+import { equalBytes } from "@scure/btc-signer/utils";
 import { WalletConfigService } from "../../services/config.js";
 import { ConnectionManager } from "../../services/connection.js";
-import { SigningService } from "../../services/signing.js";
 import { CoopExitService } from "../../services/coop-exit.js";
-import { TransferService } from "../../services/transfer.js";
+import { SigningService } from "../../services/signing.js";
 import type { LeafKeyTweak } from "../../services/transfer.js";
+import { TransferService } from "../../services/transfer.js";
 import { ConfigOptions } from "../../services/wallet-config.js";
 import {
   getP2TRAddressFromPublicKey,

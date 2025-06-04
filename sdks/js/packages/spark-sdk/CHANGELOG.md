@@ -1,5 +1,26 @@
 # @buildonspark/spark-sdk
 
+## 0.1.30
+
+### Patch Changes
+
+- Remove LRC20 Proto Generation
+- Update to leaf optimizations
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.53
+
+## 0.1.29
+
+### Patch Changes
+
+- - react-native moved to peerDependencies
+  - Error messages now include more context and the original error message.
+  - Fix self transfers with query to pending transactions.
+  - For RN Android, improved typings and resolve issue where calls to SparkFrostModule were hanging.
+  - Export getLatestDepositTxId from /native
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.52
+
 ## 0.1.28
 
 ### Patch Changes

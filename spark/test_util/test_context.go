@@ -12,7 +12,7 @@ import (
 // TestContext returns a context with a database client that can be used for testing.
 func TestContext(config *so.Config) (context.Context, *ent.Client, error) {
 	dbDriver := config.DatabaseDriver()
-	dbClient, err := ent.Open(dbDriver, config.DatabasePath)
+	dbClient, err := ent.Open(dbDriver, config.Database.URI)
 	if err != nil {
 		return nil, nil, err
 	}

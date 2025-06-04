@@ -1632,6 +1632,8 @@ func (m *SigningKeyshare) validate(all bool) error {
 
 	// no validation rules for Threshold
 
+	// no validation rules for PublicKey
+
 	if len(errors) > 0 {
 		return SigningKeyshareMultiError(errors)
 	}
@@ -16545,6 +16547,119 @@ var _ interface {
 	ErrorName() string
 } = QueryUnusedDepositAddressesRequestValidationError{}
 
+// Validate checks the field values on QueryStaticDepositAddressesRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *QueryStaticDepositAddressesRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on QueryStaticDepositAddressesRequest
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// QueryStaticDepositAddressesRequestMultiError, or nil if none found.
+func (m *QueryStaticDepositAddressesRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *QueryStaticDepositAddressesRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for IdentityPublicKey
+
+	// no validation rules for Network
+
+	// no validation rules for Limit
+
+	// no validation rules for Offset
+
+	if len(errors) > 0 {
+		return QueryStaticDepositAddressesRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// QueryStaticDepositAddressesRequestMultiError is an error wrapping multiple
+// validation errors returned by
+// QueryStaticDepositAddressesRequest.ValidateAll() if the designated
+// constraints aren't met.
+type QueryStaticDepositAddressesRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m QueryStaticDepositAddressesRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m QueryStaticDepositAddressesRequestMultiError) AllErrors() []error { return m }
+
+// QueryStaticDepositAddressesRequestValidationError is the validation error
+// returned by QueryStaticDepositAddressesRequest.Validate if the designated
+// constraints aren't met.
+type QueryStaticDepositAddressesRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e QueryStaticDepositAddressesRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e QueryStaticDepositAddressesRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e QueryStaticDepositAddressesRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e QueryStaticDepositAddressesRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e QueryStaticDepositAddressesRequestValidationError) ErrorName() string {
+	return "QueryStaticDepositAddressesRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e QueryStaticDepositAddressesRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sQueryStaticDepositAddressesRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = QueryStaticDepositAddressesRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = QueryStaticDepositAddressesRequestValidationError{}
+
 // Validate checks the field values on DepositAddressQueryResult with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -16815,6 +16930,145 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = QueryUnusedDepositAddressesResponseValidationError{}
+
+// Validate checks the field values on QueryStaticDepositAddressesResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *QueryStaticDepositAddressesResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on QueryStaticDepositAddressesResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// QueryStaticDepositAddressesResponseMultiError, or nil if none found.
+func (m *QueryStaticDepositAddressesResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *QueryStaticDepositAddressesResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetDepositAddresses() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, QueryStaticDepositAddressesResponseValidationError{
+						field:  fmt.Sprintf("DepositAddresses[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, QueryStaticDepositAddressesResponseValidationError{
+						field:  fmt.Sprintf("DepositAddresses[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return QueryStaticDepositAddressesResponseValidationError{
+					field:  fmt.Sprintf("DepositAddresses[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return QueryStaticDepositAddressesResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// QueryStaticDepositAddressesResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// QueryStaticDepositAddressesResponse.ValidateAll() if the designated
+// constraints aren't met.
+type QueryStaticDepositAddressesResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m QueryStaticDepositAddressesResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m QueryStaticDepositAddressesResponseMultiError) AllErrors() []error { return m }
+
+// QueryStaticDepositAddressesResponseValidationError is the validation error
+// returned by QueryStaticDepositAddressesResponse.Validate if the designated
+// constraints aren't met.
+type QueryStaticDepositAddressesResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e QueryStaticDepositAddressesResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e QueryStaticDepositAddressesResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e QueryStaticDepositAddressesResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e QueryStaticDepositAddressesResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e QueryStaticDepositAddressesResponseValidationError) ErrorName() string {
+	return "QueryStaticDepositAddressesResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e QueryStaticDepositAddressesResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sQueryStaticDepositAddressesResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = QueryStaticDepositAddressesResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = QueryStaticDepositAddressesResponseValidationError{}
 
 // Validate checks the field values on QueryBalanceRequest with the rules
 // defined in the proto definition for this message. If any rules are

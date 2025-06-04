@@ -1,6 +1,6 @@
-import { sha256 } from "@scure/btc-signer/utils";
-import { TransferPackage } from "../proto/spark.js";
 import { hexToBytes } from "@noble/curves/abstract/utils";
+import { sha256 } from "@noble/hashes/sha2";
+import { TransferPackage } from "../proto/spark.js";
 
 // GetTransferPackageSigningPayload returns the signing payload for a transfer package.
 // The payload is a hash of the transfer ID and the encrypted payload sorted by key.

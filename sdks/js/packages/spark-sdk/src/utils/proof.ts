@@ -1,4 +1,4 @@
-import { sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
 
 export function proofOfPossessionMessageHashForDepositAddress(
   userPubkey: Uint8Array,

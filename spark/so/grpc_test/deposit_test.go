@@ -175,6 +175,16 @@ func TestGenerateStaticDepositAddress(t *testing.T) {
 	unusedDepositAddresses, err := wallet.QueryUnusedDepositAddresses(ctx, config)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(unusedDepositAddresses.DepositAddresses))
+
+	queryStaticDepositAddresses, err := wallet.QueryStaticDepositAddresses(ctx, config)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(queryStaticDepositAddresses.DepositAddresses))
+	assert.Equal(t, resp.DepositAddress.Address, queryStaticDepositAddresses.DepositAddresses[0].DepositAddress)
+
+	// Generating a new static deposit address should return an error
+	_, err = wallet.GenerateStaticDepositAddress(ctx, config, pubkey)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "static deposit address already exists")
 }
 
 func TestStartDepositTreeCreationBasic(t *testing.T) {

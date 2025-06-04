@@ -162,6 +162,26 @@ func QueryUnusedDepositAddresses(
 	})
 }
 
+func QueryStaticDepositAddresses(
+	ctx context.Context,
+	config *Config,
+) (*pb.QueryStaticDepositAddressesResponse, error) {
+	sparkConn, err := common.NewGRPCConnectionWithTestTLS(config.CoodinatorAddress(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer sparkConn.Close()
+	sparkClient := pb.NewSparkServiceClient(sparkConn)
+	network, err := common.ProtoNetworkFromNetwork(config.Network)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get proto network: %w", err)
+	}
+	return sparkClient.QueryStaticDepositAddresses(ctx, &pb.QueryStaticDepositAddressesRequest{
+		IdentityPublicKey: config.IdentityPublicKey(),
+		Network:           network,
+	})
+}
+
 // CreateTreeRoot creates a tree root for a given deposit transaction.
 func CreateTreeRoot(
 	ctx context.Context,

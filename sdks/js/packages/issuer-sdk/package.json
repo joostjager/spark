@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/issuer-sdk",
-  "version": "0.0.59",
+  "version": "0.0.61",
   "description": "Spark Issuer SDK for token issuance",
   "license": "Apache-2.0",
   "module": "./dist/index.js",
@@ -15,6 +15,14 @@
     "./types": {
       "import": "./dist/types.js",
       "require": "./dist/types.cjs"
+    },
+    "./proto/spark": {
+      "import": "./dist/proto/spark.js",
+      "require": "./dist/proto/spark.cjs"
+    },
+    "./proto/lrc20": {
+      "import": "./dist/proto/lrc20.js",
+      "require": "./dist/proto/lrc20.cjs"
     }
   },
   "browser": {
@@ -50,19 +58,16 @@
     "test:integration": "yarn test-cmd src/tests/integration/*.test.ts",
     "test:stress": "yarn test-cmd src/tests/stress/*.test.ts",
     "types:watch": "tsc-absolute --watch",
-    "types": "tsc",
-    "generate:proto": "PATH=\"$PATH:./node_modules/.bin\" protoc --ts_proto_out=./src/proto --ts_proto_opt=outputServices=nice-grpc,useExactTypes=false,outputServices=generic-definitions,oneof=unions,importSuffix=.js --proto_path=../../../../protos spark.proto mock.proto spark_authn.proto && yarn format:fix"
+    "types": "tsc"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.2.5",
-    "@buildonspark/lrc20-sdk": "0.0.51",
-    "@buildonspark/spark-sdk": "0.1.28",
+    "@buildonspark/lrc20-sdk": "0.0.53",
+    "@buildonspark/spark-sdk": "0.1.30",
     "@lightsparkdev/core": "^1.4.0",
     "@noble/curves": "^1.8.0",
     "@scure/btc-signer": "^1.5.0",
     "bitcoinjs-lib": "^6.1.5",
     "buffer": "^6.0.3",
-    "nice-grpc-common": "^2.0.2",
     "ts-proto": "^2.6.1"
   },
   "devDependencies": {

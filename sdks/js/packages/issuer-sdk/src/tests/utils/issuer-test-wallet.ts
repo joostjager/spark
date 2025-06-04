@@ -1,5 +1,5 @@
 import { SparkWalletProps } from "@buildonspark/spark-sdk";
-import { IssuerSparkWallet } from "../../issuer-spark-wallet.js";
+import { IssuerSparkWallet } from "../../issuer-wallet/issuer-spark-wallet.js";
 
 export class IssuerSparkWalletTesting extends IssuerSparkWallet {
   private disableEvents: boolean;

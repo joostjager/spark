@@ -1,4 +1,4 @@
-import { IssuerSparkWallet } from "../../issuer-spark-wallet.js";
+import { IssuerSparkWallet } from "../../issuer-wallet/issuer-spark-wallet.js";
 import { jest } from "@jest/globals";
 import { LOCAL_WALLET_CONFIG_ECDSA } from "../../../../spark-sdk/src/services/wallet-config.js";
 import { SparkWallet } from "@buildonspark/spark-sdk";

@@ -30,6 +30,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	defaultPoolMinConns          = 4
+	defaultPoolMaxConns          = 32
+	defaultPoolMaxConnLifetime   = 5 * time.Minute
+	defaultPoolMaxConnIdleTime   = 30 * time.Second
+	defaultPoolHealthCheckPeriod = 15 * time.Second
+)
+
 // Config is the configuration for the signing operator.
 type Config struct {
 	// Index is the index of the signing operator.
@@ -45,8 +53,6 @@ type Config struct {
 	Threshold uint64
 	// SignerAddress is the address of the signing operator.
 	SignerAddress string
-	// DatabasePath is the path to the database.
-	DatabasePath string
 	// authzEnforced determines if authorization checks are enforced
 	authzEnforced bool
 	// DKGCoordinatorAddress is the address of the DKG coordinator.
@@ -55,8 +61,6 @@ type Config struct {
 	SupportedNetworks []common.Network
 	// BitcoindConfigs are the configurations for different bitcoin nodes.
 	BitcoindConfigs map[string]BitcoindConfig
-	// AWS determines if the database is in AWS RDS.
-	AWS bool
 	// ServerCertPath is the path to the server certificate.
 	ServerCertPath string
 	// ServerKeyPath is the path to the server key.
@@ -76,11 +80,13 @@ type Config struct {
 	RateLimiter RateLimiterConfig
 	// Tracing configuration
 	Tracing common.TracingConfig
+	// Database is the configuration for the database.
+	Database DatabaseConfig
 }
 
 // DatabaseDriver returns the database driver based on the database path.
 func (c *Config) DatabaseDriver() string {
-	if strings.HasPrefix(c.DatabasePath, "postgresql") {
+	if strings.HasPrefix(c.Database.URI, "postgresql") {
 		return "postgres"
 	}
 	return "sqlite3"
@@ -94,6 +100,8 @@ type OperatorConfig struct {
 	Lrc20 map[string]Lrc20Config `yaml:"lrc20"`
 	// Tracing is the configuration for tracing
 	Tracing common.TracingConfig `yaml:"tracing"`
+	// Database is the configuration for the database
+	Database *DatabaseConfig `yaml:"database"`
 	// ReturnDetailedErrors determines if detailed errors should be returned to the client
 	ReturnDetailedErrors bool `yaml:"return_detailed_errors"`
 	// ReturnDetailedPanicErrors determines if detailed panic errors should be returned to the client
@@ -131,6 +139,17 @@ type Lrc20Config struct {
 	TransactionExpiryDuration time.Duration `yaml:"transaction_expiry_duration"`
 	GRPCPageSize              uint64        `yaml:"grpcspagesize"`
 	GRPCPoolSize              uint64        `yaml:"grpcpoolsize"`
+}
+
+type DatabaseConfig struct {
+	URI                       string         `yaml:"uri"`
+	IsRDS                     bool           `yaml:"is_rds"`
+	PoolMinConns              *int           `yaml:"pool_min_conns"`
+	PoolMaxConns              *int           `yaml:"pool_max_conns"`
+	PoolMaxConnLifetime       *time.Duration `yaml:"pool_max_conn_lifetime"`
+	PoolMaxConnIdleTime       *time.Duration `yaml:"pool_max_conn_idle_time"`
+	PoolHealthCheckPeriod     *time.Duration `yaml:"pool_health_check_period"`
+	PoolMaxConnLifetimeJitter *time.Duration `yaml:"pool_max_conn_lifetime_jitter"`
 }
 
 // RateLimiterConfig is the configuration for the rate limiter
@@ -198,6 +217,15 @@ func NewConfig(
 		dkgCoordinatorAddress = signingOperatorMap[identifier].Address
 	}
 
+	// If new database config is not provided, create it from the old config.
+	// TODO(mhr): Deprecate DatabasePath and AWS in favor of DatabaseConfig (LPT-384).
+	if operatorConfig.Database == nil {
+		operatorConfig.Database = &DatabaseConfig{
+			URI:   databasePath,
+			IsRDS: aws,
+		}
+	}
+
 	return &Config{
 		Index:                     index,
 		Identifier:                identifier,
@@ -205,13 +233,11 @@ func NewConfig(
 		SigningOperatorMap:        signingOperatorMap,
 		Threshold:                 threshold,
 		SignerAddress:             signerAddress,
-		DatabasePath:              databasePath,
 		authzEnforced:             authzEnforced,
 		DKGCoordinatorAddress:     dkgCoordinatorAddress,
 		SupportedNetworks:         supportedNetworks,
 		BitcoindConfigs:           operatorConfig.Bitcoind,
 		Lrc20Configs:              operatorConfig.Lrc20,
-		AWS:                       aws,
 		ServerCertPath:            serverCertPath,
 		ServerKeyPath:             serverKeyPath,
 		DKGLimitOverride:          dkgLimitOverride,
@@ -220,6 +246,7 @@ func NewConfig(
 		ReturnDetailedPanicErrors: operatorConfig.ReturnDetailedPanicErrors,
 		RateLimiter:               rateLimiter,
 		Tracing:                   operatorConfig.Tracing,
+		Database:                  *operatorConfig.Database,
 	}, nil
 }
 
@@ -281,14 +308,14 @@ var OtelSQLSpanOptions = otelsql.SpanOptions{
 }
 
 type DBConnector struct {
-	baseURI *url.URL
-	AWS     bool
-	driver  driver.Driver
-	pool    *pgxpool.Pool
+	uri    *url.URL
+	isRDS  bool
+	driver driver.Driver
+	pool   *pgxpool.Pool
 }
 
-func NewDBConnector(ctx context.Context, urlStr string, aws bool) (*DBConnector, error) {
-	uri, err := url.Parse(urlStr)
+func NewDBConnector(ctx context.Context, dbCfg *DatabaseConfig) (*DBConnector, error) {
+	uri, err := url.Parse(dbCfg.URI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database path: %w", err)
 	}
@@ -299,24 +326,49 @@ func NewDBConnector(ctx context.Context, urlStr string, aws bool) (*DBConnector,
 	)
 
 	connector := &DBConnector{
-		baseURI: uri,
-		AWS:     aws,
-		driver:  otelWrappedDriver,
+		uri:    uri,
+		isRDS:  dbCfg.IsRDS,
+		driver: otelWrappedDriver,
 	}
 
 	// Only create pool for PostgreSQL
-	if strings.HasPrefix(urlStr, "postgresql") {
-		config, err := pgxpool.ParseConfig(urlStr)
+	if strings.HasPrefix(dbCfg.URI, "postgresql") {
+		config, err := pgxpool.ParseConfig(dbCfg.URI)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse pool config: %w", err)
 		}
 		config.ConnConfig.Tracer = otelpgx.NewTracer()
 
-		// Add pool configuration
-		config.MaxConns = 50
-		config.MinConns = 10
+		config.MinConns = int32(defaultPoolMinConns)
+		if dbCfg.PoolMinConns != nil {
+			config.MinConns = int32(*dbCfg.PoolMinConns)
+		}
 
-		if aws {
+		config.MaxConns = int32(defaultPoolMaxConns)
+		if dbCfg.PoolMaxConns != nil {
+			config.MaxConns = int32(*dbCfg.PoolMaxConns)
+		}
+
+		config.MaxConnLifetime = defaultPoolMaxConnLifetime
+		if dbCfg.PoolMaxConnLifetime != nil {
+			config.MaxConnLifetime = *dbCfg.PoolMaxConnLifetime
+		}
+
+		config.MaxConnIdleTime = defaultPoolMaxConnIdleTime
+		if dbCfg.PoolMaxConnIdleTime != nil {
+			config.MaxConnIdleTime = *dbCfg.PoolMaxConnIdleTime
+		}
+
+		config.HealthCheckPeriod = defaultPoolHealthCheckPeriod
+		if dbCfg.PoolHealthCheckPeriod != nil {
+			config.HealthCheckPeriod = *dbCfg.PoolHealthCheckPeriod
+		}
+
+		if dbCfg.PoolMaxConnLifetimeJitter != nil {
+			config.MaxConnLifetimeJitter = *dbCfg.PoolMaxConnLifetimeJitter
+		}
+
+		if dbCfg.IsRDS {
 			config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
 				token, err := NewRDSAuthToken(ctx, uri)
 				if err != nil {
@@ -338,11 +390,11 @@ func NewDBConnector(ctx context.Context, urlStr string, aws bool) (*DBConnector,
 }
 
 func (c *DBConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	if !c.AWS {
-		return c.driver.Open(c.baseURI.String())
+	if !c.isRDS {
+		return c.driver.Open(c.uri.String())
 	}
-	uri := c.baseURI
-	token, err := NewRDSAuthToken(ctx, c.baseURI)
+	uri := c.uri
+	token, err := NewRDSAuthToken(ctx, c.uri)
 	if err != nil {
 		return nil, err
 	}

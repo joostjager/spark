@@ -72,7 +72,7 @@ type args struct {
 	Threshold                  uint64
 	SignerAddress              string
 	Port                       uint64
-	DatabasePath               string
+	DatabasePath               string // DEPRECATED: Use DatabaseConfig.URI instead.
 	RunningLocally             bool
 	ChallengeTimeout           time.Duration
 	SessionDuration            time.Duration
@@ -80,7 +80,7 @@ type args struct {
 	DKGCoordinatorAddress      string
 	DisableDKG                 bool
 	SupportedNetworks          string
-	AWS                        bool
+	AWS                        bool // DEPRECATED: Use DatabaseConfig.IsRDS instead.
 	ServerCertPath             string
 	ServerKeyPath              string
 	DKGLimitOverride           uint64
@@ -184,10 +184,6 @@ func loadArgs() (*args, error) {
 		return nil, errors.New("port is required")
 	}
 
-	if args.DatabasePath == "" {
-		return nil, errors.New("database path is required")
-	}
-
 	return args, nil
 }
 
@@ -265,7 +261,7 @@ func main() {
 	}
 
 	dbDriver := config.DatabaseDriver()
-	connector, err := so.NewDBConnector(errCtx, config.DatabasePath, config.AWS)
+	connector, err := so.NewDBConnector(errCtx, &config.Database)
 	if err != nil {
 		log.Fatalf("Failed to create db connector: %v", err)
 	}
@@ -284,7 +280,7 @@ func main() {
 	defer dbClient.Close()
 
 	if dbDriver == "sqlite3" {
-		sqliteDb, _ := sql.Open("sqlite3", config.DatabasePath)
+		sqliteDb, _ := sql.Open("sqlite3", config.Database.URI)
 		if _, err := sqliteDb.ExecContext(errCtx, "PRAGMA journal_mode=WAL;"); err != nil {
 			log.Fatalf("Failed to set journal_mode: %v", err)
 		}

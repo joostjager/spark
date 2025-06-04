@@ -5,9 +5,9 @@ import {
 } from "@noble/curves/abstract/utils";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 
+import { sha256 } from "@noble/hashes/sha2";
 import * as btc from "@scure/btc-signer";
 import { TransactionOutput } from "@scure/btc-signer/psbt";
-import { sha256 } from "@scure/btc-signer/utils";
 import { ValidationError } from "../errors/index.js";
 import { getNetwork, Network } from "./network.js";
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 import { equalBytes, hexToBytes } from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { sha256 } from "@scure/btc-signer/utils";
+import { sha256 } from "@noble/hashes/sha2";
+import { ValidationError } from "../../errors/types.js";
 import { WalletConfigService } from "../../services/config.js";
 import { ConnectionManager } from "../../services/connection.js";
 import { SigningService } from "../../services/signing.js";
-import { TransferService } from "../../services/transfer.js";
 import type { LeafKeyTweak } from "../../services/transfer.js";
+import { TransferService } from "../../services/transfer.js";
 import {
   applyAdaptorToSignature,
   generateAdaptorFromSignature,
@@ -18,7 +19,6 @@ import {
 import { createNewTree } from "../test-util.js";
 import { SparkWalletTesting } from "../utils/spark-testing-wallet.js";
 import { BitcoinFaucet } from "../utils/test-faucet.js";
-import { ValidationError } from "../../errors/types.js";
 
 describe("swap", () => {
   it("test swap", async () => {

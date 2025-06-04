@@ -7,7 +7,8 @@ export class SparkSDKError extends Error {
     context: Record<string, unknown> = {},
     originalError?: Error,
   ) {
-    super(message);
+    const msg = getMessage(message, context, originalError);
+    super(msg);
     this.name = this.constructor.name;
     this.context = context;
     this.originalError = originalError;
@@ -18,15 +19,7 @@ export class SparkSDKError extends Error {
   }
 
   public toString(): string {
-    const contextStr = Object.entries(this.context)
-      .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-      .join(", ");
-
-    const originalErrorStr = this.originalError
-      ? `\nOriginal Error: ${this.originalError.message}`
-      : "";
-
-    return `${this.name}: ${this.message}${contextStr ? `\nContext: ${contextStr}` : ""}${originalErrorStr}`;
+    return this.message;
   }
 
   public toJSON(): Record<string, unknown> {
@@ -44,4 +37,20 @@ export class SparkSDKError extends Error {
       stack: this.stack,
     };
   }
+}
+
+function getMessage(
+  message: string,
+  context: Record<string, unknown> = {},
+  originalError?: Error,
+) {
+  const contextStr = Object.entries(context)
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+    .join(", ");
+
+  const originalErrorStr = originalError
+    ? `\nOriginal Error: ${originalError.message}`
+    : "";
+
+  return `SparkSDKError: ${message}${contextStr ? `\nContext: ${contextStr}` : ""}${originalErrorStr}`;
 }

@@ -1,6 +1,6 @@
 import { hexToBytes } from "@noble/curves/abstract/utils";
+import { sha256 } from "@noble/hashes/sha2";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
-import { sha256 } from "@scure/btc-signer/utils";
 import { NetworkError, ValidationError } from "../errors/index.js";
 import {
   AddressNode,

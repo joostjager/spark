@@ -1,8 +1,9 @@
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
+import { sha256 } from "@noble/hashes/sha2";
 import { hexToBytes } from "@noble/hashes/utils";
 import * as btc from "@scure/btc-signer";
 import { p2tr, Transaction } from "@scure/btc-signer";
-import { equalBytes, sha256 } from "@scure/btc-signer/utils";
+import { equalBytes } from "@scure/btc-signer/utils";
 import { NetworkError, ValidationError } from "../errors/types.js";
 import { SignatureIntent } from "../proto/common.js";
 import {
@@ -30,6 +31,7 @@ type ValidateDepositAddressParams = {
 export type GenerateDepositAddressParams = {
   signingPubkey: Uint8Array;
   leafId: string;
+  isStatic?: boolean;
 };
 
 export type CreateTreeRootParams = {
@@ -130,6 +132,7 @@ export class DepositService {
   async generateDepositAddress({
     signingPubkey,
     leafId,
+    isStatic = false,
   }: GenerateDepositAddressParams): Promise<GenerateDepositAddressResponse> {
     const sparkClient = await this.connectionManager.createSparkClient(
       this.config.getCoordinatorAddress(),
@@ -142,6 +145,7 @@ export class DepositService {
         identityPublicKey: await this.config.signer.getIdentityPublicKey(),
         network: this.config.getNetworkProto(),
         leafId: leafId,
+        isStatic: isStatic,
       });
     } catch (error) {
       throw new NetworkError(
