@@ -39,6 +39,10 @@ const (
 	FieldUserIdentityPublicKey = "user_identity_public_key"
 	// FieldCoordinatorIdentityPublicKey holds the string denoting the coordinator_identity_public_key field in the database.
 	FieldCoordinatorIdentityPublicKey = "coordinator_identity_public_key"
+	// FieldRequestedTransferID holds the string denoting the requested_transfer_id field in the database.
+	FieldRequestedTransferID = "requested_transfer_id"
+	// FieldSpendTxSigningResult holds the string denoting the spend_tx_signing_result field in the database.
+	FieldSpendTxSigningResult = "spend_tx_signing_result"
 	// EdgeUtxo holds the string denoting the utxo edge name in mutations.
 	EdgeUtxo = "utxo"
 	// EdgeTransfer holds the string denoting the transfer edge name in mutations.
@@ -75,6 +79,8 @@ var Columns = []string{
 	FieldUserSignature,
 	FieldUserIdentityPublicKey,
 	FieldCoordinatorIdentityPublicKey,
+	FieldRequestedTransferID,
+	FieldSpendTxSigningResult,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "utxo_swaps"
@@ -167,6 +173,11 @@ func ByCreditAmountSats(opts ...sql.OrderTermOption) OrderOption {
 // ByMaxFeeSats orders the results by the max_fee_sats field.
 func ByMaxFeeSats(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxFeeSats, opts...).ToFunc()
+}
+
+// ByRequestedTransferID orders the results by the requested_transfer_id field.
+func ByRequestedTransferID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestedTransferID, opts...).ToFunc()
 }
 
 // ByUtxoField orders the results by utxo field.

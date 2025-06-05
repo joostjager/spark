@@ -1080,7 +1080,7 @@ message InitiateUtxoSwapRequest {
     }
     bytes ssp_signature = 5;
     bytes user_signature = 6;
-    StartUserSignedTransferRequest transfer = 7;
+    StartTransferRequest transfer = 7;
     SigningJob spend_tx_signing_job = 8;
 }
 

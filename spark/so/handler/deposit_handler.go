@@ -21,9 +21,11 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
 	"github.com/lightsparkdev/spark/so/ent/schema"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
+	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 	"github.com/lightsparkdev/spark/so/errors"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/objects"
+	"google.golang.org/protobuf/proto"
 )
 
 const DepositConfirmationThreshold = 2
@@ -632,184 +634,209 @@ func (s UtxoSwapStatementType) String() string {
 //   - config: The service configuration containing network and operator settings
 //   - req: The UTXO swap request containing:
 //   - OnChainUtxo: The UTXO to be swapped (network, txid, vout)
-//   - Transfer: The transfer details (receiver identity, leaves to send, etc.)
+//   - Transfer: StartTransferRequest with the transfer details (receiver identity, leaves to send, etc.)
 //   - SpendTxSigningJob: The SSP's spend transaction signing job details
 //
 // Returns:
 //   - InitiateUtxoSwapResponse containing:
 //   - SpendTxSigningResult: The signed spend transaction
-//   - Transfer: The created transfer record
-//   - DepositAddress: Information about the deposit address including:
+//   - Transfer: The created transfer record (status may be not yet final)
+//   - DepositAddress: Information about the deposit address
 //   - error if the operation fails
-//
-// TODO(oleg): implement cancellation of the swap
 func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config, req *pb.InitiateUtxoSwapRequest) (*pb.InitiateUtxoSwapResponse, error) {
 	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, config, req.Transfer.OwnerIdentityPublicKey); err != nil {
 		return nil, err
 	}
 
 	logger := logging.GetLoggerFromContext(ctx)
-	logger.Info("Start InitiateUtxoSwap request for on-chain utxo", "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
+	logger.Info("Start InitiateUtxoSwap request for on-chain utxo", "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout, "coordinator", config.Identifier)
+
+	// Check if the swap is already completed for the caller
+	db := ent.GetDbFromContext(ctx)
+	schemaNetwork, err := common.SchemaNetworkFromProtoNetwork(req.OnChainUtxo.Network)
+	if err != nil {
+		return nil, err
+	}
+
+	targetUtxo, err := VerifiedTargetUtxo(ctx, db, schemaNetwork, req.OnChainUtxo.Txid, req.OnChainUtxo.Vout)
+	if err != nil {
+		return nil, err
+	}
+
+	utxoSwap, err := db.UtxoSwap.Query().
+		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
+		Where(utxoswap.StatusNEQ(schema.UtxoSwapStatusCancelled)).
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("unable to check if utxo swap is already completed: %w", err)
+	}
+	if utxoSwap != nil {
+		// If the swap is completed and owned by the caller,
+		// idempotently return the result.
+		if utxoSwap.Status == schema.UtxoSwapStatusCompleted {
+			spendTxSigningResult := &pb.SigningResult{}
+			err := proto.Unmarshal(utxoSwap.SpendTxSigningResult, spendTxSigningResult)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal spend tx signing result: %w", err)
+			}
+			depositAddress, err := targetUtxo.QueryDepositAddress().Only(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get deposit address: %w", err)
+			}
+			signingKeyShare, err := depositAddress.QuerySigningKeyshare().Only(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get signing keyshare: %w", err)
+			}
+			verifyingKeyBytes, err := common.AddPublicKeys(signingKeyShare.PublicKey, depositAddress.OwnerSigningPubkey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add public keys: %w", err)
+			}
+			transfer, err := utxoSwap.QueryTransfer().Only(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get transfer: %w", err)
+			}
+			transferProto, err := transfer.MarshalProto(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal transfer: %w", err)
+			}
+			nodeIDStr := depositAddress.NodeID.String()
+			return &pb.InitiateUtxoSwapResponse{
+				SpendTxSigningResult: spendTxSigningResult,
+				Transfer:             transferProto,
+				DepositAddress: &pb.DepositAddressQueryResult{
+					DepositAddress:       depositAddress.Address,
+					UserSigningPublicKey: depositAddress.OwnerSigningPubkey,
+					VerifyingPublicKey:   verifyingKeyBytes,
+					LeafId:               &nodeIDStr,
+				},
+			}, nil
+		}
+		return nil, fmt.Errorf("utxo swap is already registered")
+	}
 
 	// **********************************************************************************************
 	// Create a swap record in all SEs so they can not be called concurrently to spend the same utxo.
 	// This will validate the swap request and store it in the database with status CREATED,
-	// blocking any other swap requests. Then it will create a transfer to the user.
+	// blocking any other swap requests. If this step fails, the caller will receive an error and
+	// the swap will be cancelled.
 	// **********************************************************************************************
 
 	// Sign a statement that this utxo swap is created by this coordinator.
 	// SOs will use it to mark the utxo swap as owned by this coordinator.
 	// This will allow the coordinator to cancel the swap if needed.
-	createUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
-		UtxoSwapStatementTypeCreated,
-		hex.EncodeToString(req.OnChainUtxo.Txid),
-		req.OnChainUtxo.Vout,
-		common.Network(req.OnChainUtxo.Network),
-	)
+	createdUtxoSwapRequest, err := CreateCreateSwapForUtxoRequest(config, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create utxo swap statement: %w", err)
-	}
-	createUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), createUtxoSwapRequestMessageHash)
-	allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
-	responses, err := helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
-		conn, err := operator.NewGRPCConnection()
-		if err != nil {
-			logger.Info("Failed to connect to operator", "error", err)
-			return nil, err
-		}
-		defer conn.Close()
+		logger.Warn("Failed to get create utxo swap request, cron task to retry", "error", err)
+	} else {
+		h := NewInternalDepositHandler(config)
+		if err := h.CreateSwapForAllOperators(ctx, config, createdUtxoSwapRequest); err != nil {
+			originalErr := err
+			logger.Info("Failed to successfully execute create utxo swap task with all operators, rolling back", "error", originalErr)
 
-		client := pbinternal.NewSparkInternalServiceClient(conn)
-		internalResp, err := client.CreateUtxoSwap(ctx, &pbinternal.CreateUtxoSwapRequest{
-			Request:              req,
-			Signature:            createUtxoSwapRequestSignature.Serialize(),
-			CoordinatorPublicKey: config.IdentityPublicKey(),
-		})
-		if err != nil {
-			logger.Info("Failed to execute create utxo swap task with operator", "operator", operator.Identifier, "error", err)
-			return nil, err
-		}
-		return internalResp, err
-	})
-	if err != nil {
-		originalErr := err
-		logger.Info("Failed to successfully execute create utxo swap task with all operators, rolling back", "error", originalErr)
-
-		// Sign a statement that this coordinator is rolling back the utxo swap.
-		rollbackUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
-			UtxoSwapStatementTypeRollback,
-			hex.EncodeToString(req.OnChainUtxo.Txid),
-			req.OnChainUtxo.Vout,
-			common.Network(req.OnChainUtxo.Network),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create utxo swap statement: %w", err)
-		}
-		rollbackUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), rollbackUtxoSwapRequestMessageHash)
-		allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
-		_, err = helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
-			conn, err := operator.NewGRPCConnection()
+			// Sign a statement that this coordinator is rolling back the utxo swap.
+			rollbackUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
+				UtxoSwapStatementTypeRollback,
+				hex.EncodeToString(req.OnChainUtxo.Txid),
+				req.OnChainUtxo.Vout,
+				common.Network(req.OnChainUtxo.Network),
+			)
 			if err != nil {
-				logger.Info("Failed to connect to operator for rollback utxo swap", "error", err)
-				return nil, err
+				return nil, fmt.Errorf("failed to create utxo swap statement: %w", err)
 			}
-			defer conn.Close()
+			rollbackUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), rollbackUtxoSwapRequestMessageHash)
+			allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
+			_, err = helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
+				conn, err := operator.NewGRPCConnection()
+				if err != nil {
+					logger.Error("Failed to connect to operator for rollback utxo swap", "error", err)
+					return nil, err
+				}
+				defer conn.Close()
 
-			client := pbinternal.NewSparkInternalServiceClient(conn)
-			internalResp, err := client.RollbackUtxoSwap(ctx, &pbinternal.RollbackUtxoSwapRequest{
-				CoordinatorPublicKey: config.IdentityPublicKey(),
-				Signature:            rollbackUtxoSwapRequestSignature.Serialize(),
-				OnChainUtxo:          req.OnChainUtxo,
+				client := pbinternal.NewSparkInternalServiceClient(conn)
+				internalResp, err := client.RollbackUtxoSwap(ctx, &pbinternal.RollbackUtxoSwapRequest{
+					CoordinatorPublicKey: config.IdentityPublicKey(),
+					Signature:            rollbackUtxoSwapRequestSignature.Serialize(),
+					OnChainUtxo:          req.OnChainUtxo,
+				})
+				if err != nil {
+					logger.Error("Failed to execute rollback utxo swap task with operator", "operator", operator.Identifier, "error", err)
+					return nil, err
+				}
+				return internalResp, err
 			})
 			if err != nil {
-				logger.Info("Failed to execute rollback utxo swap task with operator", "operator", operator.Identifier, "error", err)
-				return nil, err
+				logger.Error("Failed to rollback utxo swap", "error", err)
 			}
-			return internalResp, err
-		})
-		if err != nil {
-			logger.Info("Failed to rollback utxo swap", "error", err)
+			return nil, fmt.Errorf("failed to successfully execute create utxo swap task with all operators: %v", originalErr)
 		}
-		return nil, fmt.Errorf("failed to successfully execute create utxo swap task with all operators: %v", originalErr)
 	}
 
-	completedUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
-		UtxoSwapStatementTypeCompleted,
-		hex.EncodeToString(req.OnChainUtxo.Txid),
-		req.OnChainUtxo.Vout,
-		common.Network(req.OnChainUtxo.Network),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create utxo swap statement: %w", err)
+	// **********************************************************************************************
+	// Initiate a transfer to the user. This step is 2-phase and will be rolled
+	// back if the first phase fails or retried otherwise.
+	// **********************************************************************************************
+	var transfer *pb.Transfer
+	if req.RequestType != pb.UtxoSwapRequestType_Refund {
+		transferHandler := NewTransferHandler(config)
+		transferResponse, err := transferHandler.startTransferInternal(
+			ctx,
+			req.Transfer,
+			schema.TransferTypeUtxoSwap,
+			nil,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create transfer: %w", err)
+		}
+		transfer = transferResponse.Transfer
+		if transfer == nil {
+			return nil, fmt.Errorf("create utxo swap task with operator %s returned nil transfer", config.Identifier)
+		}
+		logger.Info("UTXO swap transfer created", "transfer", transfer)
 	}
-	completedUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), completedUtxoSwapRequestMessageHash)
-	_, err = helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
-		conn, err := operator.NewGRPCConnection()
-		if err != nil {
-			logger.Info("Failed to connect to operator", "error", err)
-			return nil, err
-		}
-		defer conn.Close()
 
-		client := pbinternal.NewSparkInternalServiceClient(conn)
-		internalResp, err := client.UtxoSwapCompleted(ctx, &pbinternal.UtxoSwapCompletedRequest{
-			OnChainUtxo:          req.OnChainUtxo,
-			Signature:            completedUtxoSwapRequestSignature.Serialize(),
-			CoordinatorPublicKey: config.IdentityPublicKey(),
-		})
-		if err != nil {
-			logger.Info("Failed to execute utxo swap completed task with operator", "operator", operator.Identifier, "error", err)
-			return nil, err
-		}
-		return internalResp, err
-	})
+	// **********************************************************************************************
+	// Mark the utxo swap as completed.
+	// At this point the swap is considered successful. We will not return an error if this step fails.
+	// The user can retry calling this API to get the signed spend transaction.
+	// **********************************************************************************************
+	completedUtxoSwapRequest, err := CreateCompleteSwapForUtxoRequest(config, req.OnChainUtxo)
 	if err != nil {
-		logger.Error("Failed to mark a utxo swap as completed in all operators, on-call to manually intervene", "error", err)
+		logger.Warn("Failed to get complete swap for utxo request, cron task to retry", "error", err)
+	} else {
+		h := NewInternalDepositHandler(config)
+		if err := h.CompleteSwapForAllOperators(ctx, config, completedUtxoSwapRequest); err != nil {
+			logger.Warn("Failed to mark a utxo swap as completed in all operators, cron task to retry", "error", err)
+		}
 	}
 
 	// **********************************************************************************************
 	// Signing the spend transaction.
 	// **********************************************************************************************
-	transfer := responses[config.Identifier].(*pbinternal.CreateUtxoSwapResponse).Transfer
-	if req.RequestType != pb.UtxoSwapRequestType_Refund && transfer == nil {
-		return nil, fmt.Errorf("create utxo swap task with operator %s returned nil transfer", config.Identifier)
+	spendTxSigningResult, depositAddressQueryResult, err := GetSpendTxSigningResult(ctx, config, req)
+	if err != nil {
+		logger.Warn("failed to get spend tx signing result", "error", err)
+	}
+	spendTxSigningResultBytes, err := proto.Marshal(spendTxSigningResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal spend tx signing result: %w", err)
+	}
+	utxoSwap, err = db.UtxoSwap.Query().
+		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
+		Where(utxoswap.StatusNEQ(schema.UtxoSwapStatusCancelled)).
+		First(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get utxo swap: %w", err)
+	}
+	_, err = db.UtxoSwap.UpdateOne(utxoSwap).SetSpendTxSigningResult(spendTxSigningResultBytes).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update utxo swap: %w", err)
 	}
 
-	db := ent.GetDbFromContext(ctx)
-	schemaNetwork, err := common.SchemaNetworkFromProtoNetwork(req.OnChainUtxo.Network)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get schema network: %w", err)
-	}
-	targetUtxo, err := VerifiedTargetUtxo(ctx, db, schemaNetwork, req.OnChainUtxo.Txid, req.OnChainUtxo.Vout)
-	if err != nil {
-		return nil, err
-	}
-	depositAddress, err := targetUtxo.QueryDepositAddress().Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deposit address: %w", err)
-	}
-
-	// Recover the signature for the utxo spend
-	// Execute signing jobs with all operators and create a refund transaction
-	userRootTxNonceCommitment, err := objects.NewSigningCommitment(req.SpendTxSigningJob.SigningNonceCommitment.Binding, req.SpendTxSigningJob.SigningNonceCommitment.Hiding)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create signing commitment: %w", err)
-	}
-	verifyingKeyBytes, spendTxSigningResult, err := getSpendTxSigningResult(ctx, config, depositAddress, targetUtxo, req.SpendTxSigningJob.RawTx, userRootTxNonceCommitment)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get spend tx signing result: %w", err)
-	}
-
-	nodeIDStr := depositAddress.NodeID.String()
 	return &pb.InitiateUtxoSwapResponse{
 		SpendTxSigningResult: spendTxSigningResult,
 		Transfer:             transfer,
-		DepositAddress: &pb.DepositAddressQueryResult{
-			DepositAddress:       depositAddress.Address,
-			UserSigningPublicKey: depositAddress.OwnerSigningPubkey,
-			VerifyingPublicKey:   verifyingKeyBytes,
-			LeafId:               &nodeIDStr,
-		},
+		DepositAddress:       depositAddressQueryResult,
 	}, nil
 }
 
@@ -910,4 +937,39 @@ func GetTxSigningInfo(ctx context.Context, targetUtxo *ent.Utxo, spendTxRaw []by
 
 	logger.Debug("spendTxSigHash", "spendTxSigHash", hex.EncodeToString(spendTxSigHash))
 	return spendTxSigHash, uint64(totalAmount), nil
+}
+
+func GetSpendTxSigningResult(ctx context.Context, config *so.Config, req *pb.InitiateUtxoSwapRequest) (*pb.SigningResult, *pb.DepositAddressQueryResult, error) {
+	db := ent.GetDbFromContext(ctx)
+	schemaNetwork, err := common.SchemaNetworkFromProtoNetwork(req.OnChainUtxo.Network)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get schema network: %w", err)
+	}
+	targetUtxo, err := VerifiedTargetUtxo(ctx, db, schemaNetwork, req.OnChainUtxo.Txid, req.OnChainUtxo.Vout)
+	if err != nil {
+		return nil, nil, err
+	}
+	depositAddress, err := targetUtxo.QueryDepositAddress().Only(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get deposit address: %w", err)
+	}
+
+	// Recover the signature for the utxo spend
+	// Execute signing jobs with all operators and create a refund transaction
+	userRootTxNonceCommitment, err := objects.NewSigningCommitment(req.SpendTxSigningJob.SigningNonceCommitment.Binding, req.SpendTxSigningJob.SigningNonceCommitment.Hiding)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create signing commitment: %w", err)
+	}
+	verifyingKeyBytes, spendTxSigningResult, err := getSpendTxSigningResult(ctx, config, depositAddress, targetUtxo, req.SpendTxSigningJob.RawTx, userRootTxNonceCommitment)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get spend tx signing result: %w", err)
+	}
+
+	nodeIDStr := depositAddress.NodeID.String()
+	return spendTxSigningResult, &pb.DepositAddressQueryResult{
+		DepositAddress:       depositAddress.Address,
+		UserSigningPublicKey: depositAddress.OwnerSigningPubkey,
+		VerifyingPublicKey:   verifyingKeyBytes,
+		LeafId:               &nodeIDStr,
+	}, nil
 }

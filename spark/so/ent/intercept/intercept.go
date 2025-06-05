@@ -11,6 +11,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
@@ -166,6 +167,33 @@ func (f TraverseDepositAddress) Traverse(ctx context.Context, q ent.Query) error
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.DepositAddressQuery", q)
+}
+
+// The GossipFunc type is an adapter to allow the use of ordinary function as a Querier.
+type GossipFunc func(context.Context, *ent.GossipQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f GossipFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.GossipQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.GossipQuery", q)
+}
+
+// The TraverseGossip type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseGossip func(context.Context, *ent.GossipQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseGossip) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseGossip) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.GossipQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.GossipQuery", q)
 }
 
 // The PreimageRequestFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -636,6 +664,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.CooperativeExitQuery, predicate.CooperativeExit, cooperativeexit.OrderOption]{typ: ent.TypeCooperativeExit, tq: q}, nil
 	case *ent.DepositAddressQuery:
 		return &query[*ent.DepositAddressQuery, predicate.DepositAddress, depositaddress.OrderOption]{typ: ent.TypeDepositAddress, tq: q}, nil
+	case *ent.GossipQuery:
+		return &query[*ent.GossipQuery, predicate.Gossip, gossip.OrderOption]{typ: ent.TypeGossip, tq: q}, nil
 	case *ent.PreimageRequestQuery:
 		return &query[*ent.PreimageRequestQuery, predicate.PreimageRequest, preimagerequest.OrderOption]{typ: ent.TypePreimageRequest, tq: q}, nil
 	case *ent.PreimageShareQuery:

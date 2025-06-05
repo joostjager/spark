@@ -8,6 +8,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/lightsparkdev/spark"
 	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/so/ent"
 	"go.opentelemetry.io/otel"
@@ -83,7 +84,7 @@ func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client,
 			}
 			if parent.NodeConfirmationHeight > 0 {
 				timelockExpiryHeight := uint64(nodeTx.TxIn[0].Sequence&0xFFFF) + parent.NodeConfirmationHeight
-				if timelockExpiryHeight <= uint64(blockHeight) {
+				if timelockExpiryHeight+spark.WatchtowerTimeLockBuffer <= uint64(blockHeight) {
 					if err := BroadcastTransaction(ctx, bitcoinClient, node.ID.String(), node.RawTx); err != nil {
 						// Record node tx broadcast failure
 						if nodeTxBroadcastCounter != nil {
@@ -113,7 +114,7 @@ func CheckExpiredTimeLocks(ctx context.Context, bitcoinClient *rpcclient.Client,
 		}
 
 		timelockExpiryHeight := uint64(refundTx.TxIn[0].Sequence&0xFFFF) + node.NodeConfirmationHeight
-		if timelockExpiryHeight <= uint64(blockHeight) {
+		if timelockExpiryHeight+spark.WatchtowerTimeLockBuffer <= uint64(blockHeight) {
 			if err := BroadcastTransaction(ctx, bitcoinClient, node.ID.String(), node.RawRefundTx); err != nil {
 				// Record refund tx broadcast failure
 				if refundTxBroadcastCounter != nil {

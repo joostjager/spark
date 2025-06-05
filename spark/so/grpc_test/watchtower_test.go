@@ -101,7 +101,7 @@ func TestTimelockExpirationHappyPath(t *testing.T) {
 	require.NotEmpty(t, broadcastedNode.RawRefundTx, "RawRefundTx should exist in the database")
 
 	// Generate blocks until timelock expires
-	timelock := getCurrentTimelock(rootNode)
+	timelock := getCurrentTimelock(rootNode) + spark.WatchtowerTimeLockBuffer
 	_, err = client.GenerateToAddress(timelock, randomAddress, nil)
 	require.NoError(t, err)
 
@@ -293,7 +293,7 @@ func TestTimelockExpirationTransferredNode(t *testing.T) {
 	require.LessOrEqual(t, getCurrentTimelock(transferredNode.RefundTx), int64(spark.TimeLockInterval*2))
 
 	// Generate blocks until refund transaction timelock expires
-	refundTimelock := getCurrentTimelock(transferredNode.RefundTx)
+	refundTimelock := getCurrentTimelock(transferredNode.RefundTx) + spark.WatchtowerTimeLockBuffer
 	_, err = client.GenerateToAddress(refundTimelock, randomAddress, nil)
 	require.NoError(t, err)
 
@@ -497,7 +497,7 @@ func TestTimelockExpirationMultiLevelTree(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate blocks until refund transaction timelock expires
-	timelock := getCurrentTimelock(leafNode.NodeTx)
+	timelock := getCurrentTimelock(leafNode.NodeTx) + spark.WatchtowerTimeLockBuffer
 	_, err = client.GenerateToAddress(timelock, randomAddress, nil)
 	require.NoError(t, err)
 
@@ -707,7 +707,7 @@ func TestTimelockExpirationAfterLightningTransfer(t *testing.T) {
 	require.NotEmpty(t, broadcastedNode.RawRefundTx, "RawRefundTx should exist in the database")
 
 	// Generate blocks until refund transaction timelock expires
-	refundTimelock := getCurrentTimelock(transferredNode.RefundTx)
+	refundTimelock := getCurrentTimelock(transferredNode.RefundTx) + spark.WatchtowerTimeLockBuffer
 	_, err = client.GenerateToAddress(refundTimelock, randomAddress, nil)
 	require.NoError(t, err)
 

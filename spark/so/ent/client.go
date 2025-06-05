@@ -19,6 +19,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
@@ -49,6 +50,8 @@ type Client struct {
 	CooperativeExit *CooperativeExitClient
 	// DepositAddress is the client for interacting with the DepositAddress builders.
 	DepositAddress *DepositAddressClient
+	// Gossip is the client for interacting with the Gossip builders.
+	Gossip *GossipClient
 	// PreimageRequest is the client for interacting with the PreimageRequest builders.
 	PreimageRequest *PreimageRequestClient
 	// PreimageShare is the client for interacting with the PreimageShare builders.
@@ -97,6 +100,7 @@ func (c *Client) init() {
 	c.BlockHeight = NewBlockHeightClient(c.config)
 	c.CooperativeExit = NewCooperativeExitClient(c.config)
 	c.DepositAddress = NewDepositAddressClient(c.config)
+	c.Gossip = NewGossipClient(c.config)
 	c.PreimageRequest = NewPreimageRequestClient(c.config)
 	c.PreimageShare = NewPreimageShareClient(c.config)
 	c.SigningKeyshare = NewSigningKeyshareClient(c.config)
@@ -209,6 +213,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BlockHeight:             NewBlockHeightClient(cfg),
 		CooperativeExit:         NewCooperativeExitClient(cfg),
 		DepositAddress:          NewDepositAddressClient(cfg),
+		Gossip:                  NewGossipClient(cfg),
 		PreimageRequest:         NewPreimageRequestClient(cfg),
 		PreimageShare:           NewPreimageShareClient(cfg),
 		SigningKeyshare:         NewSigningKeyshareClient(cfg),
@@ -248,6 +253,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BlockHeight:             NewBlockHeightClient(cfg),
 		CooperativeExit:         NewCooperativeExitClient(cfg),
 		DepositAddress:          NewDepositAddressClient(cfg),
+		Gossip:                  NewGossipClient(cfg),
 		PreimageRequest:         NewPreimageRequestClient(cfg),
 		PreimageShare:           NewPreimageShareClient(cfg),
 		SigningKeyshare:         NewSigningKeyshareClient(cfg),
@@ -294,7 +300,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.PreimageRequest,
+		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.Gossip, c.PreimageRequest,
 		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenFreeze, c.TokenLeaf,
 		c.TokenMint, c.TokenOutput, c.TokenTransaction, c.TokenTransactionReceipt,
 		c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode, c.UserSignedTransaction,
@@ -308,7 +314,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.PreimageRequest,
+		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.Gossip, c.PreimageRequest,
 		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenFreeze, c.TokenLeaf,
 		c.TokenMint, c.TokenOutput, c.TokenTransaction, c.TokenTransactionReceipt,
 		c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode, c.UserSignedTransaction,
@@ -327,6 +333,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CooperativeExit.mutate(ctx, m)
 	case *DepositAddressMutation:
 		return c.DepositAddress.mutate(ctx, m)
+	case *GossipMutation:
+		return c.Gossip.mutate(ctx, m)
 	case *PreimageRequestMutation:
 		return c.PreimageRequest.mutate(ctx, m)
 	case *PreimageShareMutation:
@@ -826,6 +834,139 @@ func (c *DepositAddressClient) mutate(ctx context.Context, m *DepositAddressMuta
 		return (&DepositAddressDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DepositAddress mutation op: %q", m.Op())
+	}
+}
+
+// GossipClient is a client for the Gossip schema.
+type GossipClient struct {
+	config
+}
+
+// NewGossipClient returns a client for the Gossip from the given config.
+func NewGossipClient(c config) *GossipClient {
+	return &GossipClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `gossip.Hooks(f(g(h())))`.
+func (c *GossipClient) Use(hooks ...Hook) {
+	c.hooks.Gossip = append(c.hooks.Gossip, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `gossip.Intercept(f(g(h())))`.
+func (c *GossipClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Gossip = append(c.inters.Gossip, interceptors...)
+}
+
+// Create returns a builder for creating a Gossip entity.
+func (c *GossipClient) Create() *GossipCreate {
+	mutation := newGossipMutation(c.config, OpCreate)
+	return &GossipCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Gossip entities.
+func (c *GossipClient) CreateBulk(builders ...*GossipCreate) *GossipCreateBulk {
+	return &GossipCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GossipClient) MapCreateBulk(slice any, setFunc func(*GossipCreate, int)) *GossipCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GossipCreateBulk{err: fmt.Errorf("calling to GossipClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GossipCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GossipCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Gossip.
+func (c *GossipClient) Update() *GossipUpdate {
+	mutation := newGossipMutation(c.config, OpUpdate)
+	return &GossipUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GossipClient) UpdateOne(_go *Gossip) *GossipUpdateOne {
+	mutation := newGossipMutation(c.config, OpUpdateOne, withGossip(_go))
+	return &GossipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GossipClient) UpdateOneID(id uuid.UUID) *GossipUpdateOne {
+	mutation := newGossipMutation(c.config, OpUpdateOne, withGossipID(id))
+	return &GossipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Gossip.
+func (c *GossipClient) Delete() *GossipDelete {
+	mutation := newGossipMutation(c.config, OpDelete)
+	return &GossipDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GossipClient) DeleteOne(_go *Gossip) *GossipDeleteOne {
+	return c.DeleteOneID(_go.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GossipClient) DeleteOneID(id uuid.UUID) *GossipDeleteOne {
+	builder := c.Delete().Where(gossip.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GossipDeleteOne{builder}
+}
+
+// Query returns a query builder for Gossip.
+func (c *GossipClient) Query() *GossipQuery {
+	return &GossipQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGossip},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Gossip entity by its id.
+func (c *GossipClient) Get(ctx context.Context, id uuid.UUID) (*Gossip, error) {
+	return c.Query().Where(gossip.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GossipClient) GetX(ctx context.Context, id uuid.UUID) *Gossip {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *GossipClient) Hooks() []Hook {
+	return c.hooks.Gossip
+}
+
+// Interceptors returns the client interceptors.
+func (c *GossipClient) Interceptors() []Interceptor {
+	return c.inters.Gossip
+}
+
+func (c *GossipClient) mutate(ctx context.Context, m *GossipMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GossipCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GossipUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GossipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GossipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Gossip mutation op: %q", m.Op())
 	}
 }
 
@@ -3605,15 +3746,16 @@ func (c *UtxoSwapClient) mutate(ctx context.Context, m *UtxoSwapMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		BlockHeight, CooperativeExit, DepositAddress, PreimageRequest, PreimageShare,
-		SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf, TokenMint, TokenOutput,
-		TokenTransaction, TokenTransactionReceipt, Transfer, TransferLeaf, Tree,
-		TreeNode, UserSignedTransaction, Utxo, UtxoSwap []ent.Hook
+		BlockHeight, CooperativeExit, DepositAddress, Gossip, PreimageRequest,
+		PreimageShare, SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf,
+		TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt, Transfer,
+		TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo, UtxoSwap []ent.Hook
 	}
 	inters struct {
-		BlockHeight, CooperativeExit, DepositAddress, PreimageRequest, PreimageShare,
-		SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf, TokenMint, TokenOutput,
-		TokenTransaction, TokenTransactionReceipt, Transfer, TransferLeaf, Tree,
-		TreeNode, UserSignedTransaction, Utxo, UtxoSwap []ent.Interceptor
+		BlockHeight, CooperativeExit, DepositAddress, Gossip, PreimageRequest,
+		PreimageShare, SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf,
+		TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt, Transfer,
+		TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo,
+		UtxoSwap []ent.Interceptor
 	}
 )

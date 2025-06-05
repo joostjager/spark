@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
+	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/common/logging"
 	pbspark "github.com/lightsparkdev/spark/proto/spark"
 	"github.com/lightsparkdev/spark/so"
@@ -17,6 +19,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
+	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 	"github.com/lightsparkdev/spark/so/handler"
 	"github.com/lightsparkdev/spark/so/lrc20"
 	"go.opentelemetry.io/otel"
@@ -245,6 +248,61 @@ func AllTasks() []Task {
 						logger.Info(fmt.Sprintf("Successfully cancelled or finalized expired token transaction: id=%s, hash=%s",
 							expiredTransaction.ID,
 							txFinalHash))
+					}
+				}
+				return nil
+			},
+		},
+		{
+			Name:         "complete_utxo_swap",
+			Duration:     1 * time.Minute,
+			RunInTestEnv: true,
+			Task: func(ctx context.Context, config *so.Config, _ *lrc20.Client) error {
+				logger := logging.GetLoggerFromContext(ctx)
+				db := ent.GetDbFromContext(ctx)
+
+				query := db.UtxoSwap.Query().
+					Where(utxoswap.StatusEQ(schema.UtxoSwapStatusCreated)).
+					Where(utxoswap.CoordinatorIdentityPublicKeyEQ(config.IdentityPublicKey())).
+					Order(utxoswap.ByCreateTime(sql.OrderDesc())).
+					Limit(100)
+
+				utxoSwaps, err := query.All(ctx)
+				if err != nil {
+					return err
+				}
+
+				for _, utxoSwap := range utxoSwaps {
+					transfer, err := utxoSwap.QueryTransfer().Only(ctx)
+					if err != nil {
+						logger.Error("failed to get transfer for a utxo swap", "error", err)
+						continue
+					}
+					logger.Debug("Found transfer for a utxo swap", "transfer_id", transfer.ID, "status", transfer.Status, "request_type", utxoSwap.RequestType)
+					if utxoSwap.RequestType == schema.UtxoSwapRequestTypeRefund || transfer.Status == schema.TransferStatusCompleted {
+						utxo, err := utxoSwap.QueryUtxo().Only(ctx)
+						if err != nil {
+							return fmt.Errorf("unable to get utxo: %w", err)
+						}
+						protoNetwork, err := common.ProtoNetworkFromSchemaNetwork(utxo.Network)
+						if err != nil {
+							return fmt.Errorf("unable to get proto network: %w", err)
+						}
+						protoUtxo := &pbspark.UTXO{
+							Txid:    utxo.Txid,
+							Vout:    utxo.Vout,
+							Network: protoNetwork,
+						}
+
+						completedUtxoSwapRequest, err := handler.CreateCompleteSwapForUtxoRequest(config, protoUtxo)
+						if err != nil {
+							logger.Warn("Failed to get complete swap for utxo request, cron task to retry", "error", err)
+						} else {
+							h := handler.NewInternalDepositHandler(config)
+							if err := h.CompleteSwapForAllOperators(ctx, config, completedUtxoSwapRequest); err != nil {
+								logger.Warn("Failed to mark a utxo swap as completed in all operators, cron task to retry", "error", err)
+							}
+						}
 					}
 				}
 				return nil

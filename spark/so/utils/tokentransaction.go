@@ -17,7 +17,7 @@ import (
 )
 
 // MaxTokenOutputs defines the maximum number of input or token outputs allowed in a token transaction.
-const MaxInputOrOutputTokenTransactionOutputs = 100
+const MaxInputOrOutputTokenTransactionOutputs = 1000
 
 // Zero represents a big.Int with value 0, used for amount comparisons.
 var Zero = new(big.Int)

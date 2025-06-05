@@ -15,6 +15,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
@@ -48,6 +49,7 @@ const (
 	TypeBlockHeight             = "BlockHeight"
 	TypeCooperativeExit         = "CooperativeExit"
 	TypeDepositAddress          = "DepositAddress"
+	TypeGossip                  = "Gossip"
 	TypePreimageRequest         = "PreimageRequest"
 	TypePreimageShare           = "PreimageShare"
 	TypeSigningKeyshare         = "SigningKeyshare"
@@ -2311,6 +2313,624 @@ func (m *DepositAddressMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DepositAddress edge %s", name)
+}
+
+// GossipMutation represents an operation that mutates the Gossip nodes in the graph.
+type GossipMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	create_time        *time.Time
+	update_time        *time.Time
+	participants       *[]string
+	appendparticipants []string
+	message            *[]byte
+	receipts           *[]byte
+	status             *schema.GossipStatus
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*Gossip, error)
+	predicates         []predicate.Gossip
+}
+
+var _ ent.Mutation = (*GossipMutation)(nil)
+
+// gossipOption allows management of the mutation configuration using functional options.
+type gossipOption func(*GossipMutation)
+
+// newGossipMutation creates new mutation for the Gossip entity.
+func newGossipMutation(c config, op Op, opts ...gossipOption) *GossipMutation {
+	m := &GossipMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGossip,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGossipID sets the ID field of the mutation.
+func withGossipID(id uuid.UUID) gossipOption {
+	return func(m *GossipMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Gossip
+		)
+		m.oldValue = func(ctx context.Context) (*Gossip, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Gossip.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGossip sets the old Gossip of the mutation.
+func withGossip(node *Gossip) gossipOption {
+	return func(m *GossipMutation) {
+		m.oldValue = func(context.Context) (*Gossip, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GossipMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GossipMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Gossip entities.
+func (m *GossipMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GossipMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GossipMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Gossip.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *GossipMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *GossipMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldCreateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *GossipMutation) ResetCreateTime() {
+	m.create_time = nil
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *GossipMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *GossipMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldUpdateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *GossipMutation) ResetUpdateTime() {
+	m.update_time = nil
+}
+
+// SetParticipants sets the "participants" field.
+func (m *GossipMutation) SetParticipants(s []string) {
+	m.participants = &s
+	m.appendparticipants = nil
+}
+
+// Participants returns the value of the "participants" field in the mutation.
+func (m *GossipMutation) Participants() (r []string, exists bool) {
+	v := m.participants
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParticipants returns the old "participants" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldParticipants(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParticipants is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParticipants requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParticipants: %w", err)
+	}
+	return oldValue.Participants, nil
+}
+
+// AppendParticipants adds s to the "participants" field.
+func (m *GossipMutation) AppendParticipants(s []string) {
+	m.appendparticipants = append(m.appendparticipants, s...)
+}
+
+// AppendedParticipants returns the list of values that were appended to the "participants" field in this mutation.
+func (m *GossipMutation) AppendedParticipants() ([]string, bool) {
+	if len(m.appendparticipants) == 0 {
+		return nil, false
+	}
+	return m.appendparticipants, true
+}
+
+// ResetParticipants resets all changes to the "participants" field.
+func (m *GossipMutation) ResetParticipants() {
+	m.participants = nil
+	m.appendparticipants = nil
+}
+
+// SetMessage sets the "message" field.
+func (m *GossipMutation) SetMessage(b []byte) {
+	m.message = &b
+}
+
+// Message returns the value of the "message" field in the mutation.
+func (m *GossipMutation) Message() (r []byte, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessage returns the old "message" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldMessage(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessage: %w", err)
+	}
+	return oldValue.Message, nil
+}
+
+// ResetMessage resets all changes to the "message" field.
+func (m *GossipMutation) ResetMessage() {
+	m.message = nil
+}
+
+// SetReceipts sets the "receipts" field.
+func (m *GossipMutation) SetReceipts(b []byte) {
+	m.receipts = &b
+}
+
+// Receipts returns the value of the "receipts" field in the mutation.
+func (m *GossipMutation) Receipts() (r []byte, exists bool) {
+	v := m.receipts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReceipts returns the old "receipts" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldReceipts(ctx context.Context) (v *[]byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReceipts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReceipts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReceipts: %w", err)
+	}
+	return oldValue.Receipts, nil
+}
+
+// ResetReceipts resets all changes to the "receipts" field.
+func (m *GossipMutation) ResetReceipts() {
+	m.receipts = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *GossipMutation) SetStatus(ss schema.GossipStatus) {
+	m.status = &ss
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *GossipMutation) Status() (r schema.GossipStatus, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Gossip entity.
+// If the Gossip object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GossipMutation) OldStatus(ctx context.Context) (v schema.GossipStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *GossipMutation) ResetStatus() {
+	m.status = nil
+}
+
+// Where appends a list predicates to the GossipMutation builder.
+func (m *GossipMutation) Where(ps ...predicate.Gossip) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GossipMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GossipMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Gossip, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GossipMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GossipMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Gossip).
+func (m *GossipMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GossipMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.create_time != nil {
+		fields = append(fields, gossip.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, gossip.FieldUpdateTime)
+	}
+	if m.participants != nil {
+		fields = append(fields, gossip.FieldParticipants)
+	}
+	if m.message != nil {
+		fields = append(fields, gossip.FieldMessage)
+	}
+	if m.receipts != nil {
+		fields = append(fields, gossip.FieldReceipts)
+	}
+	if m.status != nil {
+		fields = append(fields, gossip.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GossipMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case gossip.FieldCreateTime:
+		return m.CreateTime()
+	case gossip.FieldUpdateTime:
+		return m.UpdateTime()
+	case gossip.FieldParticipants:
+		return m.Participants()
+	case gossip.FieldMessage:
+		return m.Message()
+	case gossip.FieldReceipts:
+		return m.Receipts()
+	case gossip.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GossipMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case gossip.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case gossip.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case gossip.FieldParticipants:
+		return m.OldParticipants(ctx)
+	case gossip.FieldMessage:
+		return m.OldMessage(ctx)
+	case gossip.FieldReceipts:
+		return m.OldReceipts(ctx)
+	case gossip.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown Gossip field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GossipMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case gossip.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case gossip.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case gossip.FieldParticipants:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParticipants(v)
+		return nil
+	case gossip.FieldMessage:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessage(v)
+		return nil
+	case gossip.FieldReceipts:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReceipts(v)
+		return nil
+	case gossip.FieldStatus:
+		v, ok := value.(schema.GossipStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Gossip field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GossipMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GossipMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GossipMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Gossip numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GossipMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GossipMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GossipMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Gossip nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GossipMutation) ResetField(name string) error {
+	switch name {
+	case gossip.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case gossip.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case gossip.FieldParticipants:
+		m.ResetParticipants()
+		return nil
+	case gossip.FieldMessage:
+		m.ResetMessage()
+		return nil
+	case gossip.FieldReceipts:
+		m.ResetReceipts()
+		return nil
+	case gossip.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown Gossip field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GossipMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GossipMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GossipMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GossipMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GossipMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GossipMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GossipMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Gossip unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GossipMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Gossip edge %s", name)
 }
 
 // PreimageRequestMutation represents an operation that mutates the PreimageRequest nodes in the graph.
@@ -17814,6 +18434,8 @@ type UtxoSwapMutation struct {
 	user_signature                  *[]byte
 	user_identity_public_key        *[]byte
 	coordinator_identity_public_key *[]byte
+	requested_transfer_id           *uuid.UUID
+	spend_tx_signing_result         *[]byte
 	clearedFields                   map[string]struct{}
 	utxo                            *uuid.UUID
 	clearedutxo                     bool
@@ -18444,6 +19066,104 @@ func (m *UtxoSwapMutation) ResetCoordinatorIdentityPublicKey() {
 	m.coordinator_identity_public_key = nil
 }
 
+// SetRequestedTransferID sets the "requested_transfer_id" field.
+func (m *UtxoSwapMutation) SetRequestedTransferID(u uuid.UUID) {
+	m.requested_transfer_id = &u
+}
+
+// RequestedTransferID returns the value of the "requested_transfer_id" field in the mutation.
+func (m *UtxoSwapMutation) RequestedTransferID() (r uuid.UUID, exists bool) {
+	v := m.requested_transfer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedTransferID returns the old "requested_transfer_id" field's value of the UtxoSwap entity.
+// If the UtxoSwap object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UtxoSwapMutation) OldRequestedTransferID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedTransferID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedTransferID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedTransferID: %w", err)
+	}
+	return oldValue.RequestedTransferID, nil
+}
+
+// ClearRequestedTransferID clears the value of the "requested_transfer_id" field.
+func (m *UtxoSwapMutation) ClearRequestedTransferID() {
+	m.requested_transfer_id = nil
+	m.clearedFields[utxoswap.FieldRequestedTransferID] = struct{}{}
+}
+
+// RequestedTransferIDCleared returns if the "requested_transfer_id" field was cleared in this mutation.
+func (m *UtxoSwapMutation) RequestedTransferIDCleared() bool {
+	_, ok := m.clearedFields[utxoswap.FieldRequestedTransferID]
+	return ok
+}
+
+// ResetRequestedTransferID resets all changes to the "requested_transfer_id" field.
+func (m *UtxoSwapMutation) ResetRequestedTransferID() {
+	m.requested_transfer_id = nil
+	delete(m.clearedFields, utxoswap.FieldRequestedTransferID)
+}
+
+// SetSpendTxSigningResult sets the "spend_tx_signing_result" field.
+func (m *UtxoSwapMutation) SetSpendTxSigningResult(b []byte) {
+	m.spend_tx_signing_result = &b
+}
+
+// SpendTxSigningResult returns the value of the "spend_tx_signing_result" field in the mutation.
+func (m *UtxoSwapMutation) SpendTxSigningResult() (r []byte, exists bool) {
+	v := m.spend_tx_signing_result
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpendTxSigningResult returns the old "spend_tx_signing_result" field's value of the UtxoSwap entity.
+// If the UtxoSwap object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UtxoSwapMutation) OldSpendTxSigningResult(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpendTxSigningResult is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpendTxSigningResult requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpendTxSigningResult: %w", err)
+	}
+	return oldValue.SpendTxSigningResult, nil
+}
+
+// ClearSpendTxSigningResult clears the value of the "spend_tx_signing_result" field.
+func (m *UtxoSwapMutation) ClearSpendTxSigningResult() {
+	m.spend_tx_signing_result = nil
+	m.clearedFields[utxoswap.FieldSpendTxSigningResult] = struct{}{}
+}
+
+// SpendTxSigningResultCleared returns if the "spend_tx_signing_result" field was cleared in this mutation.
+func (m *UtxoSwapMutation) SpendTxSigningResultCleared() bool {
+	_, ok := m.clearedFields[utxoswap.FieldSpendTxSigningResult]
+	return ok
+}
+
+// ResetSpendTxSigningResult resets all changes to the "spend_tx_signing_result" field.
+func (m *UtxoSwapMutation) ResetSpendTxSigningResult() {
+	m.spend_tx_signing_result = nil
+	delete(m.clearedFields, utxoswap.FieldSpendTxSigningResult)
+}
+
 // SetUtxoID sets the "utxo" edge to the Utxo entity by id.
 func (m *UtxoSwapMutation) SetUtxoID(id uuid.UUID) {
 	m.utxo = &id
@@ -18556,7 +19276,7 @@ func (m *UtxoSwapMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UtxoSwapMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.create_time != nil {
 		fields = append(fields, utxoswap.FieldCreateTime)
 	}
@@ -18590,6 +19310,12 @@ func (m *UtxoSwapMutation) Fields() []string {
 	if m.coordinator_identity_public_key != nil {
 		fields = append(fields, utxoswap.FieldCoordinatorIdentityPublicKey)
 	}
+	if m.requested_transfer_id != nil {
+		fields = append(fields, utxoswap.FieldRequestedTransferID)
+	}
+	if m.spend_tx_signing_result != nil {
+		fields = append(fields, utxoswap.FieldSpendTxSigningResult)
+	}
 	return fields
 }
 
@@ -18620,6 +19346,10 @@ func (m *UtxoSwapMutation) Field(name string) (ent.Value, bool) {
 		return m.UserIdentityPublicKey()
 	case utxoswap.FieldCoordinatorIdentityPublicKey:
 		return m.CoordinatorIdentityPublicKey()
+	case utxoswap.FieldRequestedTransferID:
+		return m.RequestedTransferID()
+	case utxoswap.FieldSpendTxSigningResult:
+		return m.SpendTxSigningResult()
 	}
 	return nil, false
 }
@@ -18651,6 +19381,10 @@ func (m *UtxoSwapMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldUserIdentityPublicKey(ctx)
 	case utxoswap.FieldCoordinatorIdentityPublicKey:
 		return m.OldCoordinatorIdentityPublicKey(ctx)
+	case utxoswap.FieldRequestedTransferID:
+		return m.OldRequestedTransferID(ctx)
+	case utxoswap.FieldSpendTxSigningResult:
+		return m.OldSpendTxSigningResult(ctx)
 	}
 	return nil, fmt.Errorf("unknown UtxoSwap field %s", name)
 }
@@ -18737,6 +19471,20 @@ func (m *UtxoSwapMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCoordinatorIdentityPublicKey(v)
 		return nil
+	case utxoswap.FieldRequestedTransferID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedTransferID(v)
+		return nil
+	case utxoswap.FieldSpendTxSigningResult:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpendTxSigningResult(v)
+		return nil
 	}
 	return fmt.Errorf("unknown UtxoSwap field %s", name)
 }
@@ -18812,6 +19560,12 @@ func (m *UtxoSwapMutation) ClearedFields() []string {
 	if m.FieldCleared(utxoswap.FieldUserIdentityPublicKey) {
 		fields = append(fields, utxoswap.FieldUserIdentityPublicKey)
 	}
+	if m.FieldCleared(utxoswap.FieldRequestedTransferID) {
+		fields = append(fields, utxoswap.FieldRequestedTransferID)
+	}
+	if m.FieldCleared(utxoswap.FieldSpendTxSigningResult) {
+		fields = append(fields, utxoswap.FieldSpendTxSigningResult)
+	}
 	return fields
 }
 
@@ -18843,6 +19597,12 @@ func (m *UtxoSwapMutation) ClearField(name string) error {
 		return nil
 	case utxoswap.FieldUserIdentityPublicKey:
 		m.ClearUserIdentityPublicKey()
+		return nil
+	case utxoswap.FieldRequestedTransferID:
+		m.ClearRequestedTransferID()
+		return nil
+	case utxoswap.FieldSpendTxSigningResult:
+		m.ClearSpendTxSigningResult()
 		return nil
 	}
 	return fmt.Errorf("unknown UtxoSwap nullable field %s", name)
@@ -18884,6 +19644,12 @@ func (m *UtxoSwapMutation) ResetField(name string) error {
 		return nil
 	case utxoswap.FieldCoordinatorIdentityPublicKey:
 		m.ResetCoordinatorIdentityPublicKey()
+		return nil
+	case utxoswap.FieldRequestedTransferID:
+		m.ResetRequestedTransferID()
+		return nil
+	case utxoswap.FieldSpendTxSigningResult:
+		m.ResetSpendTxSigningResult()
 		return nil
 	}
 	return fmt.Errorf("unknown UtxoSwap field %s", name)

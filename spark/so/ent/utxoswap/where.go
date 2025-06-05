@@ -102,6 +102,16 @@ func CoordinatorIdentityPublicKey(v []byte) predicate.UtxoSwap {
 	return predicate.UtxoSwap(sql.FieldEQ(FieldCoordinatorIdentityPublicKey, v))
 }
 
+// RequestedTransferID applies equality check predicate on the "requested_transfer_id" field. It's identical to RequestedTransferIDEQ.
+func RequestedTransferID(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldEQ(FieldRequestedTransferID, v))
+}
+
+// SpendTxSigningResult applies equality check predicate on the "spend_tx_signing_result" field. It's identical to SpendTxSigningResultEQ.
+func SpendTxSigningResult(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldEQ(FieldSpendTxSigningResult, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.UtxoSwap {
 	return predicate.UtxoSwap(sql.FieldEQ(FieldCreateTime, v))
@@ -580,6 +590,106 @@ func CoordinatorIdentityPublicKeyLT(v []byte) predicate.UtxoSwap {
 // CoordinatorIdentityPublicKeyLTE applies the LTE predicate on the "coordinator_identity_public_key" field.
 func CoordinatorIdentityPublicKeyLTE(v []byte) predicate.UtxoSwap {
 	return predicate.UtxoSwap(sql.FieldLTE(FieldCoordinatorIdentityPublicKey, v))
+}
+
+// RequestedTransferIDEQ applies the EQ predicate on the "requested_transfer_id" field.
+func RequestedTransferIDEQ(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldEQ(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDNEQ applies the NEQ predicate on the "requested_transfer_id" field.
+func RequestedTransferIDNEQ(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNEQ(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDIn applies the In predicate on the "requested_transfer_id" field.
+func RequestedTransferIDIn(vs ...uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldIn(FieldRequestedTransferID, vs...))
+}
+
+// RequestedTransferIDNotIn applies the NotIn predicate on the "requested_transfer_id" field.
+func RequestedTransferIDNotIn(vs ...uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNotIn(FieldRequestedTransferID, vs...))
+}
+
+// RequestedTransferIDGT applies the GT predicate on the "requested_transfer_id" field.
+func RequestedTransferIDGT(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldGT(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDGTE applies the GTE predicate on the "requested_transfer_id" field.
+func RequestedTransferIDGTE(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldGTE(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDLT applies the LT predicate on the "requested_transfer_id" field.
+func RequestedTransferIDLT(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldLT(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDLTE applies the LTE predicate on the "requested_transfer_id" field.
+func RequestedTransferIDLTE(v uuid.UUID) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldLTE(FieldRequestedTransferID, v))
+}
+
+// RequestedTransferIDIsNil applies the IsNil predicate on the "requested_transfer_id" field.
+func RequestedTransferIDIsNil() predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldIsNull(FieldRequestedTransferID))
+}
+
+// RequestedTransferIDNotNil applies the NotNil predicate on the "requested_transfer_id" field.
+func RequestedTransferIDNotNil() predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNotNull(FieldRequestedTransferID))
+}
+
+// SpendTxSigningResultEQ applies the EQ predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultEQ(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldEQ(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultNEQ applies the NEQ predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultNEQ(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNEQ(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultIn applies the In predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultIn(vs ...[]byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldIn(FieldSpendTxSigningResult, vs...))
+}
+
+// SpendTxSigningResultNotIn applies the NotIn predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultNotIn(vs ...[]byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNotIn(FieldSpendTxSigningResult, vs...))
+}
+
+// SpendTxSigningResultGT applies the GT predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultGT(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldGT(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultGTE applies the GTE predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultGTE(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldGTE(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultLT applies the LT predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultLT(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldLT(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultLTE applies the LTE predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultLTE(v []byte) predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldLTE(FieldSpendTxSigningResult, v))
+}
+
+// SpendTxSigningResultIsNil applies the IsNil predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultIsNil() predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldIsNull(FieldSpendTxSigningResult))
+}
+
+// SpendTxSigningResultNotNil applies the NotNil predicate on the "spend_tx_signing_result" field.
+func SpendTxSigningResultNotNil() predicate.UtxoSwap {
+	return predicate.UtxoSwap(sql.FieldNotNull(FieldSpendTxSigningResult))
 }
 
 // HasUtxo applies the HasEdge predicate on the "utxo" edge.

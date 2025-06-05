@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
+	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/utxo"
+	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 	"github.com/lightsparkdev/spark/so/handler"
 	testutil "github.com/lightsparkdev/spark/test_util"
 	"github.com/lightsparkdev/spark/wallet"
@@ -140,6 +144,7 @@ func TestStaticDepositSSP(t *testing.T) {
 	)
 	testutil.OnErrFatal(t, err)
 	time.Sleep(100 * time.Millisecond)
+
 	// *********************************************************************************
 	// Create Test Deposit TX from Alice
 	// *********************************************************************************
@@ -212,14 +217,6 @@ func TestStaticDepositSSP(t *testing.T) {
 		NewSigningPrivKey: newLeafPrivKey.Serialize(),
 	}
 	leavesToTransfer := [1]wallet.LeafKeyTweak{transferNode}
-	// transfer, refundSignatureMap, _, err := wallet.SendTransferSignRefund(
-	// 	sspCtx,
-	// 	sspConfig,
-	// 	leavesToTransfer[:],
-	// 	aliceConfig.IdentityPublicKey(),
-	// 	time.Now().Add(10*time.Minute),
-	// )
-	// testutil.OnErrFatal(t, err)
 
 	// *********************************************************************************
 	// Create spend tx from Alice's deposit to SSP L1 Wallet Address
@@ -239,20 +236,15 @@ func TestStaticDepositSSP(t *testing.T) {
 	// *********************************************************************************
 	// Get signing commitments to use for frost signing
 	// *********************************************************************************
-	sparkClient := pb.NewSparkServiceClient(sspConn)
 	nodeIDs := make([]string, len(leavesToTransfer))
 	for i, leaf := range leavesToTransfer {
 		nodeIDs[i] = leaf.Leaf.Id
 	}
-	signingCommitments, err := sparkClient.GetSigningCommitments(sspCtx, &pb.GetSigningCommitmentsRequest{
-		NodeIds: nodeIDs,
-	})
-	testutil.OnErrFatal(t, err)
 
 	// *********************************************************************************
 	// Claim Static Deposit
 	// *********************************************************************************
-	signedSpendTx, transferToAliceKeysTweaked, err := wallet.ClaimStaticDeposit(
+	signedSpendTx, transfer, err := wallet.ClaimStaticDeposit(
 		sspCtx,
 		sspConfig,
 		common.Regtest,
@@ -265,9 +257,39 @@ func TestStaticDepositSSP(t *testing.T) {
 		aliceConfig.IdentityPrivateKey.PubKey(),
 		sspConn,
 		signedDepositTx.TxOut[vout],
-		signingCommitments.SigningCommitments,
 	)
 	testutil.OnErrFatal(t, err)
+
+	config, err := testutil.TestConfig()
+	require.NoError(t, err)
+	_, db, err := testutil.TestContext(config)
+	require.NoError(t, err)
+	schemaNetwork, err := common.SchemaNetworkFromProtoNetwork(pb.Network_REGTEST)
+	testutil.OnErrFatal(t, err)
+
+	utxos, err := db.Utxo.Query().
+		Where(utxo.NetworkEQ(schemaNetwork)).
+		All(aliceCtx)
+	require.NoError(t, err)
+	for _, utxo := range utxos {
+		fmt.Println(hex.EncodeToString(utxo.Txid))
+	}
+
+	depositTxID, err := hex.DecodeString(spendTx.TxIn[0].PreviousOutPoint.Hash.String())
+	require.NoError(t, err)
+	targetUtxo, err := db.Utxo.Query().
+		Where(utxo.NetworkEQ(schemaNetwork)).
+		Where(utxo.Txid(depositTxID)).
+		Where(utxo.Vout(depositOutPoint.Index)).
+		Only(aliceCtx)
+	require.NoError(t, err)
+
+	utxoSwap, err := db.UtxoSwap.Query().Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).Only(aliceCtx)
+	require.NoError(t, err)
+	assert.Equal(t, utxoSwap.Status, schema.UtxoSwapStatusCompleted)
+	dbTransferSspToAlice, err := utxoSwap.QueryTransfer().Only(aliceCtx)
+	require.NoError(t, err)
+	assert.Equal(t, dbTransferSspToAlice.Status, schema.TransferStatusSenderKeyTweaked)
 
 	_, err = common.SerializeTx(signedSpendTx)
 	testutil.OnErrFatal(t, err)
@@ -276,17 +298,27 @@ func TestStaticDepositSSP(t *testing.T) {
 	_, err = bitcoinClient.SendRawTransaction(signedSpendTx, true)
 	assert.NoError(t, err)
 
+	require.Equal(t, transfer.Status, pb.TransferStatus_TRANSFER_STATUS_SENDER_KEY_TWEAKED)
+
+	// Claim transfer
+	pendingTransfer, err := wallet.QueryPendingTransfers(aliceCtx, aliceConfig)
+	require.NoError(t, err, "failed to query pending transfers")
+	require.Equal(t, 1, len(pendingTransfer.Transfers))
+	receiverTransfer := pendingTransfer.Transfers[0]
+	require.Equal(t, receiverTransfer.Id, receiverTransfer.Id)
+	require.Equal(t, receiverTransfer.Type, pb.TransferType_UTXO_SWAP)
+
 	finalLeafPrivKey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)
 	claimingNode := wallet.LeafKeyTweak{
-		Leaf:              transferToAliceKeysTweaked.Leaves[0].Leaf,
+		Leaf:              receiverTransfer.Leaves[0].Leaf,
 		SigningPrivKey:    newLeafPrivKey.Serialize(),
 		NewSigningPrivKey: finalLeafPrivKey.Serialize(),
 	}
 	leavesToClaim := [1]wallet.LeafKeyTweak{claimingNode}
 	res, err := wallet.ClaimTransfer(
 		aliceCtx,
-		transferToAliceKeysTweaked,
+		receiverTransfer,
 		aliceConfig,
 		leavesToClaim[:],
 	)
@@ -294,24 +326,33 @@ func TestStaticDepositSSP(t *testing.T) {
 	require.Equal(t, res[0].Id, transferNode.Leaf.Id)
 
 	// *********************************************************************************
-	// Claiming a Static Deposit again should fail
+	// Claiming a Static Deposit again should return the same result
 	// *********************************************************************************
-	_, _, err = wallet.ClaimStaticDeposit(
-		sspCtx,
-		sspConfig,
-		common.Regtest,
-		leavesToTransfer[:],
-		spendTx,
-		pb.UtxoSwapRequestType_Fixed,
-		aliceDepositPrivKey,
-		userSignature,
-		sspSignature,
-		aliceConfig.IdentityPrivateKey.PubKey(),
-		sspConn,
-		signedDepositTx.TxOut[vout],
-		signingCommitments.SigningCommitments,
-	)
-	assert.Error(t, err)
+	sparkClient := pb.NewSparkServiceClient(sspConn)
+	depositTxID, err = hex.DecodeString(spendTx.TxIn[0].PreviousOutPoint.Hash.String())
+	testutil.OnErrFatal(t, err)
+	swapResponse, err := sparkClient.InitiateUtxoSwap(sspCtx, &pb.InitiateUtxoSwapRequest{
+		OnChainUtxo: &pb.UTXO{
+			Txid:    depositTxID,
+			Vout:    uint32(vout),
+			Network: pb.Network_REGTEST,
+		},
+		RequestType:   pb.UtxoSwapRequestType_Fixed,
+		Amount:        &pb.InitiateUtxoSwapRequest_CreditAmountSats{CreditAmountSats: quoteAmount},
+		UserSignature: userSignature,
+		SspSignature:  sspSignature,
+		Transfer: &pb.StartTransferRequest{
+			TransferId:                transfer.Id,
+			OwnerIdentityPublicKey:    sspConfig.IdentityPublicKey(),
+			ReceiverIdentityPublicKey: aliceConfig.IdentityPublicKey(),
+			ExpiryTime:                nil,
+			TransferPackage:           nil,
+		},
+		SpendTxSigningJob: nil,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, transfer.Id, swapResponse.Transfer.Id)
 
 	// *********************************************************************************
 	// A call to rollback should fail

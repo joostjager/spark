@@ -27,7 +27,7 @@ import (
 // Test token amounts for various operations
 const (
 	// The expected maximum number of outputs which can be created in a single transaction.
-	ManyOutputsCount = 100
+	ManyOutputsCount = 1000
 	// Amount for first created output in issuance transaction
 	TestIssueOutput1Amount = 11111
 	// Amount for second created output in issuance transaction

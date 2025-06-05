@@ -9,6 +9,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
 	"github.com/lightsparkdev/spark/so/ent/schema"
@@ -106,6 +107,29 @@ func init() {
 	depositaddressDescID := depositaddressMixinFields0[0].Descriptor()
 	// depositaddress.DefaultID holds the default value on creation for the id field.
 	depositaddress.DefaultID = depositaddressDescID.Default.(func() uuid.UUID)
+	gossipMixin := schema.Gossip{}.Mixin()
+	gossipMixinFields0 := gossipMixin[0].Fields()
+	_ = gossipMixinFields0
+	gossipFields := schema.Gossip{}.Fields()
+	_ = gossipFields
+	// gossipDescCreateTime is the schema descriptor for create_time field.
+	gossipDescCreateTime := gossipMixinFields0[1].Descriptor()
+	// gossip.DefaultCreateTime holds the default value on creation for the create_time field.
+	gossip.DefaultCreateTime = gossipDescCreateTime.Default.(func() time.Time)
+	// gossipDescUpdateTime is the schema descriptor for update_time field.
+	gossipDescUpdateTime := gossipMixinFields0[2].Descriptor()
+	// gossip.DefaultUpdateTime holds the default value on creation for the update_time field.
+	gossip.DefaultUpdateTime = gossipDescUpdateTime.Default.(func() time.Time)
+	// gossip.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	gossip.UpdateDefaultUpdateTime = gossipDescUpdateTime.UpdateDefault.(func() time.Time)
+	// gossipDescMessage is the schema descriptor for message field.
+	gossipDescMessage := gossipFields[1].Descriptor()
+	// gossip.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	gossip.MessageValidator = gossipDescMessage.Validators[0].(func([]byte) error)
+	// gossipDescID is the schema descriptor for id field.
+	gossipDescID := gossipMixinFields0[0].Descriptor()
+	// gossip.DefaultID holds the default value on creation for the id field.
+	gossip.DefaultID = gossipDescID.Default.(func() uuid.UUID)
 	preimagerequestMixin := schema.PreimageRequest{}.Mixin()
 	preimagerequestMixinFields0 := preimagerequestMixin[0].Fields()
 	_ = preimagerequestMixinFields0

@@ -102,6 +102,21 @@ func NetworkFromSchemaNetwork(schemaNetwork schema.Network) (Network, error) {
 	}
 }
 
+func ProtoNetworkFromSchemaNetwork(schemaNetwork schema.Network) (pb.Network, error) {
+	switch schemaNetwork {
+	case schema.NetworkMainnet:
+		return pb.Network_MAINNET, nil
+	case schema.NetworkRegtest:
+		return pb.Network_REGTEST, nil
+	case schema.NetworkTestnet:
+		return pb.Network_TESTNET, nil
+	case schema.NetworkSignet:
+		return pb.Network_SIGNET, nil
+	default:
+		return pb.Network_MAINNET, fmt.Errorf("invalid network")
+	}
+}
+
 func SchemaNetworkFromNetwork(network Network) (schema.Network, error) {
 	switch network {
 	case Mainnet:

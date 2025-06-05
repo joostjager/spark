@@ -45,6 +45,18 @@ func (f DepositAddressFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DepositAddressMutation", m)
 }
 
+// The GossipFunc type is an adapter to allow the use of ordinary
+// function as Gossip mutator.
+type GossipFunc func(context.Context, *ent.GossipMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GossipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GossipMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GossipMutation", m)
+}
+
 // The PreimageRequestFunc type is an adapter to allow the use of ordinary
 // function as PreimageRequest mutator.
 type PreimageRequestFunc func(context.Context, *ent.PreimageRequestMutation) (ent.Value, error)

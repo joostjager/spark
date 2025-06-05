@@ -7875,7 +7875,7 @@ type InitiateUtxoSwapRequest struct {
 	Amount            isInitiateUtxoSwapRequest_Amount `protobuf_oneof:"amount"`
 	SspSignature      []byte                           `protobuf:"bytes,5,opt,name=ssp_signature,json=sspSignature,proto3" json:"ssp_signature,omitempty"`
 	UserSignature     []byte                           `protobuf:"bytes,6,opt,name=user_signature,json=userSignature,proto3" json:"user_signature,omitempty"`
-	Transfer          *StartUserSignedTransferRequest  `protobuf:"bytes,7,opt,name=transfer,proto3" json:"transfer,omitempty"`
+	Transfer          *StartTransferRequest            `protobuf:"bytes,7,opt,name=transfer,proto3" json:"transfer,omitempty"`
 	SpendTxSigningJob *SigningJob                      `protobuf:"bytes,8,opt,name=spend_tx_signing_job,json=spendTxSigningJob,proto3" json:"spend_tx_signing_job,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -7964,7 +7964,7 @@ func (x *InitiateUtxoSwapRequest) GetUserSignature() []byte {
 	return nil
 }
 
-func (x *InitiateUtxoSwapRequest) GetTransfer() *StartUserSignedTransferRequest {
+func (x *InitiateUtxoSwapRequest) GetTransfer() *StartTransferRequest {
 	if x != nil {
 		return x.Transfer
 	}
@@ -9163,7 +9163,7 @@ const file_spark_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\">\n" +
 	"\fSparkAddress\x12.\n" +
-	"\x13identity_public_key\x18\x01 \x01(\fR\x11identityPublicKey\"\xba\x03\n" +
+	"\x13identity_public_key\x18\x01 \x01(\fR\x11identityPublicKey\"\xb0\x03\n" +
 	"\x17InitiateUtxoSwapRequest\x12/\n" +
 	"\ron_chain_utxo\x18\x01 \x01(\v2\v.spark.UTXOR\vonChainUtxo\x12=\n" +
 	"\frequest_type\x18\x02 \x01(\x0e2\x1a.spark.UtxoSwapRequestTypeR\vrequestType\x12.\n" +
@@ -9171,8 +9171,8 @@ const file_spark_proto_rawDesc = "" +
 	"\fmax_fee_sats\x18\x04 \x01(\x04H\x00R\n" +
 	"maxFeeSats\x12#\n" +
 	"\rssp_signature\x18\x05 \x01(\fR\fsspSignature\x12%\n" +
-	"\x0euser_signature\x18\x06 \x01(\fR\ruserSignature\x12A\n" +
-	"\btransfer\x18\a \x01(\v2%.spark.StartUserSignedTransferRequestR\btransfer\x12B\n" +
+	"\x0euser_signature\x18\x06 \x01(\fR\ruserSignature\x127\n" +
+	"\btransfer\x18\a \x01(\v2\x1b.spark.StartTransferRequestR\btransfer\x12B\n" +
 	"\x14spend_tx_signing_job\x18\b \x01(\v2\x11.spark.SigningJobR\x11spendTxSigningJobB\b\n" +
 	"\x06amount\"\xdf\x01\n" +
 	"\x18InitiateUtxoSwapResponse\x12K\n" +
@@ -9632,7 +9632,7 @@ var file_spark_proto_depIdxs = []int32{
 	152, // 147: spark.QueryBalanceResponse.node_balances:type_name -> spark.QueryBalanceResponse.NodeBalancesEntry
 	15,  // 148: spark.InitiateUtxoSwapRequest.on_chain_utxo:type_name -> spark.UTXO
 	4,   // 149: spark.InitiateUtxoSwapRequest.request_type:type_name -> spark.UtxoSwapRequestType
-	61,  // 150: spark.InitiateUtxoSwapRequest.transfer:type_name -> spark.StartUserSignedTransferRequest
+	62,  // 150: spark.InitiateUtxoSwapRequest.transfer:type_name -> spark.StartTransferRequest
 	17,  // 151: spark.InitiateUtxoSwapRequest.spend_tx_signing_job:type_name -> spark.SigningJob
 	19,  // 152: spark.InitiateUtxoSwapResponse.spend_tx_signing_result:type_name -> spark.SigningResult
 	69,  // 153: spark.InitiateUtxoSwapResponse.transfer:type_name -> spark.Transfer

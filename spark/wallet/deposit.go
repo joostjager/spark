@@ -383,7 +383,6 @@ func ClaimStaticDeposit(
 	userIdentityPubkey *secp256k1.PublicKey,
 	sspConn *grpc.ClientConn,
 	prevTxOut *wire.TxOut,
-	signingCommitments []*pb.RequestedSigningCommitments,
 ) (*wire.MsgTx, *pb.Transfer, error) {
 	var spendTxBytes bytes.Buffer
 	err := spendTx.Serialize(&spendTxBytes)
@@ -418,7 +417,7 @@ func ClaimStaticDeposit(
 		return nil, nil, err
 	}
 
-	signingJob := &pb.SigningJob{
+	spendTxSigningJob := &pb.SigningJob{
 		RawTx:                  spendTxBytes.Bytes(),
 		SigningPublicKey:       depositAddressSecretKey.PubKey().SerializeCompressed(),
 		SigningNonceCommitment: spendTxNonceCommitmentProto,
@@ -434,39 +433,20 @@ func ClaimStaticDeposit(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate transfer id: %v", err)
 	}
-
-	signingJobs, refundTxs, userCommitments, err := prepareFrostSigningJobsForUserSignedRefund(
-		leavesToTransfer,
-		signingCommitments,
-		userIdentityPubkey,
-	)
+	keyTweakInputMap, err := prepareSendTransferKeyTweaks(config, transferID.String(), userIdentityPubkey.SerializeCompressed(), leavesToTransfer, map[string][]byte{})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to prepare transfer data: %v", err)
 	}
-	// signerClient := pbfrost.NewFrostServiceClient(sspConn)
+	transferPackage, err := prepareTransferPackage(ctx, config, sparkClient, transferID, keyTweakInputMap, leavesToTransfer, userIdentityPubkey.SerializeCompressed())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to prepare transfer data: %v", err)
+	}
+
 	conn, err := common.NewGRPCConnectionWithoutTLS(config.FrostSignerAddress, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to frost signer: %v", err)
 	}
 	defer conn.Close()
-	signerClient := pbfrost.NewFrostServiceClient(conn)
-	signingResults, err := signerClient.SignFrost(ctx, &pbfrost.SignFrostRequest{
-		SigningJobs: signingJobs,
-		Role:        pbfrost.SigningRole_USER,
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to sign frost: %v", err)
-	}
-	leafSigningJobs, err := prepareLeafSigningJobs(
-		leavesToTransfer,
-		refundTxs,
-		signingResults.Results,
-		userCommitments,
-		signingCommitments,
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to prepare leaf signing jobs: %v", err)
-	}
 	protoNetwork, err := common.ProtoNetworkFromNetwork(network)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get proto network: %v", err)
@@ -485,14 +465,14 @@ func ClaimStaticDeposit(
 		Amount:        &pb.InitiateUtxoSwapRequest_CreditAmountSats{CreditAmountSats: creditAmountSats},
 		UserSignature: userSignature,
 		SspSignature:  sspSignature,
-		Transfer: &pb.StartUserSignedTransferRequest{
+		Transfer: &pb.StartTransferRequest{
 			TransferId:                transferID.String(),
 			OwnerIdentityPublicKey:    config.IdentityPublicKey(),
 			ReceiverIdentityPublicKey: userIdentityPubkey.SerializeCompressed(),
-			LeavesToSend:              leafSigningJobs,
 			ExpiryTime:                timestamppb.New(time.Now().Add(2 * time.Minute)),
+			TransferPackage:           transferPackage,
 		},
-		SpendTxSigningJob: signingJob,
+		SpendTxSigningJob: spendTxSigningJob,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to initiate utxo swap: %v", err)
@@ -581,16 +561,7 @@ func ClaimStaticDeposit(
 		return nil, nil, fmt.Errorf("signature verification failed")
 	}
 	spendTx.TxIn[0].Witness = wire.TxWitness{signatureResult.Signature}
-
-	transferToAliceKeysTweaked, err := SendTransferTweakKey(context.Background(), config, swapResponse.Transfer, leavesToTransfer[:], nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to send transfer tweak key: %v", err)
-	}
-	if transferToAliceKeysTweaked.Status != pb.TransferStatus_TRANSFER_STATUS_SENDER_KEY_TWEAKED {
-		return nil, nil, fmt.Errorf("transfer to alice keys tweaked status is not TRANSFER_STATUS_SENDER_KEY_TWEAKED")
-	}
-
-	return spendTx, transferToAliceKeysTweaked, nil
+	return spendTx, swapResponse.Transfer, nil
 }
 
 func RefundStaticDeposit(
@@ -670,12 +641,12 @@ func RefundStaticDeposit(
 		Amount:        &pb.InitiateUtxoSwapRequest_CreditAmountSats{CreditAmountSats: 0},
 		UserSignature: userSignature,
 		SspSignature:  []byte{},
-		Transfer: &pb.StartUserSignedTransferRequest{
+		Transfer: &pb.StartTransferRequest{
 			TransferId:                transferID.String(),
 			OwnerIdentityPublicKey:    config.IdentityPublicKey(),
 			ReceiverIdentityPublicKey: userIdentityPubkey.SerializeCompressed(),
-			LeavesToSend:              nil,
-			ExpiryTime:                timestamppb.New(time.Now().Add(2 * time.Minute)),
+			ExpiryTime:                nil,
+			TransferPackage:           nil,
 		},
 		SpendTxSigningJob: signingJob,
 	})

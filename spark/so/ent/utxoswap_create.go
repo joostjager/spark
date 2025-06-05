@@ -122,6 +122,26 @@ func (usc *UtxoSwapCreate) SetCoordinatorIdentityPublicKey(b []byte) *UtxoSwapCr
 	return usc
 }
 
+// SetRequestedTransferID sets the "requested_transfer_id" field.
+func (usc *UtxoSwapCreate) SetRequestedTransferID(u uuid.UUID) *UtxoSwapCreate {
+	usc.mutation.SetRequestedTransferID(u)
+	return usc
+}
+
+// SetNillableRequestedTransferID sets the "requested_transfer_id" field if the given value is not nil.
+func (usc *UtxoSwapCreate) SetNillableRequestedTransferID(u *uuid.UUID) *UtxoSwapCreate {
+	if u != nil {
+		usc.SetRequestedTransferID(*u)
+	}
+	return usc
+}
+
+// SetSpendTxSigningResult sets the "spend_tx_signing_result" field.
+func (usc *UtxoSwapCreate) SetSpendTxSigningResult(b []byte) *UtxoSwapCreate {
+	usc.mutation.SetSpendTxSigningResult(b)
+	return usc
+}
+
 // SetID sets the "id" field.
 func (usc *UtxoSwapCreate) SetID(u uuid.UUID) *UtxoSwapCreate {
 	usc.mutation.SetID(u)
@@ -323,6 +343,14 @@ func (usc *UtxoSwapCreate) createSpec() (*UtxoSwap, *sqlgraph.CreateSpec) {
 	if value, ok := usc.mutation.CoordinatorIdentityPublicKey(); ok {
 		_spec.SetField(utxoswap.FieldCoordinatorIdentityPublicKey, field.TypeBytes, value)
 		_node.CoordinatorIdentityPublicKey = value
+	}
+	if value, ok := usc.mutation.RequestedTransferID(); ok {
+		_spec.SetField(utxoswap.FieldRequestedTransferID, field.TypeUUID, value)
+		_node.RequestedTransferID = value
+	}
+	if value, ok := usc.mutation.SpendTxSigningResult(); ok {
+		_spec.SetField(utxoswap.FieldSpendTxSigningResult, field.TypeBytes, value)
+		_node.SpendTxSigningResult = value
 	}
 	if nodes := usc.mutation.UtxoIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

@@ -173,6 +173,38 @@ func (usu *UtxoSwapUpdate) SetCoordinatorIdentityPublicKey(b []byte) *UtxoSwapUp
 	return usu
 }
 
+// SetRequestedTransferID sets the "requested_transfer_id" field.
+func (usu *UtxoSwapUpdate) SetRequestedTransferID(u uuid.UUID) *UtxoSwapUpdate {
+	usu.mutation.SetRequestedTransferID(u)
+	return usu
+}
+
+// SetNillableRequestedTransferID sets the "requested_transfer_id" field if the given value is not nil.
+func (usu *UtxoSwapUpdate) SetNillableRequestedTransferID(u *uuid.UUID) *UtxoSwapUpdate {
+	if u != nil {
+		usu.SetRequestedTransferID(*u)
+	}
+	return usu
+}
+
+// ClearRequestedTransferID clears the value of the "requested_transfer_id" field.
+func (usu *UtxoSwapUpdate) ClearRequestedTransferID() *UtxoSwapUpdate {
+	usu.mutation.ClearRequestedTransferID()
+	return usu
+}
+
+// SetSpendTxSigningResult sets the "spend_tx_signing_result" field.
+func (usu *UtxoSwapUpdate) SetSpendTxSigningResult(b []byte) *UtxoSwapUpdate {
+	usu.mutation.SetSpendTxSigningResult(b)
+	return usu
+}
+
+// ClearSpendTxSigningResult clears the value of the "spend_tx_signing_result" field.
+func (usu *UtxoSwapUpdate) ClearSpendTxSigningResult() *UtxoSwapUpdate {
+	usu.mutation.ClearSpendTxSigningResult()
+	return usu
+}
+
 // SetTransferID sets the "transfer" edge to the Transfer entity by ID.
 func (usu *UtxoSwapUpdate) SetTransferID(id uuid.UUID) *UtxoSwapUpdate {
 	usu.mutation.SetTransferID(id)
@@ -322,6 +354,18 @@ func (usu *UtxoSwapUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := usu.mutation.CoordinatorIdentityPublicKey(); ok {
 		_spec.SetField(utxoswap.FieldCoordinatorIdentityPublicKey, field.TypeBytes, value)
+	}
+	if value, ok := usu.mutation.RequestedTransferID(); ok {
+		_spec.SetField(utxoswap.FieldRequestedTransferID, field.TypeUUID, value)
+	}
+	if usu.mutation.RequestedTransferIDCleared() {
+		_spec.ClearField(utxoswap.FieldRequestedTransferID, field.TypeUUID)
+	}
+	if value, ok := usu.mutation.SpendTxSigningResult(); ok {
+		_spec.SetField(utxoswap.FieldSpendTxSigningResult, field.TypeBytes, value)
+	}
+	if usu.mutation.SpendTxSigningResultCleared() {
+		_spec.ClearField(utxoswap.FieldSpendTxSigningResult, field.TypeBytes)
 	}
 	if usu.mutation.TransferCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -514,6 +558,38 @@ func (usuo *UtxoSwapUpdateOne) SetCoordinatorIdentityPublicKey(b []byte) *UtxoSw
 	return usuo
 }
 
+// SetRequestedTransferID sets the "requested_transfer_id" field.
+func (usuo *UtxoSwapUpdateOne) SetRequestedTransferID(u uuid.UUID) *UtxoSwapUpdateOne {
+	usuo.mutation.SetRequestedTransferID(u)
+	return usuo
+}
+
+// SetNillableRequestedTransferID sets the "requested_transfer_id" field if the given value is not nil.
+func (usuo *UtxoSwapUpdateOne) SetNillableRequestedTransferID(u *uuid.UUID) *UtxoSwapUpdateOne {
+	if u != nil {
+		usuo.SetRequestedTransferID(*u)
+	}
+	return usuo
+}
+
+// ClearRequestedTransferID clears the value of the "requested_transfer_id" field.
+func (usuo *UtxoSwapUpdateOne) ClearRequestedTransferID() *UtxoSwapUpdateOne {
+	usuo.mutation.ClearRequestedTransferID()
+	return usuo
+}
+
+// SetSpendTxSigningResult sets the "spend_tx_signing_result" field.
+func (usuo *UtxoSwapUpdateOne) SetSpendTxSigningResult(b []byte) *UtxoSwapUpdateOne {
+	usuo.mutation.SetSpendTxSigningResult(b)
+	return usuo
+}
+
+// ClearSpendTxSigningResult clears the value of the "spend_tx_signing_result" field.
+func (usuo *UtxoSwapUpdateOne) ClearSpendTxSigningResult() *UtxoSwapUpdateOne {
+	usuo.mutation.ClearSpendTxSigningResult()
+	return usuo
+}
+
 // SetTransferID sets the "transfer" edge to the Transfer entity by ID.
 func (usuo *UtxoSwapUpdateOne) SetTransferID(id uuid.UUID) *UtxoSwapUpdateOne {
 	usuo.mutation.SetTransferID(id)
@@ -693,6 +769,18 @@ func (usuo *UtxoSwapUpdateOne) sqlSave(ctx context.Context) (_node *UtxoSwap, er
 	}
 	if value, ok := usuo.mutation.CoordinatorIdentityPublicKey(); ok {
 		_spec.SetField(utxoswap.FieldCoordinatorIdentityPublicKey, field.TypeBytes, value)
+	}
+	if value, ok := usuo.mutation.RequestedTransferID(); ok {
+		_spec.SetField(utxoswap.FieldRequestedTransferID, field.TypeUUID, value)
+	}
+	if usuo.mutation.RequestedTransferIDCleared() {
+		_spec.ClearField(utxoswap.FieldRequestedTransferID, field.TypeUUID)
+	}
+	if value, ok := usuo.mutation.SpendTxSigningResult(); ok {
+		_spec.SetField(utxoswap.FieldSpendTxSigningResult, field.TypeBytes, value)
+	}
+	if usuo.mutation.SpendTxSigningResultCleared() {
+		_spec.ClearField(utxoswap.FieldSpendTxSigningResult, field.TypeBytes)
 	}
 	if usuo.mutation.TransferCleared() {
 		edge := &sqlgraph.EdgeSpec{

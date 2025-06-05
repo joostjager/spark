@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package gossip;
+
+option go_package = "github.com/lightsparkdev/spark/proto/gossip";
+
+message GossipMessage {
+    string message_id = 1;
+    oneof message {
+        GossipMessageCancelTransfer cancel_transfer = 2;
+    }
+}
+
+message GossipMessageCancelTransfer {
+    string transfer_id = 1;
+}

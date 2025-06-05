@@ -43,6 +43,10 @@ type UtxoSwap struct {
 	UserIdentityPublicKey []byte `json:"user_identity_public_key,omitempty"`
 	// CoordinatorIdentityPublicKey holds the value of the "coordinator_identity_public_key" field.
 	CoordinatorIdentityPublicKey []byte `json:"coordinator_identity_public_key,omitempty"`
+	// RequestedTransferID holds the value of the "requested_transfer_id" field.
+	RequestedTransferID uuid.UUID `json:"requested_transfer_id,omitempty"`
+	// SpendTxSigningResult holds the value of the "spend_tx_signing_result" field.
+	SpendTxSigningResult []byte `json:"spend_tx_signing_result,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UtxoSwapQuery when eager-loading is set.
 	Edges                     UtxoSwapEdges `json:"edges"`
@@ -90,7 +94,7 @@ func (*UtxoSwap) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case utxoswap.FieldSspSignature, utxoswap.FieldSspIdentityPublicKey, utxoswap.FieldUserSignature, utxoswap.FieldUserIdentityPublicKey, utxoswap.FieldCoordinatorIdentityPublicKey:
+		case utxoswap.FieldSspSignature, utxoswap.FieldSspIdentityPublicKey, utxoswap.FieldUserSignature, utxoswap.FieldUserIdentityPublicKey, utxoswap.FieldCoordinatorIdentityPublicKey, utxoswap.FieldSpendTxSigningResult:
 			values[i] = new([]byte)
 		case utxoswap.FieldCreditAmountSats, utxoswap.FieldMaxFeeSats:
 			values[i] = new(sql.NullInt64)
@@ -98,7 +102,7 @@ func (*UtxoSwap) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case utxoswap.FieldCreateTime, utxoswap.FieldUpdateTime:
 			values[i] = new(sql.NullTime)
-		case utxoswap.FieldID:
+		case utxoswap.FieldID, utxoswap.FieldRequestedTransferID:
 			values[i] = new(uuid.UUID)
 		case utxoswap.ForeignKeys[0]: // deposit_address_utxoswaps
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
@@ -192,6 +196,18 @@ func (us *UtxoSwap) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field coordinator_identity_public_key", values[i])
 			} else if value != nil {
 				us.CoordinatorIdentityPublicKey = *value
+			}
+		case utxoswap.FieldRequestedTransferID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field requested_transfer_id", values[i])
+			} else if value != nil {
+				us.RequestedTransferID = *value
+			}
+		case utxoswap.FieldSpendTxSigningResult:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field spend_tx_signing_result", values[i])
+			} else if value != nil {
+				us.SpendTxSigningResult = *value
 			}
 		case utxoswap.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -292,6 +308,12 @@ func (us *UtxoSwap) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("coordinator_identity_public_key=")
 	builder.WriteString(fmt.Sprintf("%v", us.CoordinatorIdentityPublicKey))
+	builder.WriteString(", ")
+	builder.WriteString("requested_transfer_id=")
+	builder.WriteString(fmt.Sprintf("%v", us.RequestedTransferID))
+	builder.WriteString(", ")
+	builder.WriteString("spend_tx_signing_result=")
+	builder.WriteString(fmt.Sprintf("%v", us.SpendTxSigningResult))
 	builder.WriteByte(')')
 	return builder.String()
 }

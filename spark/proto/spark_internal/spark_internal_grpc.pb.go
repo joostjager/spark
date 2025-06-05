@@ -8,6 +8,7 @@ package spark_internal
 
 import (
 	context "context"
+	gossip "github.com/lightsparkdev/spark/proto/gossip"
 	spark "github.com/lightsparkdev/spark/proto/spark"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -50,6 +51,7 @@ const (
 	SparkInternalService_UtxoSwapCompleted_FullMethodName              = "/spark_internal.SparkInternalService/utxo_swap_completed"
 	SparkInternalService_QueryLeafSigningPubkeys_FullMethodName        = "/spark_internal.SparkInternalService/query_leaf_signing_pubkeys"
 	SparkInternalService_ResolveLeafInvestigation_FullMethodName       = "/spark_internal.SparkInternalService/resolve_leaf_investigation"
+	SparkInternalService_Gossip_FullMethodName                         = "/spark_internal.SparkInternalService/gossip"
 )
 
 // SparkInternalServiceClient is the client API for SparkInternalService service.
@@ -88,6 +90,7 @@ type SparkInternalServiceClient interface {
 	UtxoSwapCompleted(ctx context.Context, in *UtxoSwapCompletedRequest, opts ...grpc.CallOption) (*UtxoSwapCompletedResponse, error)
 	QueryLeafSigningPubkeys(ctx context.Context, in *QueryLeafSigningPubkeysRequest, opts ...grpc.CallOption) (*QueryLeafSigningPubkeysResponse, error)
 	ResolveLeafInvestigation(ctx context.Context, in *ResolveLeafInvestigationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Gossip(ctx context.Context, in *gossip.GossipMessage, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type sparkInternalServiceClient struct {
@@ -388,6 +391,16 @@ func (c *sparkInternalServiceClient) ResolveLeafInvestigation(ctx context.Contex
 	return out, nil
 }
 
+func (c *sparkInternalServiceClient) Gossip(ctx context.Context, in *gossip.GossipMessage, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, SparkInternalService_Gossip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SparkInternalServiceServer is the server API for SparkInternalService service.
 // All implementations must embed UnimplementedSparkInternalServiceServer
 // for forward compatibility.
@@ -424,6 +437,7 @@ type SparkInternalServiceServer interface {
 	UtxoSwapCompleted(context.Context, *UtxoSwapCompletedRequest) (*UtxoSwapCompletedResponse, error)
 	QueryLeafSigningPubkeys(context.Context, *QueryLeafSigningPubkeysRequest) (*QueryLeafSigningPubkeysResponse, error)
 	ResolveLeafInvestigation(context.Context, *ResolveLeafInvestigationRequest) (*emptypb.Empty, error)
+	Gossip(context.Context, *gossip.GossipMessage) (*emptypb.Empty, error)
 	mustEmbedUnimplementedSparkInternalServiceServer()
 }
 
@@ -520,6 +534,9 @@ func (UnimplementedSparkInternalServiceServer) QueryLeafSigningPubkeys(context.C
 }
 func (UnimplementedSparkInternalServiceServer) ResolveLeafInvestigation(context.Context, *ResolveLeafInvestigationRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResolveLeafInvestigation not implemented")
+}
+func (UnimplementedSparkInternalServiceServer) Gossip(context.Context, *gossip.GossipMessage) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Gossip not implemented")
 }
 func (UnimplementedSparkInternalServiceServer) mustEmbedUnimplementedSparkInternalServiceServer() {}
 func (UnimplementedSparkInternalServiceServer) testEmbeddedByValue()                              {}
@@ -1064,6 +1081,24 @@ func _SparkInternalService_ResolveLeafInvestigation_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SparkInternalService_Gossip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gossip.GossipMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkInternalServiceServer).Gossip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkInternalService_Gossip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkInternalServiceServer).Gossip(ctx, req.(*gossip.GossipMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SparkInternalService_ServiceDesc is the grpc.ServiceDesc for SparkInternalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1186,6 +1221,10 @@ var SparkInternalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "resolve_leaf_investigation",
 			Handler:    _SparkInternalService_ResolveLeafInvestigation_Handler,
+		},
+		{
+			MethodName: "gossip",
+			Handler:    _SparkInternalService_Gossip_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

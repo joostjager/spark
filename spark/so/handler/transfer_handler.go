@@ -526,7 +526,7 @@ func (h *TransferHandler) FinalizeTransfer(ctx context.Context, req *pb.Finalize
 	}
 	span.SetAttributes(transferTypeKey.String(string(transfer.Type)))
 	if !bytes.Equal(transfer.SenderIdentityPubkey, req.OwnerIdentityPublicKey) || transfer.Status != schema.TransferStatusSenderInitiated {
-		return nil, fmt.Errorf("send transfer cannot be completed %s", req.TransferId)
+		return nil, fmt.Errorf("send transfer cannot be completed %s, status: %s", req.TransferId, transfer.Status)
 	}
 
 	db := ent.GetDbFromContext(ctx)

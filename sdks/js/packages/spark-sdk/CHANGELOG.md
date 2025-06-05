@@ -1,5 +1,19 @@
 # @buildonspark/spark-sdk
 
+## 0.1.32
+
+### Patch Changes
+
+- - Added HDKeyGenerator interface and default implementation to allow for easy custom derivation path changes
+
+## 0.1.31
+
+### Patch Changes
+
+- Fixes
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.54
+
 ## 0.1.30
 
 ### Patch Changes

@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/google/uuid"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 )
 
@@ -87,6 +88,10 @@ func (UtxoSwap) Fields() []ent.Field {
 		field.Bytes("user_identity_public_key").Optional(),
 		// distributed transaction coordinator identity public key
 		field.Bytes("coordinator_identity_public_key"),
+		// the transfer id that was requested by the user, a unique reference accross all operators
+		field.UUID("requested_transfer_id", uuid.UUID{}).Optional(),
+		// the result of frost signing the spend transaction
+		field.Bytes("spend_tx_signing_result").Optional(),
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
@@ -95,6 +96,7 @@ func checkColumn(table, column string) error {
 			blockheight.Table:             blockheight.ValidColumn,
 			cooperativeexit.Table:         cooperativeexit.ValidColumn,
 			depositaddress.Table:          depositaddress.ValidColumn,
+			gossip.Table:                  gossip.ValidColumn,
 			preimagerequest.Table:         preimagerequest.ValidColumn,
 			preimageshare.Table:           preimageshare.ValidColumn,
 			signingkeyshare.Table:         signingkeyshare.ValidColumn,

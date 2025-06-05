@@ -14,6 +14,9 @@ const (
 
 	// TimeLockInterval is the interval between time locks.
 	TimeLockInterval = 100
+
+	// WatchtowerTimeLockBuffer is the buffer for the watchtower to wait before broadcasting the refund tx.
+	WatchtowerTimeLockBuffer = 60
 )
 
 func InitialSequence() uint32 {
