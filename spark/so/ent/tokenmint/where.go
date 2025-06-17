@@ -86,6 +86,11 @@ func OperatorSpecificIssuerSignature(v []byte) predicate.TokenMint {
 	return predicate.TokenMint(sql.FieldEQ(FieldOperatorSpecificIssuerSignature, v))
 }
 
+// TokenIdentifier applies equality check predicate on the "token_identifier" field. It's identical to TokenIdentifierEQ.
+func TokenIdentifier(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldEQ(FieldTokenIdentifier, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.TokenMint {
 	return predicate.TokenMint(sql.FieldEQ(FieldCreateTime, v))
@@ -334,6 +339,56 @@ func OperatorSpecificIssuerSignatureIsNil() predicate.TokenMint {
 // OperatorSpecificIssuerSignatureNotNil applies the NotNil predicate on the "operator_specific_issuer_signature" field.
 func OperatorSpecificIssuerSignatureNotNil() predicate.TokenMint {
 	return predicate.TokenMint(sql.FieldNotNull(FieldOperatorSpecificIssuerSignature))
+}
+
+// TokenIdentifierEQ applies the EQ predicate on the "token_identifier" field.
+func TokenIdentifierEQ(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldEQ(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierNEQ applies the NEQ predicate on the "token_identifier" field.
+func TokenIdentifierNEQ(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldNEQ(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierIn applies the In predicate on the "token_identifier" field.
+func TokenIdentifierIn(vs ...[]byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldIn(FieldTokenIdentifier, vs...))
+}
+
+// TokenIdentifierNotIn applies the NotIn predicate on the "token_identifier" field.
+func TokenIdentifierNotIn(vs ...[]byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldNotIn(FieldTokenIdentifier, vs...))
+}
+
+// TokenIdentifierGT applies the GT predicate on the "token_identifier" field.
+func TokenIdentifierGT(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldGT(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierGTE applies the GTE predicate on the "token_identifier" field.
+func TokenIdentifierGTE(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldGTE(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierLT applies the LT predicate on the "token_identifier" field.
+func TokenIdentifierLT(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldLT(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierLTE applies the LTE predicate on the "token_identifier" field.
+func TokenIdentifierLTE(v []byte) predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldLTE(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierIsNil applies the IsNil predicate on the "token_identifier" field.
+func TokenIdentifierIsNil() predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldIsNull(FieldTokenIdentifier))
+}
+
+// TokenIdentifierNotNil applies the NotNil predicate on the "token_identifier" field.
+func TokenIdentifierNotNil() predicate.TokenMint {
+	return predicate.TokenMint(sql.FieldNotNull(FieldTokenIdentifier))
 }
 
 // HasTokenTransactionReceipt applies the HasEdge predicate on the "token_transaction_receipt" edge.

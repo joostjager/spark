@@ -12,7 +12,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	enttree "github.com/lightsparkdev/spark/so/ent/tree"
 	enttreenode "github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
@@ -35,7 +35,7 @@ func (h *TreeExitHandler) ExitSingleNodeTrees(ctx context.Context, req *pb.ExitS
 	}
 
 	trees := make([]*ent.Tree, 0)
-	var network *schema.Network
+	var network *st.Network
 	for _, exitingTree := range req.ExitingTrees {
 		tree, err := h.validateSingleNodeTree(ctx, exitingTree.TreeId, req.OwnerIdentityPublicKey)
 		if err != nil {
@@ -66,15 +66,15 @@ func (h *TreeExitHandler) ExitSingleNodeTrees(ctx context.Context, req *pb.ExitS
 func (h *TreeExitHandler) updateTrees(ctx context.Context, trees []*ent.Tree) error {
 	db := ent.GetDbFromContext(ctx)
 	for _, tree := range trees {
-		if tree.Status != schema.TreeStatusExited {
-			tree, err := tree.Update().SetStatus(schema.TreeStatusExited).Save(ctx)
+		if tree.Status != st.TreeStatusExited {
+			tree, err := tree.Update().SetStatus(st.TreeStatusExited).Save(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to update tree %s status: %v", tree.ID.String(), err)
 			}
 			err = db.TreeNode.
 				Update().
 				Where(enttreenode.HasTreeWith(enttree.ID(tree.ID))).
-				SetStatus(schema.TreeNodeStatusExited).
+				SetStatus(st.TreeNodeStatusExited).
 				Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to update tree nodes status on tree %s: %v", tree.ID.String(), err)
@@ -178,7 +178,7 @@ func (h *TreeExitHandler) validateSingleNodeTree(ctx context.Context, treeID str
 		return nil, fmt.Errorf("unable to get tree %s: %v", treeID, err)
 	}
 
-	if tree.Status != schema.TreeStatusAvailable && tree.Status != schema.TreeStatusExited {
+	if tree.Status != st.TreeStatusAvailable && tree.Status != st.TreeStatusExited {
 		return nil, fmt.Errorf("tree %s is in a status not eligible to exit", treeID)
 	}
 
@@ -200,7 +200,7 @@ func (h *TreeExitHandler) validateSingleNodeTree(ctx context.Context, treeID str
 	if !bytes.Equal(leaves[0].OwnerIdentityPubkey, ownerIdentityPublicKey) {
 		return nil, fmt.Errorf("not the owner of the tree %s", treeID)
 	}
-	if leaves[0].Status != schema.TreeNodeStatusAvailable && leaves[0].Status != schema.TreeNodeStatusExited {
+	if leaves[0].Status != st.TreeNodeStatusAvailable && leaves[0].Status != st.TreeNodeStatusExited {
 		return nil, fmt.Errorf("tree %s is not eligible for exit because leaf %s is in status %s", treeID, leaves[0].ID.String(), leaves[0].Status)
 	}
 

@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -193,19 +193,19 @@ func UpdateTimeLTE(v time.Time) predicate.UtxoSwap {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.UtxoSwapStatus) predicate.UtxoSwap {
+func StatusEQ(v schematype.UtxoSwapStatus) predicate.UtxoSwap {
 	vc := v
 	return predicate.UtxoSwap(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.UtxoSwapStatus) predicate.UtxoSwap {
+func StatusNEQ(v schematype.UtxoSwapStatus) predicate.UtxoSwap {
 	vc := v
 	return predicate.UtxoSwap(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.UtxoSwapStatus) predicate.UtxoSwap {
+func StatusIn(vs ...schematype.UtxoSwapStatus) predicate.UtxoSwap {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -214,7 +214,7 @@ func StatusIn(vs ...schema.UtxoSwapStatus) predicate.UtxoSwap {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.UtxoSwapStatus) predicate.UtxoSwap {
+func StatusNotIn(vs ...schematype.UtxoSwapStatus) predicate.UtxoSwap {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -223,19 +223,19 @@ func StatusNotIn(vs ...schema.UtxoSwapStatus) predicate.UtxoSwap {
 }
 
 // RequestTypeEQ applies the EQ predicate on the "request_type" field.
-func RequestTypeEQ(v schema.UtxoSwapRequestType) predicate.UtxoSwap {
+func RequestTypeEQ(v schematype.UtxoSwapRequestType) predicate.UtxoSwap {
 	vc := v
 	return predicate.UtxoSwap(sql.FieldEQ(FieldRequestType, vc))
 }
 
 // RequestTypeNEQ applies the NEQ predicate on the "request_type" field.
-func RequestTypeNEQ(v schema.UtxoSwapRequestType) predicate.UtxoSwap {
+func RequestTypeNEQ(v schematype.UtxoSwapRequestType) predicate.UtxoSwap {
 	vc := v
 	return predicate.UtxoSwap(sql.FieldNEQ(FieldRequestType, vc))
 }
 
 // RequestTypeIn applies the In predicate on the "request_type" field.
-func RequestTypeIn(vs ...schema.UtxoSwapRequestType) predicate.UtxoSwap {
+func RequestTypeIn(vs ...schematype.UtxoSwapRequestType) predicate.UtxoSwap {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -244,7 +244,7 @@ func RequestTypeIn(vs ...schema.UtxoSwapRequestType) predicate.UtxoSwap {
 }
 
 // RequestTypeNotIn applies the NotIn predicate on the "request_type" field.
-func RequestTypeNotIn(vs ...schema.UtxoSwapRequestType) predicate.UtxoSwap {
+func RequestTypeNotIn(vs ...schematype.UtxoSwapRequestType) predicate.UtxoSwap {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

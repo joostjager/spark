@@ -3,6 +3,8 @@ package helper
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	"math"
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/google/uuid"
@@ -195,6 +197,22 @@ func NewSigningJob(keyshare *ent.SigningKeyshare, proto *pbspark.SigningJob, pre
 	if err != nil {
 		return nil, nil, err
 	}
+
+	totalOutputValue := int64(0)
+	for _, out := range tx.TxOut {
+		if out.Value < 0 {
+			return nil, nil, fmt.Errorf("output value is negative, which is not allowed")
+		}
+		if totalOutputValue > math.MaxInt64-out.Value {
+			return nil, nil, fmt.Errorf("total output value is greater than MaxInt64, which is not allowed")
+		}
+		totalOutputValue += out.Value
+	}
+
+	if totalOutputValue > prevOutput.Value {
+		return nil, nil, fmt.Errorf("total output value is greater than the previous output value, totalOutputValue: %d, prevOutputValue: %d", totalOutputValue, prevOutput.Value)
+	}
+
 	txSigHash, err := common.SigHashFromTx(tx, 0, prevOutput)
 	if err != nil {
 		return nil, nil, err

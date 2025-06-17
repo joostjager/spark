@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
@@ -28,7 +28,7 @@ type TreeNode struct {
 	// Value holds the value of the "value" field.
 	Value uint64 `json:"value,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TreeNodeStatus `json:"status,omitempty"`
+	Status schematype.TreeNodeStatus `json:"status,omitempty"`
 	// VerifyingPubkey holds the value of the "verifying_pubkey" field.
 	VerifyingPubkey []byte `json:"verifying_pubkey,omitempty"`
 	// OwnerIdentityPubkey holds the value of the "owner_identity_pubkey" field.
@@ -177,7 +177,7 @@ func (tn *TreeNode) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				tn.Status = schema.TreeNodeStatus(value.String)
+				tn.Status = schematype.TreeNodeStatus(value.String)
 			}
 		case treenode.FieldVerifyingPubkey:
 			if value, ok := values[i].(*[]byte); !ok {

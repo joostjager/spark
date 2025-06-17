@@ -4,25 +4,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
-
-// TokenFreezeStatus is the status of a token leaf.
-type TokenFreezeStatus string
-
-const (
-	// TokenFreezeStatusCreating is the default status once a freeze has been applied.
-	TokenFreezeStatusFrozen TokenFreezeStatus = "FROZEN"
-	// TokenFreezeStatusThawed is the status after a prior freeze was removed.
-	TokenFreezeStatusThawed TokenFreezeStatus = "THAWED"
-)
-
-// Values returns the values of the token leaf status.
-func (TokenFreezeStatus) Values() []string {
-	return []string{
-		string(TokenFreezeStatusFrozen),
-		string(TokenFreezeStatusThawed),
-	}
-}
 
 // TokenFreeze is the schema for the token leafs table.
 type TokenFreeze struct {
@@ -39,7 +22,7 @@ func (TokenFreeze) Mixin() []ent.Mixin {
 // Fields are the fields for the token leafs table.
 func (TokenFreeze) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("status").GoType(TokenFreezeStatus("")),
+		field.Enum("status").GoType(st.TokenFreezeStatus("")),
 		field.Bytes("owner_public_key").NotEmpty().Immutable(),
 		field.Bytes("token_public_key").NotEmpty().Immutable(),
 		field.Bytes("issuer_signature").NotEmpty().Immutable().Unique(),

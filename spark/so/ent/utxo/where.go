@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -333,19 +333,19 @@ func AmountLTE(v uint64) predicate.Utxo {
 }
 
 // NetworkEQ applies the EQ predicate on the "network" field.
-func NetworkEQ(v schema.Network) predicate.Utxo {
+func NetworkEQ(v schematype.Network) predicate.Utxo {
 	vc := v
 	return predicate.Utxo(sql.FieldEQ(FieldNetwork, vc))
 }
 
 // NetworkNEQ applies the NEQ predicate on the "network" field.
-func NetworkNEQ(v schema.Network) predicate.Utxo {
+func NetworkNEQ(v schematype.Network) predicate.Utxo {
 	vc := v
 	return predicate.Utxo(sql.FieldNEQ(FieldNetwork, vc))
 }
 
 // NetworkIn applies the In predicate on the "network" field.
-func NetworkIn(vs ...schema.Network) predicate.Utxo {
+func NetworkIn(vs ...schematype.Network) predicate.Utxo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -354,7 +354,7 @@ func NetworkIn(vs ...schema.Network) predicate.Utxo {
 }
 
 // NetworkNotIn applies the NotIn predicate on the "network" field.
-func NetworkNotIn(vs ...schema.Network) predicate.Utxo {
+func NetworkNotIn(vs ...schematype.Network) predicate.Utxo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

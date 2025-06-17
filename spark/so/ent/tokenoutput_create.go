@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
@@ -53,7 +53,7 @@ func (toc *TokenOutputCreate) SetNillableUpdateTime(t *time.Time) *TokenOutputCr
 }
 
 // SetStatus sets the "status" field.
-func (toc *TokenOutputCreate) SetStatus(sos schema.TokenOutputStatus) *TokenOutputCreate {
+func (toc *TokenOutputCreate) SetStatus(sos schematype.TokenOutputStatus) *TokenOutputCreate {
 	toc.mutation.SetStatus(sos)
 	return toc
 }
@@ -139,16 +139,22 @@ func (toc *TokenOutputCreate) SetConfirmedWithdrawBlockHash(b []byte) *TokenOutp
 }
 
 // SetNetwork sets the "network" field.
-func (toc *TokenOutputCreate) SetNetwork(s schema.Network) *TokenOutputCreate {
+func (toc *TokenOutputCreate) SetNetwork(s schematype.Network) *TokenOutputCreate {
 	toc.mutation.SetNetwork(s)
 	return toc
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (toc *TokenOutputCreate) SetNillableNetwork(s *schema.Network) *TokenOutputCreate {
+func (toc *TokenOutputCreate) SetNillableNetwork(s *schematype.Network) *TokenOutputCreate {
 	if s != nil {
 		toc.SetNetwork(*s)
 	}
+	return toc
+}
+
+// SetTokenIdentifier sets the "token_identifier" field.
+func (toc *TokenOutputCreate) SetTokenIdentifier(b []byte) *TokenOutputCreate {
+	toc.mutation.SetTokenIdentifier(b)
 	return toc
 }
 
@@ -422,6 +428,10 @@ func (toc *TokenOutputCreate) createSpec() (*TokenOutput, *sqlgraph.CreateSpec) 
 	if value, ok := toc.mutation.Network(); ok {
 		_spec.SetField(tokenoutput.FieldNetwork, field.TypeEnum, value)
 		_node.Network = value
+	}
+	if value, ok := toc.mutation.TokenIdentifier(); ok {
+		_spec.SetField(tokenoutput.FieldTokenIdentifier, field.TypeBytes, value)
+		_node.TokenIdentifier = value
 	}
 	if nodes := toc.mutation.RevocationKeyshareIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

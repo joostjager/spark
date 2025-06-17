@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/transferleaf"
 )
@@ -59,13 +59,13 @@ func (tu *TransferUpdate) AddTotalValue(u int64) *TransferUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (tu *TransferUpdate) SetStatus(ss schema.TransferStatus) *TransferUpdate {
+func (tu *TransferUpdate) SetStatus(ss schematype.TransferStatus) *TransferUpdate {
 	tu.mutation.SetStatus(ss)
 	return tu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tu *TransferUpdate) SetNillableStatus(ss *schema.TransferStatus) *TransferUpdate {
+func (tu *TransferUpdate) SetNillableStatus(ss *schematype.TransferStatus) *TransferUpdate {
 	if ss != nil {
 		tu.SetStatus(*ss)
 	}
@@ -73,13 +73,13 @@ func (tu *TransferUpdate) SetNillableStatus(ss *schema.TransferStatus) *Transfer
 }
 
 // SetType sets the "type" field.
-func (tu *TransferUpdate) SetType(st schema.TransferType) *TransferUpdate {
+func (tu *TransferUpdate) SetType(st schematype.TransferType) *TransferUpdate {
 	tu.mutation.SetType(st)
 	return tu
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (tu *TransferUpdate) SetNillableType(st *schema.TransferType) *TransferUpdate {
+func (tu *TransferUpdate) SetNillableType(st *schematype.TransferType) *TransferUpdate {
 	if st != nil {
 		tu.SetType(*st)
 	}
@@ -324,13 +324,13 @@ func (tuo *TransferUpdateOne) AddTotalValue(u int64) *TransferUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (tuo *TransferUpdateOne) SetStatus(ss schema.TransferStatus) *TransferUpdateOne {
+func (tuo *TransferUpdateOne) SetStatus(ss schematype.TransferStatus) *TransferUpdateOne {
 	tuo.mutation.SetStatus(ss)
 	return tuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tuo *TransferUpdateOne) SetNillableStatus(ss *schema.TransferStatus) *TransferUpdateOne {
+func (tuo *TransferUpdateOne) SetNillableStatus(ss *schematype.TransferStatus) *TransferUpdateOne {
 	if ss != nil {
 		tuo.SetStatus(*ss)
 	}
@@ -338,13 +338,13 @@ func (tuo *TransferUpdateOne) SetNillableStatus(ss *schema.TransferStatus) *Tran
 }
 
 // SetType sets the "type" field.
-func (tuo *TransferUpdateOne) SetType(st schema.TransferType) *TransferUpdateOne {
+func (tuo *TransferUpdateOne) SetType(st schematype.TransferType) *TransferUpdateOne {
 	tuo.mutation.SetType(st)
 	return tuo
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (tuo *TransferUpdateOne) SetNillableType(st *schema.TransferType) *TransferUpdateOne {
+func (tuo *TransferUpdateOne) SetNillableType(st *schematype.TransferType) *TransferUpdateOne {
 	if st != nil {
 		tuo.SetType(*st)
 	}

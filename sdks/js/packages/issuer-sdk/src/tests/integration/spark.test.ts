@@ -515,6 +515,42 @@ describe("token integration tests", () => {
     expect(tokenBalance.balance).toEqual(tokenAmount);
   });
 
+  it("it should be able to announce a token with name of size equal to MAX_SYMBOL_SIZE", async () => {
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    await fundAndAnnounce(issuerWallet, 1n, 0, "MaxSupply", "TESTAA");
+  });
+
+  it("it should be able to announce a token with symbol of size equal to MAX_NAME_SIZE", async () => {
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    await fundAndAnnounce(issuerWallet, 1n, 0, "ABCDEFGHIJKLMNOPQ", "MQS");
+  });
+
+  it("it should NOT be able to announce a token with ( symbol size + name size ) > MAX_NAME_AND_SYMBOL_SIZE", async () => {
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    await expect(
+      fundAndAnnounce(issuerWallet, 1n, 0, "ABCDEFGHIJKLMNOPQ", "TESTAB"),
+    ).rejects.toThrow();
+  });
+
+  it("it should NOT be able to announce a token with ( symbol size + name size ) > MAX_NAME_AND_SYMBOL_SIZE, and size is calculated in bytes", async () => {
+    const { wallet: issuerWallet } = await IssuerSparkWalletTesting.initialize({
+      options: LOCAL_WALLET_CONFIG_SCHNORR,
+    });
+
+    await expect(
+      fundAndAnnounce(issuerWallet, 1n, 0, "ABCDEFGHIJKLMNOPQ", "🥸🥸"),
+    ).rejects.toThrow();
+  });
+
   // freeze is hardcoded to mainnet
   brokenTestFn(
     "should announce, mint, freeze and unfreeze tokens with ECDSA",

@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -167,19 +167,19 @@ func UpdateTimeLTE(v time.Time) predicate.SigningKeyshare {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.SigningKeyshareStatus) predicate.SigningKeyshare {
+func StatusEQ(v schematype.SigningKeyshareStatus) predicate.SigningKeyshare {
 	vc := v
 	return predicate.SigningKeyshare(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.SigningKeyshareStatus) predicate.SigningKeyshare {
+func StatusNEQ(v schematype.SigningKeyshareStatus) predicate.SigningKeyshare {
 	vc := v
 	return predicate.SigningKeyshare(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.SigningKeyshareStatus) predicate.SigningKeyshare {
+func StatusIn(vs ...schematype.SigningKeyshareStatus) predicate.SigningKeyshare {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -188,7 +188,7 @@ func StatusIn(vs ...schema.SigningKeyshareStatus) predicate.SigningKeyshare {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.SigningKeyshareStatus) predicate.SigningKeyshare {
+func StatusNotIn(vs ...schematype.SigningKeyshareStatus) predicate.SigningKeyshare {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

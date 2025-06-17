@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 )
@@ -58,13 +58,13 @@ func (tc *TreeCreate) SetOwnerIdentityPubkey(b []byte) *TreeCreate {
 }
 
 // SetStatus sets the "status" field.
-func (tc *TreeCreate) SetStatus(ss schema.TreeStatus) *TreeCreate {
+func (tc *TreeCreate) SetStatus(ss schematype.TreeStatus) *TreeCreate {
 	tc.mutation.SetStatus(ss)
 	return tc
 }
 
 // SetNetwork sets the "network" field.
-func (tc *TreeCreate) SetNetwork(s schema.Network) *TreeCreate {
+func (tc *TreeCreate) SetNetwork(s schematype.Network) *TreeCreate {
 	tc.mutation.SetNetwork(s)
 	return tc
 }

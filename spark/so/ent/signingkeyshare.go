@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 )
 
@@ -24,17 +24,17 @@ type SigningKeyshare struct {
 	CreateTime time.Time `json:"create_time,omitempty"`
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
-	// Status holds the value of the "status" field.
-	Status schema.SigningKeyshareStatus `json:"status,omitempty"`
-	// SecretShare holds the value of the "secret_share" field.
+	// The status of the signing keyshare (i.e. whether it is in use or not).
+	Status schematype.SigningKeyshareStatus `json:"status,omitempty"`
+	// The secret share of the signing keyshare held by this SO.
 	SecretShare []byte `json:"secret_share,omitempty"`
-	// PublicShares holds the value of the "public_shares" field.
+	// A map from SO identifier to the public key of the secret share held by that SO.
 	PublicShares map[string][]uint8 `json:"public_shares,omitempty"`
-	// PublicKey holds the value of the "public_key" field.
+	// The public key of the combined secret represented by this signing keyshare.
 	PublicKey []byte `json:"public_key,omitempty"`
-	// MinSigners holds the value of the "min_signers" field.
+	// The minimum number of signers required to produce a valid signature using this signing keyshare.
 	MinSigners int32 `json:"min_signers,omitempty"`
-	// CoordinatorIndex holds the value of the "coordinator_index" field.
+	// The SO index that acts as the coordinator for all signatures using this signing keyshare.
 	CoordinatorIndex uint64 `json:"coordinator_index,omitempty"`
 	selectValues     sql.SelectValues
 }
@@ -91,7 +91,7 @@ func (sk *SigningKeyshare) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				sk.Status = schema.SigningKeyshareStatus(value.String)
+				sk.Status = schematype.SigningKeyshareStatus(value.String)
 			}
 		case signingkeyshare.FieldSecretShare:
 			if value, ok := values[i].(*[]byte); !ok {

@@ -63,7 +63,7 @@ func StartTokenTransaction(
 	tokenTransaction.SparkOperatorIdentityPublicKeys = operatorKeys
 
 	// Hash the partial token transaction
-	partialTokenTransactionHash, err := utils.HashTokenTransaction(tokenTransaction, true)
+	partialTokenTransactionHash, err := utils.HashTokenTransactionV0(tokenTransaction, true)
 	if err != nil {
 		log.Printf("Error while hashing partial token transaction: %v", err)
 		return nil, nil, nil, err
@@ -150,7 +150,7 @@ func StartTokenTransaction(
 	}
 
 	// Return the hashed partial, the newly built final transaction, and the start response
-	finalTxHash, err := utils.HashTokenTransaction(startResponse.FinalTokenTransaction, false)
+	finalTxHash, err := utils.HashTokenTransactionV0(startResponse.FinalTokenTransaction, false)
 	if err != nil {
 		log.Printf("Error while hashing final token transaction: %v", err)
 		return nil, nil, nil, err

@@ -14,6 +14,7 @@ import (
 	"github.com/lightsparkdev/spark/common/logging"
 	secretsharing "github.com/lightsparkdev/spark/common/secret_sharing"
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
+	pbgossip "github.com/lightsparkdev/spark/proto/gossip"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
@@ -23,7 +24,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	enttransfer "github.com/lightsparkdev/spark/so/ent/transfer"
 	enttransferleaf "github.com/lightsparkdev/spark/so/ent/transferleaf"
 	enttree "github.com/lightsparkdev/spark/so/ent/tree"
@@ -35,6 +36,8 @@ import (
 	events "github.com/lightsparkdev/spark/so/stream"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -73,7 +76,9 @@ func (h *TransferHandler) loadLeafRefundMap(req *pb.StartTransferRequest) map[st
 
 // startTransferInternal starts a transfer, signing refunds, and saving the transfer to the DB
 // for the first time. This optionally takes an adaptorPubKey to modify the refund signatures.
-func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.StartTransferRequest, transferType schema.TransferType, adaptorPubKey []byte) (*pb.StartTransferResponse, error) {
+func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.StartTransferRequest, transferType st.TransferType, adaptorPubKey []byte) (*pb.StartTransferResponse, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+
 	ctx, span := tracer.Start(ctx, "TransferHandler.startTransferInternal", trace.WithAttributes(
 		transferTypeKey.String(string(transferType)),
 	))
@@ -89,7 +94,6 @@ func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.Sta
 	}
 
 	leafRefundMap := h.loadLeafRefundMap(req)
-	logger := logging.GetLoggerFromContext(ctx)
 	logger.Info("leafRefundMap", "leafRefundMap", leafRefundMap)
 	transfer, leafMap, err := h.createTransfer(
 		ctx,
@@ -104,11 +108,6 @@ func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.Sta
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transfer for request %s: %w", logging.FormatProto("start_transfer_request", req), err)
-	}
-
-	transferProto, err := transfer.MarshalProto(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal transfer for request %s: %w", logging.FormatProto("start_transfer_request", req), err)
 	}
 
 	var signingResults []*pb.LeafRefundTxSigningResult
@@ -149,9 +148,11 @@ func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.Sta
 	// returned, it means the transfer package is valid and the transfer is considered sent.
 	err = h.syncTransferInit(ctx, req, transferType, finalSignatureMap)
 	if err != nil {
-		_ = h.settleSenderKeyTweaks(ctx, req.TransferId, pbinternal.SettleKeyTweakAction_ROLLBACK)
-		logger := logging.GetLoggerFromContext(ctx)
-		logger.Error("Error when rolling back sender key tweaks", "error", err)
+		err = h.CreateCancelTransferGossipMessage(ctx, req.TransferId)
+		if err != nil {
+			logger.Error("failed to create cancel transfer gossip message", "error", err, "transfer_id", req.TransferId)
+		}
+		logger.Error("failed to sync transfer init for request %s: %w", logging.FormatProto("start_transfer_request", req), err)
 		return nil, fmt.Errorf("failed to sync transfer init for request %s: %w", logging.FormatProto("start_transfer_request", req), err)
 	}
 
@@ -163,30 +164,43 @@ func (h *TransferHandler) startTransferInternal(ctx context.Context, req *pb.Sta
 		// cron job to retry the key commit.
 		err = h.settleSenderKeyTweaks(ctx, req.TransferId, pbinternal.SettleKeyTweakAction_COMMIT)
 		if err == nil {
-			transfer, err = h.commitSenderKeyTweaks(ctx, transfer)
-			if err != nil {
-				// Too bad, at this point there's a bug where all other SOs has tweaked the key but
-				// the coordinator failed so the fund is lost.
-				return nil, err
+			keyTweakProofMap := make(map[string]*pb.SecretProof)
+			for _, leaf := range leafTweakMap {
+				keyTweakProofMap[leaf.LeafId] = &pb.SecretProof{
+					Proofs: leaf.SecretShareTweak.Proofs,
+				}
 			}
 
-			transferProto, err = transfer.MarshalProto(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("unable to marshal transfer: %w", err)
+			sendGossipHandler := NewSendGossipHandler(h.config)
+			selection := helper.OperatorSelection{
+				Option: helper.OperatorSelectionOptionExcludeSelf,
 			}
-
-			eventRouter := events.GetDefaultRouter()
-			err = eventRouter.NotifyUser(req.ReceiverIdentityPublicKey, &pb.SubscribeToEventsResponse{
-				Event: &pb.SubscribeToEventsResponse_Transfer{
-					Transfer: &pb.TransferEvent{
-						Transfer: transferProto,
+			participants, err := selection.OperatorIdentifierList(h.config)
+			if err != nil {
+				return nil, fmt.Errorf("unable to get operator list: %w", err)
+			}
+			_, err = sendGossipHandler.CreateAndSendGossipMessage(ctx, &pbgossip.GossipMessage{
+				Message: &pbgossip.GossipMessage_SettleSenderKeyTweak{
+					SettleSenderKeyTweak: &pbgossip.GossipMessageSettleSenderKeyTweak{
+						TransferId:           req.TransferId,
+						SenderKeyTweakProofs: keyTweakProofMap,
 					},
 				},
-			})
+			}, participants)
 			if err != nil {
-				logger.Error("failed to notify user about transfer event", "error", err, "identity_public_key", logging.Pubkey{Pubkey: transfer.ReceiverIdentityPubkey})
+				logger.Error("failed to create and send gossip message to settle sender key tweak", "error", err, "transfer_id", req.TransferId)
+				return nil, fmt.Errorf("failed to create and send gossip message to settle sender key tweak: %w", err)
 			}
 		}
+		transfer, err = h.loadTransfer(ctx, req.TransferId)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load transfer: %w", err)
+		}
+	}
+
+	transferProto, err := transfer.MarshalProto(ctx)
+	if err != nil {
+		logger.Error("unable to marshal transfer", "error", err, "transfer_id", transfer.ID)
 	}
 
 	return &pb.StartTransferResponse{Transfer: transferProto, SigningResults: signingResults}, nil
@@ -247,23 +261,23 @@ func (h *TransferHandler) settleSenderKeyTweaks(ctx context.Context, transferID 
 
 // StartTransfer initiates a transfer from sender.
 func (h *TransferHandler) StartTransfer(ctx context.Context, req *pb.StartTransferRequest) (*pb.StartTransferResponse, error) {
-	return h.startTransferInternal(ctx, req, schema.TransferTypeTransfer, nil)
+	return h.startTransferInternal(ctx, req, st.TransferTypeTransfer, nil)
 }
 
 func (h *TransferHandler) StartLeafSwap(ctx context.Context, req *pb.StartTransferRequest) (*pb.StartTransferResponse, error) {
-	return h.startTransferInternal(ctx, req, schema.TransferTypeSwap, nil)
+	return h.startTransferInternal(ctx, req, st.TransferTypeSwap, nil)
 }
 
 // CounterLeafSwap initiates a leaf swap for the other side, signing refunds with an adaptor public key.
 func (h *TransferHandler) CounterLeafSwap(ctx context.Context, req *pb.CounterLeafSwapRequest) (*pb.CounterLeafSwapResponse, error) {
-	startTransferResponse, err := h.startTransferInternal(ctx, req.Transfer, schema.TransferTypeCounterSwap, req.AdaptorPublicKey)
+	startTransferResponse, err := h.startTransferInternal(ctx, req.Transfer, st.TransferTypeCounterSwap, req.AdaptorPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start counter leaf swap for request %s: %w", logging.FormatProto("counter_leaf_swap_request", req), err)
 	}
 	return &pb.CounterLeafSwapResponse{Transfer: startTransferResponse.Transfer, SigningResults: startTransferResponse.SigningResults}, nil
 }
 
-func (h *TransferHandler) syncTransferInit(ctx context.Context, req *pb.StartTransferRequest, transferType schema.TransferType, refundSignatures map[string][]byte) error {
+func (h *TransferHandler) syncTransferInit(ctx context.Context, req *pb.StartTransferRequest, transferType st.TransferType, refundSignatures map[string][]byte) error {
 	ctx, span := tracer.Start(ctx, "TransferHandler.syncTransferInit", trace.WithAttributes(
 		transferTypeKey.String(string(transferType)),
 	))
@@ -301,6 +315,35 @@ func (h *TransferHandler) syncTransferInit(ctx context.Context, req *pb.StartTra
 
 		client := pbinternal.NewSparkInternalServiceClient(conn)
 		return client.InitiateTransfer(ctx, initTransferRequest)
+	})
+	return err
+}
+
+func (h *TransferHandler) syncDeliverSenderKeyTweak(ctx context.Context, req *pb.FinalizeTransferWithTransferPackageRequest, transferType st.TransferType) error {
+	ctx, span := tracer.Start(ctx, "TransferHandler.syncDeliverSenderKeyTweak", trace.WithAttributes(
+		transferTypeKey.String(string(transferType)),
+	))
+	defer span.End()
+	if req.TransferPackage == nil {
+		return fmt.Errorf("expected transfer package to be populated")
+	}
+	deliverSenderKeyTweakRequest := &pbinternal.DeliverSenderKeyTweakRequest{
+		TransferId:              req.TransferId,
+		SenderIdentityPublicKey: req.OwnerIdentityPublicKey,
+		TransferPackage:         req.TransferPackage,
+	}
+	selection := helper.OperatorSelection{
+		Option: helper.OperatorSelectionOptionExcludeSelf,
+	}
+	_, err := helper.ExecuteTaskWithAllOperators(ctx, h.config, &selection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
+		conn, err := operator.NewGRPCConnection()
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+
+		client := pbinternal.NewSparkInternalServiceClient(conn)
+		return client.DeliverSenderKeyTweak(ctx, deliverSenderKeyTweakRequest)
 	})
 	return err
 }
@@ -502,7 +545,8 @@ func aggregateSignatures(
 			AdaptorPublicKey:   adaptorPubKey,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("unable to aggregate frost: %w", err)
+			logger.Error("unable to aggregate frost", "error", err, "leaf_id", leaf.ID)
+			return nil, fmt.Errorf("unable to aggregate frost: %w, leaf_id: %s", err, leaf.ID)
 		}
 		finalSignatureMap[leaf.ID.String()] = signatureResult.Signature
 	}
@@ -525,20 +569,20 @@ func (h *TransferHandler) FinalizeTransfer(ctx context.Context, req *pb.Finalize
 		return nil, fmt.Errorf("unable to load transfer %s: %w", req.TransferId, err)
 	}
 	span.SetAttributes(transferTypeKey.String(string(transfer.Type)))
-	if !bytes.Equal(transfer.SenderIdentityPubkey, req.OwnerIdentityPublicKey) || transfer.Status != schema.TransferStatusSenderInitiated {
+	if !bytes.Equal(transfer.SenderIdentityPubkey, req.OwnerIdentityPublicKey) || transfer.Status != st.TransferStatusSenderInitiated {
 		return nil, fmt.Errorf("send transfer cannot be completed %s, status: %s", req.TransferId, transfer.Status)
 	}
 
 	db := ent.GetDbFromContext(ctx)
 	shouldTweakKey := true
 	switch transfer.Type {
-	case schema.TransferTypePreimageSwap:
+	case st.TransferTypePreimageSwap:
 		preimageRequest, err := db.PreimageRequest.Query().Where(preimagerequest.HasTransfersWith(enttransfer.ID(transfer.ID))).Only(ctx)
 		if err != nil || preimageRequest == nil {
 			return nil, fmt.Errorf("unable to find preimage request for transfer %s: %w", transfer.ID.String(), err)
 		}
-		shouldTweakKey = preimageRequest.Status == schema.PreimageRequestStatusPreimageShared
-	case schema.TransferTypeCooperativeExit:
+		shouldTweakKey = preimageRequest.Status == st.PreimageRequestStatusPreimageShared
+	case st.TransferTypeCooperativeExit:
 		err = checkCoopExitTxBroadcasted(ctx, db, transfer)
 		shouldTweakKey = err == nil
 	default:
@@ -553,9 +597,9 @@ func (h *TransferHandler) FinalizeTransfer(ctx context.Context, req *pb.Finalize
 	}
 
 	// Update transfer status
-	statusToSet := schema.TransferStatusSenderKeyTweaked
+	statusToSet := st.TransferStatusSenderKeyTweaked
 	if !shouldTweakKey {
-		statusToSet = schema.TransferStatusSenderKeyTweakPending
+		statusToSet = st.TransferStatusSenderKeyTweakPending
 	}
 	transfer, err = transfer.Update().SetStatus(statusToSet).Save(ctx)
 	if err != nil {
@@ -578,6 +622,66 @@ func (h *TransferHandler) FinalizeTransfer(ctx context.Context, req *pb.Finalize
 	}
 
 	return &pb.FinalizeTransferResponse{Transfer: transferProto}, nil
+}
+
+func (h *TransferHandler) FinalizeTransferWithTransferPackage(ctx context.Context, req *pb.FinalizeTransferWithTransferPackageRequest) (*pb.FinalizeTransferResponse, error) {
+	transfer, err := h.loadTransfer(ctx, req.TransferId)
+	if err != nil {
+		return nil, err
+	}
+	if transfer.Status != st.TransferStatusSenderInitiated {
+		return nil, fmt.Errorf("transfer %s is in state %s; expected sender initiated status", req.TransferId, transfer.Status)
+	}
+	err = h.syncDeliverSenderKeyTweak(ctx, req, transfer.Type)
+	if err != nil {
+		logger := logging.GetLoggerFromContext(ctx)
+		// Counterswaps are from the SSP. We need to allow SSP to
+		// perform retries, so don't cancel the transfer, just reset it
+		if transfer.Type == st.TransferTypeCounterSwap {
+			rollbackErr := h.CreateRollbackTransferGossipMessage(ctx, req.TransferId)
+			if rollbackErr != nil {
+				logger.Error("Error when rolling back sender key tweaks", "error", rollbackErr, "transfer_id", req.TransferId)
+			}
+		} else {
+			cancelErr := h.CreateCancelTransferGossipMessage(ctx, req.TransferId)
+			if cancelErr != nil {
+				logger.Error("Error when canceling transfer", "error", cancelErr, "transfer_id", req.TransferId)
+			}
+		}
+		errorMsg := fmt.Sprintf("failed to sync deliver sender key tweak for request %s", logging.FormatProto("finalize_transfer_with_transfer_package", req))
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
+			return nil, errors.UnavailableErrorf("%s: %w", errorMsg, err)
+		}
+		return nil, fmt.Errorf("%s: %w", errorMsg, err)
+	}
+
+	transfer, err = transfer.Update().SetStatus(st.TransferStatusSenderInitiatedCoordinator).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update status of transfer %s: %w", req.TransferId, err)
+	}
+
+	err = h.settleSenderKeyTweaks(ctx, req.TransferId, pbinternal.SettleKeyTweakAction_COMMIT)
+	if err != nil {
+		return nil, err
+	}
+
+	err = h.setSoCoordinatorKeyTweaks(ctx, transfer, req.TransferPackage, req.OwnerIdentityPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	transfer, err = h.commitSenderKeyTweaks(ctx, transfer, true)
+	if err != nil {
+		// Too bad, at this point there's a bug where all other SOs has tweaked the key but
+		// the coordinator failed so the fund is lost.
+		return nil, err
+	}
+
+	transferProto, err := transfer.MarshalProto(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal transfer: %w", err)
+	}
+	return &pb.FinalizeTransferResponse{Transfer: transferProto}, err
 }
 
 func (h *TransferHandler) completeSendLeaf(ctx context.Context, transfer *ent.Transfer, req *pb.SendLeafKeyTweak, shouldTweakKey bool) error {
@@ -617,7 +721,7 @@ func (h *TransferHandler) completeSendLeaf(ctx context.Context, transfer *ent.Tr
 	if err != nil || leaf == nil {
 		return fmt.Errorf("unable to find leaf %s: %w", req.LeafId, err)
 	}
-	if leaf.Status != schema.TreeNodeStatusTransferLocked ||
+	if leaf.Status != st.TreeNodeStatusTransferLocked ||
 		!bytes.Equal(leaf.OwnerIdentityPubkey, transfer.SenderIdentityPubkey) {
 		return fmt.Errorf("leaf %s is not available to transfer", req.LeafId)
 	}
@@ -653,7 +757,7 @@ func (h *TransferHandler) completeSendLeaf(ctx context.Context, transfer *ent.Tr
 		return fmt.Errorf("unable to update refund tx with signature: %w", err)
 	}
 
-	if transfer.Type != schema.TransferTypePreimageSwap && transfer.Type != schema.TransferTypeUtxoSwap {
+	if transfer.Type != st.TransferTypePreimageSwap && transfer.Type != st.TransferTypeUtxoSwap {
 		// Verify signature
 		refundTx, err := common.TxFromRawTxBytes(refundTxBytes)
 		if err != nil {
@@ -710,16 +814,16 @@ func (h *TransferHandler) queryTransfers(ctx context.Context, filter *pb.Transfe
 	db := ent.GetDbFromContext(ctx)
 	var transferPredicate []predicate.Transfer
 
-	receiverPendingStatuses := []schema.TransferStatus{
-		schema.TransferStatusSenderKeyTweaked,
-		schema.TransferStatusReceiverKeyTweaked,
-		schema.TransferStatusReceiverKeyTweakLocked,
-		schema.TransferStatusReceiverKeyTweakApplied,
-		schema.TransferStatusReceiverRefundSigned,
+	receiverPendingStatuses := []st.TransferStatus{
+		st.TransferStatusSenderKeyTweaked,
+		st.TransferStatusReceiverKeyTweaked,
+		st.TransferStatusReceiverKeyTweakLocked,
+		st.TransferStatusReceiverKeyTweakApplied,
+		st.TransferStatusReceiverRefundSigned,
 	}
-	senderPendingStatuses := []schema.TransferStatus{
-		schema.TransferStatusSenderKeyTweakPending,
-		schema.TransferStatusSenderInitiated,
+	senderPendingStatuses := []st.TransferStatus{
+		st.TransferStatusSenderKeyTweakPending,
+		st.TransferStatusSenderInitiated,
 	}
 
 	switch filter.Participant.(type) {
@@ -782,16 +886,16 @@ func (h *TransferHandler) queryTransfers(ctx context.Context, filter *pb.Transfe
 	}
 
 	if len(filter.Types) > 0 {
-		transferTypes := make([]schema.TransferType, len(filter.Types))
+		transferTypes := make([]st.TransferType, len(filter.Types))
 		for i, transferType := range filter.Types {
-			transferTypes[i] = schema.TransferType(transferType.String())
+			transferTypes[i] = st.TransferType(transferType.String())
 		}
 		transferPredicate = append(transferPredicate, enttransfer.TypeIn(transferTypes...))
 	}
 
-	var network schema.Network
+	var network st.Network
 	if filter.GetNetwork() == pb.Network_UNSPECIFIED {
-		network = schema.NetworkMainnet
+		network = st.NetworkMainnet
 	} else {
 		var err error
 		network, err = common.SchemaNetworkFromProtoNetwork(filter.GetNetwork())
@@ -914,7 +1018,7 @@ func (h *TransferHandler) ClaimTransferTweakKeys(ctx context.Context, req *pb.Cl
 	if !bytes.Equal(transfer.ReceiverIdentityPubkey, req.OwnerIdentityPublicKey) {
 		return fmt.Errorf("cannot claim transfer %s, receiver identity public key mismatch", req.TransferId)
 	}
-	if transfer.Status != schema.TransferStatusSenderKeyTweaked && transfer.Status != schema.TransferStatusReceiverKeyTweaked {
+	if transfer.Status != st.TransferStatusSenderKeyTweaked && transfer.Status != st.TransferStatusReceiverKeyTweaked {
 		return errors.FailedPreconditionErrorf("transfer cannot be claimed %s, status: %s", req.TransferId, transfer.Status)
 	}
 
@@ -954,7 +1058,7 @@ func (h *TransferHandler) ClaimTransferTweakKeys(ctx context.Context, req *pb.Cl
 	}
 
 	// Update transfer status
-	_, err = transfer.Update().SetStatus(schema.TransferStatusReceiverKeyTweaked).Save(ctx)
+	_, err = transfer.Update().SetStatus(st.TransferStatusReceiverKeyTweaked).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to update transfer status %s: %w", transfer.ID.String(), err)
 	}
@@ -987,7 +1091,7 @@ func (h *TransferHandler) claimLeafTweakKey(ctx context.Context, leaf *ent.TreeN
 		return fmt.Errorf("unable to validate share: %w", err)
 	}
 
-	if leaf.Status != schema.TreeNodeStatusTransferLocked {
+	if leaf.Status != st.TreeNodeStatusTransferLocked {
 		return fmt.Errorf("unable to transfer leaf %s", leaf.ID.String())
 	}
 
@@ -1072,20 +1176,20 @@ func (h *TransferHandler) revertClaimTransfer(ctx context.Context, transfer *ent
 	defer span.End()
 
 	switch transfer.Status {
-	case schema.TransferStatusReceiverKeyTweakApplied:
-	case schema.TransferStatusCompleted:
-	case schema.TransferStatusReturned:
-	case schema.TransferStatusReceiverRefundSigned:
+	case st.TransferStatusReceiverKeyTweakApplied:
+	case st.TransferStatusCompleted:
+	case st.TransferStatusReturned:
+	case st.TransferStatusReceiverRefundSigned:
 		return fmt.Errorf("transfer %s key tweak is already applied, but other operator is trying to revert it", transfer.ID.String())
-	case schema.TransferStatusReceiverKeyTweakLocked:
-	case schema.TransferStatusReceiverKeyTweaked:
+	case st.TransferStatusReceiverKeyTweakLocked:
+	case st.TransferStatusReceiverKeyTweaked:
 		// do nothing
 	default:
 		// do nothing and return to prevent advance state
 		return nil
 	}
 
-	_, err := transfer.Update().SetStatus(schema.TransferStatusSenderKeyTweaked).Save(ctx)
+	_, err := transfer.Update().SetStatus(st.TransferStatusSenderKeyTweaked).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to update transfer status %s: %w", transfer.ID.String(), err)
 	}
@@ -1170,10 +1274,10 @@ func (h *TransferHandler) ClaimTransferSignRefunds(ctx context.Context, req *pb.
 	}
 
 	switch transfer.Status {
-	case schema.TransferStatusReceiverKeyTweaked:
-	case schema.TransferStatusReceiverRefundSigned:
-	case schema.TransferStatusReceiverKeyTweakLocked:
-	case schema.TransferStatusReceiverKeyTweakApplied:
+	case st.TransferStatusReceiverKeyTweaked:
+	case st.TransferStatusReceiverRefundSigned:
+	case st.TransferStatusReceiverKeyTweakLocked:
+	case st.TransferStatusReceiverKeyTweakApplied:
 		// do nothing
 	default:
 		return nil, fmt.Errorf("transfer %s is expected to be at status TransferStatusKeyTweaked or TransferStatusReceiverRefundSigned or TransferStatusReceiverKeyTweakLocked or TransferStatusReceiverKeyTweakApplied but %s found", req.TransferId, transfer.Status)
@@ -1221,7 +1325,7 @@ func (h *TransferHandler) ClaimTransferSignRefunds(ctx context.Context, req *pb.
 	}
 
 	// Update transfer status.
-	_, err = transfer.Update().SetStatus(schema.TransferStatusReceiverRefundSigned).Save(ctx)
+	_, err = transfer.Update().SetStatus(st.TransferStatusReceiverRefundSigned).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update transfer status %s: %w", transfer.ID.String(), err)
 	}
@@ -1307,7 +1411,7 @@ func (h *TransferHandler) InitiateSettleReceiverKeyTweak(ctx context.Context, re
 		return fmt.Errorf("unable to check if key tweak is applied: %w", err)
 	}
 	if applied {
-		_, err = transfer.Update().SetStatus(schema.TransferStatusReceiverKeyTweakApplied).Save(ctx)
+		_, err = transfer.Update().SetStatus(st.TransferStatusReceiverKeyTweakApplied).Save(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to update transfer status %s: %v", transfer.ID.String(), err)
 		}
@@ -1315,10 +1419,10 @@ func (h *TransferHandler) InitiateSettleReceiverKeyTweak(ctx context.Context, re
 	}
 
 	switch transfer.Status {
-	case schema.TransferStatusReceiverKeyTweaked:
-	case schema.TransferStatusReceiverKeyTweakLocked:
+	case st.TransferStatusReceiverKeyTweaked:
+	case st.TransferStatusReceiverKeyTweakLocked:
 		// do nothing
-	case schema.TransferStatusReceiverKeyTweakApplied:
+	case st.TransferStatusReceiverKeyTweakApplied:
 		// The key tweak is already applied, return early.
 		return nil
 	default:
@@ -1339,7 +1443,7 @@ func (h *TransferHandler) InitiateSettleReceiverKeyTweak(ctx context.Context, re
 		return fmt.Errorf("key tweak proof is required")
 	}
 
-	_, err = transfer.Update().SetStatus(schema.TransferStatusReceiverKeyTweakLocked).Save(ctx)
+	_, err = transfer.Update().SetStatus(st.TransferStatusReceiverKeyTweakLocked).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to update transfer status %s: %v", transfer.ID.String(), err)
 	}
@@ -1384,7 +1488,7 @@ func (h *TransferHandler) SettleReceiverKeyTweak(ctx context.Context, req *pbint
 	}
 	span.SetAttributes(transferTypeKey.String(string(transfer.Type)))
 
-	if transfer.Status == schema.TransferStatusReceiverKeyTweakApplied {
+	if transfer.Status == st.TransferStatusReceiverKeyTweakApplied {
 		// The receiver key tweak is already applied, return early.
 		return nil
 	}
@@ -1418,7 +1522,7 @@ func (h *TransferHandler) SettleReceiverKeyTweak(ctx context.Context, req *pbint
 				return fmt.Errorf("unable to update leaf key tweak %s: %w", leaf.ID.String(), err)
 			}
 		}
-		_, err = transfer.Update().SetStatus(schema.TransferStatusReceiverKeyTweakApplied).Save(ctx)
+		_, err = transfer.Update().SetStatus(st.TransferStatusReceiverKeyTweakApplied).Save(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to update transfer status %s: %w", transfer.ID.String(), err)
 		}
@@ -1437,7 +1541,7 @@ func (h *TransferHandler) ResumeSendTransfer(ctx context.Context, transfer *ent.
 
 	logger := logging.GetLoggerFromContext(ctx)
 
-	if transfer.Status != schema.TransferStatusSenderInitiatedCoordinator {
+	if transfer.Status != st.TransferStatusSenderInitiatedCoordinator {
 		// Noop
 		return nil
 	}
@@ -1445,7 +1549,7 @@ func (h *TransferHandler) ResumeSendTransfer(ctx context.Context, transfer *ent.
 	err := h.settleSenderKeyTweaks(ctx, transfer.ID.String(), pbinternal.SettleKeyTweakAction_COMMIT)
 	if err == nil {
 		// If there's no error, it means all SOs have tweaked the key. The coordinator can tweak the key here.
-		transfer, err = h.commitSenderKeyTweaks(ctx, transfer)
+		transfer, err = h.commitSenderKeyTweaks(ctx, transfer, false)
 		if err != nil {
 			return err
 		}
@@ -1499,7 +1603,7 @@ func (h *TransferHandler) InvestigateLeaves(ctx context.Context, req *pb.Investi
 			}
 		}
 
-		_, err = h.CancelTransferInternal(ctx, req.GetTransferId(), req.GetOwnerIdentityPublicKey(), CancelTransferIntentInternalWithNotifyOtherOperators)
+		err = h.CreateCancelTransferGossipMessage(ctx, req.GetTransferId())
 		if err != nil {
 			return nil, fmt.Errorf("unable to cancel transfer %s: %w", req.GetTransferId(), err)
 		}
@@ -1522,13 +1626,13 @@ func (h *TransferHandler) InvestigateLeaves(ctx context.Context, req *pb.Investi
 	}
 
 	for _, node := range nodes {
-		if node.Status != schema.TreeNodeStatusAvailable {
+		if node.Status != st.TreeNodeStatusAvailable {
 			return nil, fmt.Errorf("node %s is not available", node.ID)
 		}
 		if !bytes.Equal(node.OwnerIdentityPubkey, req.OwnerIdentityPublicKey) {
 			return nil, fmt.Errorf("node %s is not owned by the identity public key %s", node.ID, req.OwnerIdentityPublicKey)
 		}
-		_, err := node.Update().SetStatus(schema.TreeNodeStatusInvestigation).Save(ctx)
+		_, err := node.Update().SetStatus(st.TreeNodeStatusInvestigation).Save(ctx)
 		logger := logging.GetLoggerFromContext(ctx)
 		logger.Warn("Tree Node is marked as investigation", "node_id", node.ID)
 		if err != nil {
@@ -1537,4 +1641,92 @@ func (h *TransferHandler) InvestigateLeaves(ctx context.Context, req *pb.Investi
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (h *TransferHandler) TransferMagicSwapLeaves(ctx context.Context, transferID string, leafIDs []string, senderIdentityPublicKey []byte, receiverIdentityPublicKey []byte) (*ent.Transfer, error) {
+	db := ent.GetDbFromContext(ctx)
+
+	transferUUID, err := uuid.Parse(transferID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse transfer id as a uuid %s: %w", transferID, err)
+	}
+	transfer, err := db.Transfer.Create().
+		SetID(transferUUID).
+		SetSenderIdentityPubkey(senderIdentityPublicKey).
+		SetReceiverIdentityPubkey(receiverIdentityPublicKey).
+		SetStatus(st.TransferStatusCompleted).
+		SetTotalValue(0).
+		SetExpiryTime(time.Unix(0, 0)).
+		SetType(st.TransferTypeSwap).
+		SetCompletionTime(time.Now()).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create transfer: %w", err)
+	}
+
+	totalAmount := uint64(0)
+	for _, leafID := range leafIDs {
+		leafUUID, err := uuid.Parse(leafID)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse leaf id as a uuid %s: %w", leafUUID, err)
+		}
+		leaf, err := db.TreeNode.Get(ctx, leafUUID)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get leaf %s: %w", leafID, err)
+		}
+		totalAmount += leaf.Value
+
+		_, err = db.TransferLeaf.Create().
+			SetTransfer(transfer).
+			SetLeaf(leaf).
+			SetPreviousRefundTx(leaf.RawRefundTx).
+			SetIntermediateRefundTx(leaf.RawRefundTx).
+			Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create transfer leaf: %w", err)
+		}
+
+		_, err = leaf.Update().SetOwnerIdentityPubkey(receiverIdentityPublicKey).Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to update leaf %s: %w", leafID, err)
+		}
+	}
+
+	transfer, err = transfer.Update().SetTotalValue(totalAmount).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to update transfer %s total value: %w", transferID, err)
+	}
+	return transfer, nil
+}
+
+// setSoCoordinatorKeyTweaks sets the key tweaks for each transfer leaf based on the validated transfer package.
+func (h *TransferHandler) setSoCoordinatorKeyTweaks(ctx context.Context, transfer *ent.Transfer, req *pb.TransferPackage, ownerIdentityPublicKey []byte) error {
+	// Get key tweak map from transfer package
+	keyTweakMap, err := h.validateTransferPackage(ctx, transfer.ID.String(), req, ownerIdentityPublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to validate transfer package: %w", err)
+	}
+	// Query all transfer leaves associated with the transfer
+	transferLeaves, err := transfer.QueryTransferLeaves().All(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query transfer leaves: %w", err)
+	}
+	// For each transfer leaf, set its key tweak if there's a matching entry in the key tweak map
+	for _, transferLeaf := range transferLeaves {
+		leaf, err := transferLeaf.QueryLeaf().Only(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to query leaf for transfer leaf %s: %w", transferLeaf.ID, err)
+		}
+		if keyTweak, ok := keyTweakMap[leaf.ID.String()]; ok {
+			keyTweakBinary, err := proto.Marshal(keyTweak)
+			if err != nil {
+				return fmt.Errorf("failed to marshal key tweak for leaf %s: %w", leaf.ID, err)
+			}
+			_, err = transferLeaf.Update().SetKeyTweak(keyTweakBinary).Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to set key tweak for transfer leaf %s: %w", transferLeaf.ID, err)
+			}
+		}
+	}
+	return nil
 }

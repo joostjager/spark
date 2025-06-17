@@ -5,6 +5,7 @@ import { getTxId } from "../../utils/bitcoin.js";
 import { getNetwork, Network } from "../../utils/network.js";
 import { SparkWalletTesting } from "../utils/spark-testing-wallet.js";
 import { BitcoinFaucet } from "../utils/test-faucet.js";
+
 describe("deposit", () => {
   it("should generate a deposit address", async () => {
     const { wallet: sdk } = await SparkWalletTesting.initialize({
@@ -32,6 +33,11 @@ describe("deposit", () => {
     // Verify that static deposit addresses don't appear in unused deposit addresses
     const unusedDepositAddresses = await sdk.getUnusedDepositAddresses();
     expect(unusedDepositAddresses).toHaveLength(0);
+
+    // Check that the same static deposit address is returned a second time.
+    const secondDepositAddress = await sdk.getStaticDepositAddress();
+    expect(secondDepositAddress).toBeDefined();
+    expect(secondDepositAddress).toEqual(depositAddress);
   }, 30000);
 
   it("should create a tree root", async () => {
@@ -207,5 +213,46 @@ describe("deposit", () => {
 
     const balance = await sdk.getBalance();
     expect(balance.balance).toEqual(sendAmount * 2n);
+  }, 30000);
+});
+
+describe("refund static deposit", () => {
+  it("should refund a static deposit", async () => {
+    const faucet = BitcoinFaucet.getInstance();
+
+    await faucet.fund();
+
+    const { wallet: sdk } = await SparkWalletTesting.initialize({
+      options: {
+        network: "LOCAL",
+      },
+    });
+
+    const depositAddress = await sdk.getStaticDepositAddress();
+    if (!depositAddress) {
+      throw new Error("Failed to get deposit address");
+    }
+
+    const signedTx = await faucet.sendToAddress(depositAddress, 10_000n);
+
+    await faucet.mineBlocks(10);
+
+    const withdrawalAddress = await faucet.getNewAddress();
+
+    await faucet.generateToAddress(1, withdrawalAddress);
+
+    // Sleep to allow chain watcher to catch up
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    await faucet.mineBlocks(10);
+
+    const refundTx = await sdk.refundStaticDeposit({
+      depositTransactionId: signedTx.id,
+      destinationAddress: withdrawalAddress,
+      fee: 1000,
+    });
+
+    const broadcastResult = await faucet.broadcastTx(refundTx);
+    expect(broadcastResult).toBeDefined();
   }, 30000);
 });

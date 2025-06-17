@@ -19,7 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SparkSspInternalService_QueryLostNodes_FullMethodName = "/spark_ssp.SparkSspInternalService/query_lost_nodes"
+	SparkSspInternalService_QueryLostNodes_FullMethodName      = "/spark_ssp.SparkSspInternalService/query_lost_nodes"
+	SparkSspInternalService_MagicSwap_FullMethodName           = "/spark_ssp.SparkSspInternalService/magic_swap"
+	SparkSspInternalService_GetStuckTransfers_FullMethodName   = "/spark_ssp.SparkSspInternalService/get_stuck_transfers"
+	SparkSspInternalService_QueryTransfer_FullMethodName       = "/spark_ssp.SparkSspInternalService/query_transfer"
+	SparkSspInternalService_CancelStuckTransfer_FullMethodName = "/spark_ssp.SparkSspInternalService/cancel_stuck_transfer"
 )
 
 // SparkSspInternalServiceClient is the client API for SparkSspInternalService service.
@@ -27,6 +31,10 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SparkSspInternalServiceClient interface {
 	QueryLostNodes(ctx context.Context, in *QueryLostNodesRequest, opts ...grpc.CallOption) (*QueryLostNodesResponse, error)
+	MagicSwap(ctx context.Context, in *MagicSwapRequest, opts ...grpc.CallOption) (*MagicSwapResponse, error)
+	GetStuckTransfers(ctx context.Context, in *GetStuckTransfersRequest, opts ...grpc.CallOption) (*GetStuckTransfersResponse, error)
+	QueryTransfer(ctx context.Context, in *QueryStuckTransferRequest, opts ...grpc.CallOption) (*QueryStuckTransferResponse, error)
+	CancelStuckTransfer(ctx context.Context, in *CancelStuckTransferRequest, opts ...grpc.CallOption) (*CancelStuckTransferResponse, error)
 }
 
 type sparkSspInternalServiceClient struct {
@@ -47,11 +55,55 @@ func (c *sparkSspInternalServiceClient) QueryLostNodes(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *sparkSspInternalServiceClient) MagicSwap(ctx context.Context, in *MagicSwapRequest, opts ...grpc.CallOption) (*MagicSwapResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MagicSwapResponse)
+	err := c.cc.Invoke(ctx, SparkSspInternalService_MagicSwap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sparkSspInternalServiceClient) GetStuckTransfers(ctx context.Context, in *GetStuckTransfersRequest, opts ...grpc.CallOption) (*GetStuckTransfersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetStuckTransfersResponse)
+	err := c.cc.Invoke(ctx, SparkSspInternalService_GetStuckTransfers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sparkSspInternalServiceClient) QueryTransfer(ctx context.Context, in *QueryStuckTransferRequest, opts ...grpc.CallOption) (*QueryStuckTransferResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryStuckTransferResponse)
+	err := c.cc.Invoke(ctx, SparkSspInternalService_QueryTransfer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sparkSspInternalServiceClient) CancelStuckTransfer(ctx context.Context, in *CancelStuckTransferRequest, opts ...grpc.CallOption) (*CancelStuckTransferResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelStuckTransferResponse)
+	err := c.cc.Invoke(ctx, SparkSspInternalService_CancelStuckTransfer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SparkSspInternalServiceServer is the server API for SparkSspInternalService service.
 // All implementations must embed UnimplementedSparkSspInternalServiceServer
 // for forward compatibility.
 type SparkSspInternalServiceServer interface {
 	QueryLostNodes(context.Context, *QueryLostNodesRequest) (*QueryLostNodesResponse, error)
+	MagicSwap(context.Context, *MagicSwapRequest) (*MagicSwapResponse, error)
+	GetStuckTransfers(context.Context, *GetStuckTransfersRequest) (*GetStuckTransfersResponse, error)
+	QueryTransfer(context.Context, *QueryStuckTransferRequest) (*QueryStuckTransferResponse, error)
+	CancelStuckTransfer(context.Context, *CancelStuckTransferRequest) (*CancelStuckTransferResponse, error)
 	mustEmbedUnimplementedSparkSspInternalServiceServer()
 }
 
@@ -64,6 +116,18 @@ type UnimplementedSparkSspInternalServiceServer struct{}
 
 func (UnimplementedSparkSspInternalServiceServer) QueryLostNodes(context.Context, *QueryLostNodesRequest) (*QueryLostNodesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryLostNodes not implemented")
+}
+func (UnimplementedSparkSspInternalServiceServer) MagicSwap(context.Context, *MagicSwapRequest) (*MagicSwapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MagicSwap not implemented")
+}
+func (UnimplementedSparkSspInternalServiceServer) GetStuckTransfers(context.Context, *GetStuckTransfersRequest) (*GetStuckTransfersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStuckTransfers not implemented")
+}
+func (UnimplementedSparkSspInternalServiceServer) QueryTransfer(context.Context, *QueryStuckTransferRequest) (*QueryStuckTransferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryTransfer not implemented")
+}
+func (UnimplementedSparkSspInternalServiceServer) CancelStuckTransfer(context.Context, *CancelStuckTransferRequest) (*CancelStuckTransferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelStuckTransfer not implemented")
 }
 func (UnimplementedSparkSspInternalServiceServer) mustEmbedUnimplementedSparkSspInternalServiceServer() {
 }
@@ -105,6 +169,78 @@ func _SparkSspInternalService_QueryLostNodes_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SparkSspInternalService_MagicSwap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MagicSwapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkSspInternalServiceServer).MagicSwap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkSspInternalService_MagicSwap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkSspInternalServiceServer).MagicSwap(ctx, req.(*MagicSwapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SparkSspInternalService_GetStuckTransfers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStuckTransfersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkSspInternalServiceServer).GetStuckTransfers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkSspInternalService_GetStuckTransfers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkSspInternalServiceServer).GetStuckTransfers(ctx, req.(*GetStuckTransfersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SparkSspInternalService_QueryTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryStuckTransferRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkSspInternalServiceServer).QueryTransfer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkSspInternalService_QueryTransfer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkSspInternalServiceServer).QueryTransfer(ctx, req.(*QueryStuckTransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SparkSspInternalService_CancelStuckTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelStuckTransferRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkSspInternalServiceServer).CancelStuckTransfer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkSspInternalService_CancelStuckTransfer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkSspInternalServiceServer).CancelStuckTransfer(ctx, req.(*CancelStuckTransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SparkSspInternalService_ServiceDesc is the grpc.ServiceDesc for SparkSspInternalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,6 +251,22 @@ var SparkSspInternalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "query_lost_nodes",
 			Handler:    _SparkSspInternalService_QueryLostNodes_Handler,
+		},
+		{
+			MethodName: "magic_swap",
+			Handler:    _SparkSspInternalService_MagicSwap_Handler,
+		},
+		{
+			MethodName: "get_stuck_transfers",
+			Handler:    _SparkSspInternalService_GetStuckTransfers_Handler,
+		},
+		{
+			MethodName: "query_transfer",
+			Handler:    _SparkSspInternalService_QueryTransfer_Handler,
+		},
+		{
+			MethodName: "cancel_stuck_transfer",
+			Handler:    _SparkSspInternalService_CancelStuckTransfer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

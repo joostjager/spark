@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 )
@@ -98,4 +100,16 @@ func StringUUIDArrayToUUIDArray(arr []string) ([]uuid.UUID, error) {
 		results[i] = uuid
 	}
 	return results, nil
+}
+
+func CompareByte2DArray(a, b [][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !bytes.Equal(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }

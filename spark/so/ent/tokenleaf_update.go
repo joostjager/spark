@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
 )
@@ -38,13 +38,13 @@ func (tlu *TokenLeafUpdate) SetUpdateTime(t time.Time) *TokenLeafUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (tlu *TokenLeafUpdate) SetStatus(sls schema.TokenLeafStatus) *TokenLeafUpdate {
+func (tlu *TokenLeafUpdate) SetStatus(sls schematype.TokenLeafStatus) *TokenLeafUpdate {
 	tlu.mutation.SetStatus(sls)
 	return tlu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tlu *TokenLeafUpdate) SetNillableStatus(sls *schema.TokenLeafStatus) *TokenLeafUpdate {
+func (tlu *TokenLeafUpdate) SetNillableStatus(sls *schematype.TokenLeafStatus) *TokenLeafUpdate {
 	if sls != nil {
 		tlu.SetStatus(*sls)
 	}
@@ -127,13 +127,13 @@ func (tlu *TokenLeafUpdate) ClearConfirmedWithdrawBlockHash() *TokenLeafUpdate {
 }
 
 // SetNetwork sets the "network" field.
-func (tlu *TokenLeafUpdate) SetNetwork(s schema.Network) *TokenLeafUpdate {
+func (tlu *TokenLeafUpdate) SetNetwork(s schematype.Network) *TokenLeafUpdate {
 	tlu.mutation.SetNetwork(s)
 	return tlu
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (tlu *TokenLeafUpdate) SetNillableNetwork(s *schema.Network) *TokenLeafUpdate {
+func (tlu *TokenLeafUpdate) SetNillableNetwork(s *schematype.Network) *TokenLeafUpdate {
 	if s != nil {
 		tlu.SetNetwork(*s)
 	}
@@ -397,13 +397,13 @@ func (tluo *TokenLeafUpdateOne) SetUpdateTime(t time.Time) *TokenLeafUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (tluo *TokenLeafUpdateOne) SetStatus(sls schema.TokenLeafStatus) *TokenLeafUpdateOne {
+func (tluo *TokenLeafUpdateOne) SetStatus(sls schematype.TokenLeafStatus) *TokenLeafUpdateOne {
 	tluo.mutation.SetStatus(sls)
 	return tluo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tluo *TokenLeafUpdateOne) SetNillableStatus(sls *schema.TokenLeafStatus) *TokenLeafUpdateOne {
+func (tluo *TokenLeafUpdateOne) SetNillableStatus(sls *schematype.TokenLeafStatus) *TokenLeafUpdateOne {
 	if sls != nil {
 		tluo.SetStatus(*sls)
 	}
@@ -486,13 +486,13 @@ func (tluo *TokenLeafUpdateOne) ClearConfirmedWithdrawBlockHash() *TokenLeafUpda
 }
 
 // SetNetwork sets the "network" field.
-func (tluo *TokenLeafUpdateOne) SetNetwork(s schema.Network) *TokenLeafUpdateOne {
+func (tluo *TokenLeafUpdateOne) SetNetwork(s schematype.Network) *TokenLeafUpdateOne {
 	tluo.mutation.SetNetwork(s)
 	return tluo
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (tluo *TokenLeafUpdateOne) SetNillableNetwork(s *schema.Network) *TokenLeafUpdateOne {
+func (tluo *TokenLeafUpdateOne) SetNillableNetwork(s *schematype.Network) *TokenLeafUpdateOne {
 	if s != nil {
 		tluo.SetNetwork(*s)
 	}

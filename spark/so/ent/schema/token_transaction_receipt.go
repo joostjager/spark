@@ -5,6 +5,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // TreeNode is the schema for the tree nodes table.
@@ -24,7 +25,7 @@ func (TokenTransactionReceipt) Fields() []ent.Field {
 		field.Bytes("partial_token_transaction_hash").NotEmpty(),
 		field.Bytes("finalized_token_transaction_hash").NotEmpty().Unique(),
 		field.Bytes("operator_signature").Optional().Unique(),
-		field.Enum("status").GoType(TokenTransactionStatus("")).Optional(),
+		field.Enum("status").GoType(st.TokenTransactionStatus("")).Optional(),
 	}
 }
 

@@ -1,10 +1,10 @@
 import {
   bytesToHex,
   bytesToNumberBE,
+  equalBytes,
   hexToBytes,
 } from "@noble/curves/abstract/utils";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
-import { sha256 } from "@noble/hashes/sha2";
 import { HDKey } from "@scure/bip32";
 import { generateMnemonic, mnemonicToSeed } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
@@ -14,7 +14,7 @@ import { ConfigurationError, ValidationError } from "../errors/types.js";
 import { TreeNode } from "../proto/spark.js";
 import { IKeyPackage, ISigningCommitment } from "../spark_bindings/types.js";
 import { generateAdaptorFromSignature } from "../utils/adaptor-signature.js";
-import { getMasterHDKeyFromSeed, subtractPrivateKeys } from "../utils/keys.js";
+import { subtractPrivateKeys } from "../utils/keys.js";
 import {
   splitSecretWithProofs,
   VerifiableSecretShare,
@@ -35,6 +35,17 @@ const getSparkFrostModule = async () => {
   }
   return sparkFrostModule;
 };
+
+import { privateAdd, privateNegate } from "@bitcoinerlab/secp256k1";
+import {
+  fromPrivateKey,
+  PARITY,
+  Receipt,
+  TokenSigner,
+} from "@buildonspark/lrc20-sdk";
+import { sha256 } from "@noble/hashes/sha2";
+import { Transaction } from "@scure/btc-signer";
+import type { Psbt } from "bitcoinjs-lib";
 
 export type SigningNonce = {
   binding: Uint8Array;
@@ -85,8 +96,11 @@ interface HDKeyGenerator {
     identityKey: DerivedHDKey;
     signingKey: DerivedHDKey;
     depositKey: DerivedHDKey;
+    staticDepositKey: DerivedHDKey;
   }>;
 }
+
+const HARDENED_OFFSET = 0x80000000; // 2^31
 
 class DefaultHDKeyGenerator implements HDKeyGenerator {
   async deriveHDKeysFromSeed(
@@ -97,8 +111,9 @@ class DefaultHDKeyGenerator implements HDKeyGenerator {
     identityKey: DerivedHDKey;
     signingKey: DerivedHDKey;
     depositKey: DerivedHDKey;
+    staticDepositKey: DerivedHDKey;
   }> {
-    const hdkey = getMasterHDKeyFromSeed(seed);
+    const hdkey = HDKey.fromMasterSeed(seed);
 
     if (!hdkey.privateKey || !hdkey.publicKey) {
       throw new ValidationError("Failed to derive keys from seed", {
@@ -110,6 +125,7 @@ class DefaultHDKeyGenerator implements HDKeyGenerator {
     const identityKey = hdkey.derive(`m/8797555'/${accountNumber}'/0'`);
     const signingKey = hdkey.derive(`m/8797555'/${accountNumber}'/1'`);
     const depositKey = hdkey.derive(`m/8797555'/${accountNumber}'/2'`);
+    const staticDepositKey = hdkey.derive(`m/8797555'/${accountNumber}'/3'`);
 
     if (
       !identityKey.privateKey ||
@@ -117,7 +133,9 @@ class DefaultHDKeyGenerator implements HDKeyGenerator {
       !signingKey.privateKey ||
       !identityKey.publicKey ||
       !depositKey.publicKey ||
-      !signingKey.publicKey
+      !signingKey.publicKey ||
+      !staticDepositKey.privateKey ||
+      !staticDepositKey.publicKey
     ) {
       throw new ValidationError(
         "Failed to derive all required keys from seed",
@@ -148,14 +166,22 @@ class DefaultHDKeyGenerator implements HDKeyGenerator {
         privateKey: depositKey.privateKey,
         publicKey: depositKey.publicKey,
       },
+      staticDepositKey: {
+        hdKey: staticDepositKey,
+        privateKey: staticDepositKey.privateKey,
+        publicKey: staticDepositKey.publicKey,
+      },
     };
   }
 }
 
 // TODO: Properly clean up keys when they are no longer needed
-interface SparkSigner {
+interface SparkSigner extends TokenSigner {
   getIdentityPublicKey(): Promise<Uint8Array>;
   getDepositSigningKey(): Promise<Uint8Array>;
+  generateStaticDepositKey(idx: number): Promise<Uint8Array>;
+  getStaticDepositSigningKey(idx: number): Promise<Uint8Array>;
+  getStaticDepositSecretKey(idx: number): Promise<Uint8Array>;
 
   generateMnemonic(): Promise<string>;
   mnemonicToSeed(mnemonic: string): Promise<Uint8Array>;
@@ -202,6 +228,12 @@ interface SparkSigner {
     signature: Uint8Array,
   ): Promise<boolean>;
 
+  signTransactionIndex(
+    tx: Transaction,
+    index: number,
+    publicKey: Uint8Array,
+  ): void;
+
   encryptLeafPrivateKeyEcies(
     receiverPublicKey: Uint8Array,
     publicKey: Uint8Array,
@@ -225,6 +257,8 @@ class DefaultSparkSigner implements SparkSigner {
   private identityKey: HDKey | null = null;
   private signingKey: HDKey | null = null;
   private depositKey: HDKey | null = null;
+  private staticDepositKey: HDKey | null = null;
+  private staticDepositKeyMap: Map<number, HDKey> = new Map();
 
   // <hex, hex>
   protected publicKeyToPrivateKeyMap: Map<string, string> = new Map();
@@ -246,7 +280,8 @@ class DefaultSparkSigner implements SparkSigner {
     }
 
     const view = new DataView(hash.buffer);
-    const amount = (view.getUint32(0, false) % 0x80000000) + 0x80000000;
+    const amount =
+      (view.getUint32(0, false) % HARDENED_OFFSET) + HARDENED_OFFSET;
 
     const newPrivateKey = this.signingKey?.deriveChild(amount).privateKey;
 
@@ -333,6 +368,73 @@ class DefaultSparkSigner implements SparkSigner {
     }
 
     return this.depositKey.publicKey;
+  }
+
+  async generateStaticDepositKey(idx: number): Promise<Uint8Array> {
+    if (!this.staticDepositKey?.privateKey) {
+      throw new ValidationError("Static deposit key is not set", {
+        field: "staticDepositKey",
+      });
+    }
+
+    if (this.staticDepositKeyMap.has(idx)) {
+      const staticDepositKey = this.staticDepositKeyMap.get(idx);
+      return staticDepositKey?.publicKey!;
+    }
+
+    const staticDepositKey = this.staticDepositKey.deriveChild(
+      HARDENED_OFFSET + idx,
+    );
+    this.staticDepositKeyMap.set(idx, staticDepositKey);
+    this.publicKeyToPrivateKeyMap.set(
+      bytesToHex(staticDepositKey.publicKey!),
+      bytesToHex(staticDepositKey.privateKey!),
+    );
+    return staticDepositKey.publicKey!;
+  }
+
+  async getStaticDepositSigningKey(idx: number): Promise<Uint8Array> {
+    if (!this.staticDepositKey) {
+      throw new ValidationError("Static deposit key is not set", {
+        field: "staticDepositKey",
+      });
+    }
+
+    if (!this.staticDepositKeyMap.has(idx)) {
+      await this.generateStaticDepositKey(idx);
+    }
+
+    const staticDepositKey = this.staticDepositKeyMap.get(idx);
+
+    if (!staticDepositKey?.publicKey) {
+      throw new ValidationError("Static deposit key is not set", {
+        field: "staticDepositKey",
+      });
+    }
+
+    return staticDepositKey.publicKey;
+  }
+
+  async getStaticDepositSecretKey(idx: number): Promise<Uint8Array> {
+    if (!this.staticDepositKey) {
+      throw new ValidationError("Static deposit key is not set", {
+        field: "staticDepositKey",
+      });
+    }
+
+    if (!this.staticDepositKeyMap.has(idx)) {
+      await this.generateStaticDepositKey(idx);
+    }
+
+    const staticDepositKey = this.staticDepositKeyMap.get(idx);
+
+    if (!staticDepositKey?.privateKey) {
+      throw new ValidationError("Static deposit key is not set", {
+        field: "staticDepositKey",
+      });
+    }
+
+    return staticDepositKey.privateKey;
   }
 
   async generateMnemonic(): Promise<string> {
@@ -516,13 +618,14 @@ class DefaultSparkSigner implements SparkSigner {
       seed = hexToBytes(seed);
     }
 
-    const { masterKey, identityKey, signingKey, depositKey } =
+    const { masterKey, identityKey, signingKey, depositKey, staticDepositKey } =
       await this.hdKeyGenerator.deriveHDKeysFromSeed(seed, accountNumber ?? 0);
 
     this.masterKey = masterKey.hdKey;
     this.identityKey = identityKey.hdKey;
     this.depositKey = depositKey.hdKey;
     this.signingKey = signingKey.hdKey;
+    this.staticDepositKey = staticDepositKey.hdKey;
 
     this.publicKeyToPrivateKeyMap.set(
       bytesToHex(identityKey.publicKey),
@@ -531,6 +634,10 @@ class DefaultSparkSigner implements SparkSigner {
     this.publicKeyToPrivateKeyMap.set(
       bytesToHex(depositKey.publicKey),
       bytesToHex(depositKey.privateKey),
+    );
+    this.publicKeyToPrivateKeyMap.set(
+      bytesToHex(staticDepositKey.publicKey),
+      bytesToHex(staticDepositKey.privateKey),
     );
     return bytesToHex(identityKey.publicKey);
   }
@@ -655,6 +762,75 @@ class DefaultSparkSigner implements SparkSigner {
     }
 
     return secp256k1.verify(signature, message, this.identityKey.publicKey);
+  }
+
+  async signPsbt(
+    psbt: Psbt,
+    input: number,
+    sighashTypes?: number[],
+    receipt?: Receipt,
+  ): Promise<Psbt> {
+    if (!this.identityKey?.privateKey) {
+      throw new ConfigurationError("Identity key not initialized", {
+        configKey: "identityKey",
+      });
+    }
+    if (receipt) {
+      const receiptPrivateKey = this.getReceiptPrivateKey(receipt);
+      const tweakedKeyPair = fromPrivateKey(Buffer.from(receiptPrivateKey));
+      psbt.signInput(input, tweakedKeyPair, sighashTypes);
+      return psbt;
+    }
+    const keypair = fromPrivateKey(Buffer.from(this.identityKey!.privateKey));
+    psbt.signInput(input, keypair, sighashTypes);
+    return psbt;
+  }
+
+  private getReceiptPrivateKey(receipt: Receipt): Uint8Array {
+    const pxh = Receipt.receiptHash(receipt);
+    let innerKey = this.identityKey!!.publicKey!;
+    let privateKey = this.identityKey!!.privateKey!;
+
+    if (innerKey[0] === 3) {
+      innerKey = Buffer.concat([PARITY, innerKey.slice(1)]);
+      privateKey = Buffer.from(privateNegate(privateKey));
+    }
+
+    const pxhPubkey = sha256(Buffer.concat([pxh, innerKey]));
+
+    const receiptProof = privateAdd(privateKey, pxhPubkey)!;
+    return Buffer.from(receiptProof);
+  }
+
+  signTransactionIndex(
+    tx: Transaction,
+    index: number,
+    publicKey: Uint8Array,
+  ): void {
+    let privateKey: Uint8Array | undefined | null;
+
+    if (
+      equalBytes(publicKey, this.identityKey?.publicKey ?? new Uint8Array())
+    ) {
+      privateKey = this.identityKey?.privateKey;
+    } else if (
+      equalBytes(publicKey, this.depositKey?.publicKey ?? new Uint8Array())
+    ) {
+      privateKey = this.depositKey?.privateKey;
+    } else {
+      privateKey = hexToBytes(
+        this.publicKeyToPrivateKeyMap.get(bytesToHex(publicKey)) ?? "",
+      );
+    }
+
+    if (!privateKey) {
+      throw new ValidationError("Private key not found for public key", {
+        field: "privateKey",
+        value: bytesToHex(publicKey),
+      });
+    }
+
+    tx.signIdx(privateKey, index);
   }
 }
 export { DefaultSparkSigner };

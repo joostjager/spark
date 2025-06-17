@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -127,6 +127,11 @@ func ConfirmedWithdrawBlockHash(v []byte) predicate.TokenOutput {
 	return predicate.TokenOutput(sql.FieldEQ(FieldConfirmedWithdrawBlockHash, v))
 }
 
+// TokenIdentifier applies equality check predicate on the "token_identifier" field. It's identical to TokenIdentifierEQ.
+func TokenIdentifier(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldEQ(FieldTokenIdentifier, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.TokenOutput {
 	return predicate.TokenOutput(sql.FieldEQ(FieldCreateTime, v))
@@ -208,19 +213,19 @@ func UpdateTimeLTE(v time.Time) predicate.TokenOutput {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TokenOutputStatus) predicate.TokenOutput {
+func StatusEQ(v schematype.TokenOutputStatus) predicate.TokenOutput {
 	vc := v
 	return predicate.TokenOutput(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TokenOutputStatus) predicate.TokenOutput {
+func StatusNEQ(v schematype.TokenOutputStatus) predicate.TokenOutput {
 	vc := v
 	return predicate.TokenOutput(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TokenOutputStatus) predicate.TokenOutput {
+func StatusIn(vs ...schematype.TokenOutputStatus) predicate.TokenOutput {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -229,7 +234,7 @@ func StatusIn(vs ...schema.TokenOutputStatus) predicate.TokenOutput {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TokenOutputStatus) predicate.TokenOutput {
+func StatusNotIn(vs ...schematype.TokenOutputStatus) predicate.TokenOutput {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -768,19 +773,19 @@ func ConfirmedWithdrawBlockHashNotNil() predicate.TokenOutput {
 }
 
 // NetworkEQ applies the EQ predicate on the "network" field.
-func NetworkEQ(v schema.Network) predicate.TokenOutput {
+func NetworkEQ(v schematype.Network) predicate.TokenOutput {
 	vc := v
 	return predicate.TokenOutput(sql.FieldEQ(FieldNetwork, vc))
 }
 
 // NetworkNEQ applies the NEQ predicate on the "network" field.
-func NetworkNEQ(v schema.Network) predicate.TokenOutput {
+func NetworkNEQ(v schematype.Network) predicate.TokenOutput {
 	vc := v
 	return predicate.TokenOutput(sql.FieldNEQ(FieldNetwork, vc))
 }
 
 // NetworkIn applies the In predicate on the "network" field.
-func NetworkIn(vs ...schema.Network) predicate.TokenOutput {
+func NetworkIn(vs ...schematype.Network) predicate.TokenOutput {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -789,7 +794,7 @@ func NetworkIn(vs ...schema.Network) predicate.TokenOutput {
 }
 
 // NetworkNotIn applies the NotIn predicate on the "network" field.
-func NetworkNotIn(vs ...schema.Network) predicate.TokenOutput {
+func NetworkNotIn(vs ...schematype.Network) predicate.TokenOutput {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -805,6 +810,56 @@ func NetworkIsNil() predicate.TokenOutput {
 // NetworkNotNil applies the NotNil predicate on the "network" field.
 func NetworkNotNil() predicate.TokenOutput {
 	return predicate.TokenOutput(sql.FieldNotNull(FieldNetwork))
+}
+
+// TokenIdentifierEQ applies the EQ predicate on the "token_identifier" field.
+func TokenIdentifierEQ(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldEQ(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierNEQ applies the NEQ predicate on the "token_identifier" field.
+func TokenIdentifierNEQ(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldNEQ(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierIn applies the In predicate on the "token_identifier" field.
+func TokenIdentifierIn(vs ...[]byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldIn(FieldTokenIdentifier, vs...))
+}
+
+// TokenIdentifierNotIn applies the NotIn predicate on the "token_identifier" field.
+func TokenIdentifierNotIn(vs ...[]byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldNotIn(FieldTokenIdentifier, vs...))
+}
+
+// TokenIdentifierGT applies the GT predicate on the "token_identifier" field.
+func TokenIdentifierGT(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldGT(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierGTE applies the GTE predicate on the "token_identifier" field.
+func TokenIdentifierGTE(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldGTE(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierLT applies the LT predicate on the "token_identifier" field.
+func TokenIdentifierLT(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldLT(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierLTE applies the LTE predicate on the "token_identifier" field.
+func TokenIdentifierLTE(v []byte) predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldLTE(FieldTokenIdentifier, v))
+}
+
+// TokenIdentifierIsNil applies the IsNil predicate on the "token_identifier" field.
+func TokenIdentifierIsNil() predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldIsNull(FieldTokenIdentifier))
+}
+
+// TokenIdentifierNotNil applies the NotNil predicate on the "token_identifier" field.
+func TokenIdentifierNotNil() predicate.TokenOutput {
+	return predicate.TokenOutput(sql.FieldNotNull(FieldTokenIdentifier))
 }
 
 // HasRevocationKeyshare applies the HasEdge predicate on the "revocation_keyshare" edge.

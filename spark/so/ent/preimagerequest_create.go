@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/usersignedtransaction"
 )
@@ -60,7 +60,7 @@ func (prc *PreimageRequestCreate) SetPaymentHash(b []byte) *PreimageRequestCreat
 }
 
 // SetStatus sets the "status" field.
-func (prc *PreimageRequestCreate) SetStatus(srs schema.PreimageRequestStatus) *PreimageRequestCreate {
+func (prc *PreimageRequestCreate) SetStatus(srs schematype.PreimageRequestStatus) *PreimageRequestCreate {
 	prc.mutation.SetStatus(srs)
 	return prc
 }

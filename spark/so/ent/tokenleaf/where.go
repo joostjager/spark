@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -208,19 +208,19 @@ func UpdateTimeLTE(v time.Time) predicate.TokenLeaf {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TokenLeafStatus) predicate.TokenLeaf {
+func StatusEQ(v schematype.TokenLeafStatus) predicate.TokenLeaf {
 	vc := v
 	return predicate.TokenLeaf(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TokenLeafStatus) predicate.TokenLeaf {
+func StatusNEQ(v schematype.TokenLeafStatus) predicate.TokenLeaf {
 	vc := v
 	return predicate.TokenLeaf(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TokenLeafStatus) predicate.TokenLeaf {
+func StatusIn(vs ...schematype.TokenLeafStatus) predicate.TokenLeaf {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -229,7 +229,7 @@ func StatusIn(vs ...schema.TokenLeafStatus) predicate.TokenLeaf {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TokenLeafStatus) predicate.TokenLeaf {
+func StatusNotIn(vs ...schematype.TokenLeafStatus) predicate.TokenLeaf {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -768,19 +768,19 @@ func ConfirmedWithdrawBlockHashNotNil() predicate.TokenLeaf {
 }
 
 // NetworkEQ applies the EQ predicate on the "network" field.
-func NetworkEQ(v schema.Network) predicate.TokenLeaf {
+func NetworkEQ(v schematype.Network) predicate.TokenLeaf {
 	vc := v
 	return predicate.TokenLeaf(sql.FieldEQ(FieldNetwork, vc))
 }
 
 // NetworkNEQ applies the NEQ predicate on the "network" field.
-func NetworkNEQ(v schema.Network) predicate.TokenLeaf {
+func NetworkNEQ(v schematype.Network) predicate.TokenLeaf {
 	vc := v
 	return predicate.TokenLeaf(sql.FieldNEQ(FieldNetwork, vc))
 }
 
 // NetworkIn applies the In predicate on the "network" field.
-func NetworkIn(vs ...schema.Network) predicate.TokenLeaf {
+func NetworkIn(vs ...schematype.Network) predicate.TokenLeaf {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -789,7 +789,7 @@ func NetworkIn(vs ...schema.Network) predicate.TokenLeaf {
 }
 
 // NetworkNotIn applies the NotIn predicate on the "network" field.
-func NetworkNotIn(vs ...schema.Network) predicate.TokenLeaf {
+func NetworkNotIn(vs ...schematype.Network) predicate.TokenLeaf {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

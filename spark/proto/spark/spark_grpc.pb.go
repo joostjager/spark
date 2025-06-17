@@ -20,48 +20,49 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SparkService_GenerateDepositAddress_FullMethodName      = "/spark.SparkService/generate_deposit_address"
-	SparkService_StartDepositTreeCreation_FullMethodName    = "/spark.SparkService/start_deposit_tree_creation"
-	SparkService_StartTreeCreation_FullMethodName           = "/spark.SparkService/start_tree_creation"
-	SparkService_FinalizeNodeSignatures_FullMethodName      = "/spark.SparkService/finalize_node_signatures"
-	SparkService_StartTransfer_FullMethodName               = "/spark.SparkService/start_transfer"
-	SparkService_FinalizeTransfer_FullMethodName            = "/spark.SparkService/finalize_transfer"
-	SparkService_CancelTransfer_FullMethodName              = "/spark.SparkService/cancel_transfer"
-	SparkService_QueryPendingTransfers_FullMethodName       = "/spark.SparkService/query_pending_transfers"
-	SparkService_QueryAllTransfers_FullMethodName           = "/spark.SparkService/query_all_transfers"
-	SparkService_ClaimTransferTweakKeys_FullMethodName      = "/spark.SparkService/claim_transfer_tweak_keys"
-	SparkService_ClaimTransferSignRefunds_FullMethodName    = "/spark.SparkService/claim_transfer_sign_refunds"
-	SparkService_AggregateNodes_FullMethodName              = "/spark.SparkService/aggregate_nodes"
-	SparkService_StorePreimageShare_FullMethodName          = "/spark.SparkService/store_preimage_share"
-	SparkService_GetSigningCommitments_FullMethodName       = "/spark.SparkService/get_signing_commitments"
-	SparkService_CooperativeExit_FullMethodName             = "/spark.SparkService/cooperative_exit"
-	SparkService_InitiatePreimageSwap_FullMethodName        = "/spark.SparkService/initiate_preimage_swap"
-	SparkService_ProvidePreimage_FullMethodName             = "/spark.SparkService/provide_preimage"
-	SparkService_StartLeafSwap_FullMethodName               = "/spark.SparkService/start_leaf_swap"
-	SparkService_LeafSwap_FullMethodName                    = "/spark.SparkService/leaf_swap"
-	SparkService_CounterLeafSwap_FullMethodName             = "/spark.SparkService/counter_leaf_swap"
-	SparkService_RefreshTimelock_FullMethodName             = "/spark.SparkService/refresh_timelock"
-	SparkService_ExtendLeaf_FullMethodName                  = "/spark.SparkService/extend_leaf"
-	SparkService_PrepareTreeAddress_FullMethodName          = "/spark.SparkService/prepare_tree_address"
-	SparkService_CreateTree_FullMethodName                  = "/spark.SparkService/create_tree"
-	SparkService_GetSigningOperatorList_FullMethodName      = "/spark.SparkService/get_signing_operator_list"
-	SparkService_QueryNodes_FullMethodName                  = "/spark.SparkService/query_nodes"
-	SparkService_QueryNodesDistribution_FullMethodName      = "/spark.SparkService/query_nodes_distribution"
-	SparkService_QueryNodesByValue_FullMethodName           = "/spark.SparkService/query_nodes_by_value"
-	SparkService_QueryBalance_FullMethodName                = "/spark.SparkService/query_balance"
-	SparkService_QueryUserSignedRefunds_FullMethodName      = "/spark.SparkService/query_user_signed_refunds"
-	SparkService_StartTokenTransaction_FullMethodName       = "/spark.SparkService/start_token_transaction"
-	SparkService_SignTokenTransaction_FullMethodName        = "/spark.SparkService/sign_token_transaction"
-	SparkService_FinalizeTokenTransaction_FullMethodName    = "/spark.SparkService/finalize_token_transaction"
-	SparkService_FreezeTokens_FullMethodName                = "/spark.SparkService/freeze_tokens"
-	SparkService_QueryTokenOutputs_FullMethodName           = "/spark.SparkService/query_token_outputs"
-	SparkService_QueryTokenTransactions_FullMethodName      = "/spark.SparkService/query_token_transactions"
-	SparkService_ReturnLightningPayment_FullMethodName      = "/spark.SparkService/return_lightning_payment"
-	SparkService_QueryUnusedDepositAddresses_FullMethodName = "/spark.SparkService/query_unused_deposit_addresses"
-	SparkService_QueryStaticDepositAddresses_FullMethodName = "/spark.SparkService/query_static_deposit_addresses"
-	SparkService_SubscribeToEvents_FullMethodName           = "/spark.SparkService/subscribe_to_events"
-	SparkService_InitiateUtxoSwap_FullMethodName            = "/spark.SparkService/initiate_utxo_swap"
-	SparkService_ExitSingleNodeTrees_FullMethodName         = "/spark.SparkService/exit_single_node_trees"
+	SparkService_GenerateDepositAddress_FullMethodName              = "/spark.SparkService/generate_deposit_address"
+	SparkService_StartDepositTreeCreation_FullMethodName            = "/spark.SparkService/start_deposit_tree_creation"
+	SparkService_StartTreeCreation_FullMethodName                   = "/spark.SparkService/start_tree_creation"
+	SparkService_FinalizeNodeSignatures_FullMethodName              = "/spark.SparkService/finalize_node_signatures"
+	SparkService_StartTransfer_FullMethodName                       = "/spark.SparkService/start_transfer"
+	SparkService_FinalizeTransfer_FullMethodName                    = "/spark.SparkService/finalize_transfer"
+	SparkService_FinalizeTransferWithTransferPackage_FullMethodName = "/spark.SparkService/finalize_transfer_with_transfer_package"
+	SparkService_CancelTransfer_FullMethodName                      = "/spark.SparkService/cancel_transfer"
+	SparkService_QueryPendingTransfers_FullMethodName               = "/spark.SparkService/query_pending_transfers"
+	SparkService_QueryAllTransfers_FullMethodName                   = "/spark.SparkService/query_all_transfers"
+	SparkService_ClaimTransferTweakKeys_FullMethodName              = "/spark.SparkService/claim_transfer_tweak_keys"
+	SparkService_ClaimTransferSignRefunds_FullMethodName            = "/spark.SparkService/claim_transfer_sign_refunds"
+	SparkService_AggregateNodes_FullMethodName                      = "/spark.SparkService/aggregate_nodes"
+	SparkService_StorePreimageShare_FullMethodName                  = "/spark.SparkService/store_preimage_share"
+	SparkService_GetSigningCommitments_FullMethodName               = "/spark.SparkService/get_signing_commitments"
+	SparkService_CooperativeExit_FullMethodName                     = "/spark.SparkService/cooperative_exit"
+	SparkService_InitiatePreimageSwap_FullMethodName                = "/spark.SparkService/initiate_preimage_swap"
+	SparkService_ProvidePreimage_FullMethodName                     = "/spark.SparkService/provide_preimage"
+	SparkService_StartLeafSwap_FullMethodName                       = "/spark.SparkService/start_leaf_swap"
+	SparkService_LeafSwap_FullMethodName                            = "/spark.SparkService/leaf_swap"
+	SparkService_CounterLeafSwap_FullMethodName                     = "/spark.SparkService/counter_leaf_swap"
+	SparkService_RefreshTimelock_FullMethodName                     = "/spark.SparkService/refresh_timelock"
+	SparkService_ExtendLeaf_FullMethodName                          = "/spark.SparkService/extend_leaf"
+	SparkService_PrepareTreeAddress_FullMethodName                  = "/spark.SparkService/prepare_tree_address"
+	SparkService_CreateTree_FullMethodName                          = "/spark.SparkService/create_tree"
+	SparkService_GetSigningOperatorList_FullMethodName              = "/spark.SparkService/get_signing_operator_list"
+	SparkService_QueryNodes_FullMethodName                          = "/spark.SparkService/query_nodes"
+	SparkService_QueryNodesDistribution_FullMethodName              = "/spark.SparkService/query_nodes_distribution"
+	SparkService_QueryNodesByValue_FullMethodName                   = "/spark.SparkService/query_nodes_by_value"
+	SparkService_QueryBalance_FullMethodName                        = "/spark.SparkService/query_balance"
+	SparkService_QueryUserSignedRefunds_FullMethodName              = "/spark.SparkService/query_user_signed_refunds"
+	SparkService_StartTokenTransaction_FullMethodName               = "/spark.SparkService/start_token_transaction"
+	SparkService_SignTokenTransaction_FullMethodName                = "/spark.SparkService/sign_token_transaction"
+	SparkService_FinalizeTokenTransaction_FullMethodName            = "/spark.SparkService/finalize_token_transaction"
+	SparkService_FreezeTokens_FullMethodName                        = "/spark.SparkService/freeze_tokens"
+	SparkService_QueryTokenOutputs_FullMethodName                   = "/spark.SparkService/query_token_outputs"
+	SparkService_QueryTokenTransactions_FullMethodName              = "/spark.SparkService/query_token_transactions"
+	SparkService_ReturnLightningPayment_FullMethodName              = "/spark.SparkService/return_lightning_payment"
+	SparkService_QueryUnusedDepositAddresses_FullMethodName         = "/spark.SparkService/query_unused_deposit_addresses"
+	SparkService_QueryStaticDepositAddresses_FullMethodName         = "/spark.SparkService/query_static_deposit_addresses"
+	SparkService_SubscribeToEvents_FullMethodName                   = "/spark.SparkService/subscribe_to_events"
+	SparkService_InitiateUtxoSwap_FullMethodName                    = "/spark.SparkService/initiate_utxo_swap"
+	SparkService_ExitSingleNodeTrees_FullMethodName                 = "/spark.SparkService/exit_single_node_trees"
 )
 
 // SparkServiceClient is the client API for SparkService service.
@@ -76,6 +77,7 @@ type SparkServiceClient interface {
 	FinalizeNodeSignatures(ctx context.Context, in *FinalizeNodeSignaturesRequest, opts ...grpc.CallOption) (*FinalizeNodeSignaturesResponse, error)
 	StartTransfer(ctx context.Context, in *StartTransferRequest, opts ...grpc.CallOption) (*StartTransferResponse, error)
 	FinalizeTransfer(ctx context.Context, in *FinalizeTransferRequest, opts ...grpc.CallOption) (*FinalizeTransferResponse, error)
+	FinalizeTransferWithTransferPackage(ctx context.Context, in *FinalizeTransferWithTransferPackageRequest, opts ...grpc.CallOption) (*FinalizeTransferResponse, error)
 	CancelTransfer(ctx context.Context, in *CancelTransferRequest, opts ...grpc.CallOption) (*CancelTransferResponse, error)
 	QueryPendingTransfers(ctx context.Context, in *TransferFilter, opts ...grpc.CallOption) (*QueryTransfersResponse, error)
 	QueryAllTransfers(ctx context.Context, in *TransferFilter, opts ...grpc.CallOption) (*QueryTransfersResponse, error)
@@ -185,6 +187,16 @@ func (c *sparkServiceClient) FinalizeTransfer(ctx context.Context, in *FinalizeT
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(FinalizeTransferResponse)
 	err := c.cc.Invoke(ctx, SparkService_FinalizeTransfer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sparkServiceClient) FinalizeTransferWithTransferPackage(ctx context.Context, in *FinalizeTransferWithTransferPackageRequest, opts ...grpc.CallOption) (*FinalizeTransferResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinalizeTransferResponse)
+	err := c.cc.Invoke(ctx, SparkService_FinalizeTransferWithTransferPackage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -573,6 +585,7 @@ type SparkServiceServer interface {
 	FinalizeNodeSignatures(context.Context, *FinalizeNodeSignaturesRequest) (*FinalizeNodeSignaturesResponse, error)
 	StartTransfer(context.Context, *StartTransferRequest) (*StartTransferResponse, error)
 	FinalizeTransfer(context.Context, *FinalizeTransferRequest) (*FinalizeTransferResponse, error)
+	FinalizeTransferWithTransferPackage(context.Context, *FinalizeTransferWithTransferPackageRequest) (*FinalizeTransferResponse, error)
 	CancelTransfer(context.Context, *CancelTransferRequest) (*CancelTransferResponse, error)
 	QueryPendingTransfers(context.Context, *TransferFilter) (*QueryTransfersResponse, error)
 	QueryAllTransfers(context.Context, *TransferFilter) (*QueryTransfersResponse, error)
@@ -644,6 +657,9 @@ func (UnimplementedSparkServiceServer) StartTransfer(context.Context, *StartTran
 }
 func (UnimplementedSparkServiceServer) FinalizeTransfer(context.Context, *FinalizeTransferRequest) (*FinalizeTransferResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FinalizeTransfer not implemented")
+}
+func (UnimplementedSparkServiceServer) FinalizeTransferWithTransferPackage(context.Context, *FinalizeTransferWithTransferPackageRequest) (*FinalizeTransferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinalizeTransferWithTransferPackage not implemented")
 }
 func (UnimplementedSparkServiceServer) CancelTransfer(context.Context, *CancelTransferRequest) (*CancelTransferResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelTransfer not implemented")
@@ -878,6 +894,24 @@ func _SparkService_FinalizeTransfer_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SparkServiceServer).FinalizeTransfer(ctx, req.(*FinalizeTransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SparkService_FinalizeTransferWithTransferPackage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalizeTransferWithTransferPackageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkServiceServer).FinalizeTransferWithTransferPackage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkService_FinalizeTransferWithTransferPackage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).FinalizeTransferWithTransferPackage(ctx, req.(*FinalizeTransferWithTransferPackageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1553,6 +1587,10 @@ var SparkService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "finalize_transfer",
 			Handler:    _SparkService_FinalizeTransfer_Handler,
+		},
+		{
+			MethodName: "finalize_transfer_with_transfer_package",
+			Handler:    _SparkService_FinalizeTransferWithTransferPackage_Handler,
 		},
 		{
 			MethodName: "cancel_transfer",

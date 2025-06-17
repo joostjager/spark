@@ -1,6 +1,5 @@
 import { numberToBytesBE } from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { HDKey } from "@scure/bip32";
 import { ValidationError } from "../errors/index.js";
 
 export function addPublicKeys(a: Uint8Array, b: Uint8Array): Uint8Array {
@@ -117,9 +116,4 @@ export function lastKeyWithTarget(target: Uint8Array, keys: Uint8Array[]) {
 
   const sum = sumOfPrivateKeys(keys);
   return subtractPrivateKeys(target, sum);
-}
-
-export function getMasterHDKeyFromSeed(seed: Uint8Array): HDKey {
-  // TODO: This needs to be moved back to the signer
-  return HDKey.fromMasterSeed(seed);
 }

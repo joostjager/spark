@@ -9,6 +9,7 @@ import {
 import { sha256 } from "@noble/hashes/sha2";
 import { AuthenticationError, NetworkError } from "../errors/index.js";
 import { SparkSigner } from "../signer/signer.js";
+import { ClaimStaticDeposit } from "./mutations/ClaimStaticDeposit.js";
 import { CompleteCoopExit } from "./mutations/CompleteCoopExit.js";
 import { CompleteLeavesSwap } from "./mutations/CompleteLeavesSwap.js";
 import { GetChallenge } from "./mutations/GetChallenge.js";
@@ -17,12 +18,17 @@ import { RequestLightningReceive } from "./mutations/RequestLightningReceive.js"
 import { RequestLightningSend } from "./mutations/RequestLightningSend.js";
 import { RequestSwapLeaves } from "./mutations/RequestSwapLeaves.js";
 import { VerifyChallenge } from "./mutations/VerifyChallenge.js";
+import ClaimStaticDepositOutput, {
+  ClaimStaticDepositOutputFromJson,
+} from "./objects/ClaimStaticDepositOutput.js";
+import ClaimStaticDepositRequestType from "./objects/ClaimStaticDepositRequestType.js";
 import { CoopExitFeeEstimatesOutputFromJson } from "./objects/CoopExitFeeEstimatesOutput.js";
 import CoopExitRequest, {
   CoopExitRequestFromJson,
 } from "./objects/CoopExitRequest.js";
 import { GetChallengeOutputFromJson } from "./objects/GetChallengeOutput.js";
 import type {
+  BitcoinNetwork,
   CompleteCoopExitInput,
   CompleteLeavesSwapInput,
   CoopExitFeeEstimatesInput,
@@ -46,10 +52,15 @@ import LightningSendFeeEstimateOutput, {
   LightningSendFeeEstimateOutputFromJson,
 } from "./objects/LightningSendFeeEstimateOutput.js";
 import { LightningSendRequestFromJson } from "./objects/LightningSendRequest.js";
+import StaticDepositQuoteInput from "./objects/StaticDepositQuoteInput.js";
+import StaticDepositQuoteOutput, {
+  StaticDepositQuoteOutputFromJson,
+} from "./objects/StaticDepositQuoteOutput.js";
 import VerifyChallengeOutput, {
   VerifyChallengeOutputFromJson,
 } from "./objects/VerifyChallengeOutput.js";
 import { CoopExitFeeEstimate } from "./queries/CoopExitFeeEstimate.js";
+import { GetClaimDepositQuote } from "./queries/GetClaimDepositQuote.js";
 import { LeavesSwapFeeEstimate } from "./queries/LeavesSwapFeeEstimate.js";
 import { LightningSendFeeEstimate } from "./queries/LightningSendFeeEstimate.js";
 import { UserRequest } from "./queries/UserRequest.js";
@@ -235,6 +246,9 @@ export default class SspClient {
     paymentHash,
     expirySecs,
     memo,
+    includeSparkAddress,
+    receiverIdentityPubkey,
+    descriptionHash,
   }: RequestLightningReceiveInput): Promise<LightningReceiveRequest | null> {
     return await this.executeRawQuery({
       queryPayload: RequestLightningReceive,
@@ -244,6 +258,9 @@ export default class SspClient {
         payment_hash: paymentHash,
         expiry_secs: expirySecs,
         memo: memo,
+        include_spark_address: includeSparkAddress,
+        receiver_identity_pubkey: receiverIdentityPubkey,
+        description_hash: descriptionHash,
       },
       constructObject: (response: { request_lightning_receive: any }) => {
         return LightningReceiveRequestFromJson(
@@ -382,6 +399,59 @@ export default class SspClient {
         }
 
         return CoopExitRequestFromJson(response.user_request);
+      },
+    });
+  }
+
+  async getClaimDepositQuote({
+    transactionId,
+    outputIndex,
+    network,
+  }: StaticDepositQuoteInput): Promise<StaticDepositQuoteOutput | null> {
+    return await this.executeRawQuery({
+      queryPayload: GetClaimDepositQuote,
+      variables: {
+        transaction_id: transactionId,
+        output_index: outputIndex,
+        network: network,
+      },
+      constructObject: (response: { static_deposit_quote: any }) => {
+        return StaticDepositQuoteOutputFromJson(response.static_deposit_quote);
+      },
+    });
+  }
+
+  async claimStaticDeposit({
+    transactionId,
+    outputIndex,
+    network,
+    creditAmountSats,
+    depositSecretKey,
+    signature,
+    sspSignature,
+  }: {
+    transactionId: string;
+    outputIndex: number;
+    network: BitcoinNetwork;
+    creditAmountSats: number;
+    depositSecretKey: string;
+    signature: string;
+    sspSignature: string;
+  }): Promise<ClaimStaticDepositOutput | null> {
+    return await this.executeRawQuery({
+      queryPayload: ClaimStaticDeposit,
+      variables: {
+        transaction_id: transactionId,
+        output_index: outputIndex,
+        network: network,
+        request_type: ClaimStaticDepositRequestType.FIXED_AMOUNT,
+        credit_amount_sats: creditAmountSats,
+        deposit_secret_key: depositSecretKey,
+        signature: signature,
+        quote_signature: sspSignature,
+      },
+      constructObject: (response: { claim_static_deposit: any }) => {
+        return ClaimStaticDepositOutputFromJson(response.claim_static_deposit);
       },
     });
   }

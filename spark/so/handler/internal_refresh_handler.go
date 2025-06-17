@@ -7,7 +7,7 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // InternalRefreshTimelockHandler is the refresh timelock handler for so internal.
@@ -39,7 +39,7 @@ func (h *InternalRefreshTimelockHandler) FinalizeRefreshTimelock(ctx context.Con
 		_, err = dbNode.Update().
 			SetRawTx(node.RawTx).
 			SetRawRefundTx(node.RawRefundTx).
-			SetStatus(schema.TreeNodeStatusAvailable).
+			SetStatus(st.TreeNodeStatusAvailable).
 			Save(ctx)
 		if err != nil {
 			return err

@@ -180,6 +180,9 @@ func (tmu *TokenMintUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if tmu.mutation.OperatorSpecificIssuerSignatureCleared() {
 		_spec.ClearField(tokenmint.FieldOperatorSpecificIssuerSignature, field.TypeBytes)
 	}
+	if tmu.mutation.TokenIdentifierCleared() {
+		_spec.ClearField(tokenmint.FieldTokenIdentifier, field.TypeBytes)
+	}
 	if tmu.mutation.TokenTransactionReceiptCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -468,6 +471,9 @@ func (tmuo *TokenMintUpdateOne) sqlSave(ctx context.Context) (_node *TokenMint, 
 	}
 	if tmuo.mutation.OperatorSpecificIssuerSignatureCleared() {
 		_spec.ClearField(tokenmint.FieldOperatorSpecificIssuerSignature, field.TypeBytes)
+	}
+	if tmuo.mutation.TokenIdentifierCleared() {
+		_spec.ClearField(tokenmint.FieldTokenIdentifier, field.TypeBytes)
 	}
 	if tmuo.mutation.TokenTransactionReceiptCleared() {
 		edge := &sqlgraph.EdgeSpec{

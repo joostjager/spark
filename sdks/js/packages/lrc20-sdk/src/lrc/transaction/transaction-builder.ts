@@ -1,4 +1,3 @@
-import { ECPairInterface } from "ecpair";
 import {
   BitcoinOutput,
   MultisigReceiptOutput,
@@ -17,18 +16,17 @@ import {
   TxInput,
   Receipt,
 } from "../types/index.ts";
-import { findNotFirstUsingFind, reverseBuffer, toEvenParity, PARITY, toXOnly, DUST_AMOUNT } from "../utils/index.ts";
-import { Psbt, Payment, payments, networks, Transaction, address, script, opcodes, type Network } from "bitcoinjs-lib";
+import { DUST_AMOUNT, findNotFirstUsingFind, reverseBuffer, toXOnly } from "../utils/index.ts";
+import { Psbt, Payment, payments, Transaction, script, opcodes, type Network } from "bitcoinjs-lib";
 import * as varuint from "varuint-bitcoin";
-import { privateNegate } from "@bitcoinerlab/secp256k1";
-import { ECPair } from "../../bitcoin-core.ts";
+import { TokenSigner } from "../signer/signer.ts";
 
 export class TransactionBuilder {
-  private keyPair: ECPairInterface;
+  private signer: TokenSigner;
   private network: Network;
 
-  constructor(keyPair: ECPairInterface, network: Network) {
-    this.keyPair = keyPair;
+  constructor(signer: TokenSigner, network: Network) {
+    this.signer = signer;
     this.network = network;
   }
 
@@ -44,7 +42,6 @@ export class TransactionBuilder {
 
   async buildAnnouncementOutput(tokenPubkeyAnnouncement: TokenPubkeyAnnouncement) {
     const opReturnPrefixBuff = Buffer.from([76, 82, 67, 50, 48, 0, 0]);
-    console.log("buildAnnouncementOutput: ", tokenPubkeyAnnouncement);
     return {
       type: "OPReturnOutput",
       satoshis: 0,
@@ -104,27 +101,25 @@ export class TransactionBuilder {
     }
   }
 
-  buildAndSignTransaction(
+  async buildAndSignTransaction(
     inputs: TxInput[],
     outputs: TxOutput[],
     changeOutput: TxOutput,
     feeRateVb: number,
-    privateKeys?: Array<ECPairInterface>,
     locktime = 0,
     sequence?: number,
-  ): Transaction {
+  ): Promise<Transaction> {
     const psbt = new Psbt({ network: this.network });
     psbt.setVersion(2);
     psbt.setLocktime(locktime);
 
-    let changeOutputConstructed = this.updateChangeOutput(
+    let changeOutputConstructed = await this.updateChangeOutput(
       psbt.clone(),
       inputs,
       outputs,
       changeOutput,
       feeRateVb,
       sequence,
-      privateKeys,
     );
 
     const constructedOutputs = [...outputs];
@@ -132,21 +127,23 @@ export class TransactionBuilder {
       constructedOutputs.push(changeOutputConstructed);
     }
 
-    this.constructPsbtFromInsAndOuts(psbt, [...inputs], constructedOutputs, privateKeys, sequence);
+    await this.constructPsbtFromInsAndOuts(psbt, [...inputs], constructedOutputs, sequence);
 
-    return psbt.extractTransaction();
+    const finalTx = psbt.extractTransaction();
+
+    return finalTx;
   }
 
-  private constructPsbtFromInsAndOuts(
+  private async constructPsbtFromInsAndOuts(
     psbt: Psbt,
     inputs: TxInput[],
     outputs: TxOutput[],
-    privateKeys: Array<ECPairInterface> = [],
     sequence?: number,
-  ): Psbt {
-    outputs.forEach((output) => {
+  ): Promise<Psbt> {
+    outputs.forEach((output, index) => {
+      const payment = this.outputToPayment(output);
       psbt.addOutput({
-        script: this.outputToPayment(output).output!,
+        script: payment.output!,
         value: output.satoshis,
       });
     });
@@ -163,73 +160,18 @@ export class TransactionBuilder {
       }
     });
 
-    inputs.forEach((input, i) => {
+    inputs.forEach(async (input, i) => {
       switch (input.type) {
         case "BitcoinInput":
-          psbt.signInput(i, this.keyPair).finalizeInput(i);
+          await this.signer.signPsbt(psbt, i, null);
+          psbt.finalizeInput(i);
           break;
         case "ReceiptInput":
           if (!(input as ReceiptInput).isP2WSH) {
-            const sigReceiptPrivateKey = Receipt.receiptPrivateKey(this.keyPair, (input as ReceiptInput).proof);
-            const tweakedKeyPair = ECPair.fromPrivateKey(sigReceiptPrivateKey);
-            psbt.signInput(i, tweakedKeyPair).finalizeInput(i);
+            await this.signer.signPsbt(psbt, i, null, (input as ReceiptInput).proof);
+            psbt.finalizeInput(i);
             break;
           }
-        case "MultisigReceiptInput":
-          privateKeys = privateKeys.concat([this.keyPair]);
-          privateKeys.sort((a, b) => {
-            const aPubKey = a.publicKey || a.getPublicKey();
-            const bPubKey = b.publicKey || b.getPublicKey();
-            return toXOnly(aPubKey).compare(toXOnly(bPubKey));
-          });
-
-          // Negate private keys with odd pubkeys
-          for (let j = 1; j < privateKeys.length; j++) {
-            const currentPk = privateKeys[j];
-            const pubkeyParity = Buffer.from([currentPk.publicKey[0]]);
-            if (!pubkeyParity.equals(PARITY)) {
-              let privKey = currentPk.privateKey!;
-              let negatedPrivKey = privateNegate(privKey);
-              privateKeys[j] = ECPair.fromPrivateKey(Buffer.from(negatedPrivKey));
-            }
-          }
-
-          const multisigReceiptPrivateKey = Receipt.receiptPrivateKey(
-            privateKeys[0],
-            (input as MultisigReceiptInput).proof,
-          );
-
-          const multisigTweakedKeyPair = ECPair.fromPrivateKey(multisigReceiptPrivateKey, { network: this.network });
-          privateKeys[0] = multisigTweakedKeyPair;
-
-          const witnessScript = Buffer.from((input as ReceiptInput).script!, "hex");
-
-          console.log("SCRIPT:", script.toASM(witnessScript));
-          psbt.updateInput(i, {
-            witnessScript: witnessScript,
-            witnessUtxo: { script: witnessScript, value: input.satoshis },
-          });
-
-          for (let keyPair of privateKeys) {
-            psbt.signInput(i, keyPair);
-          }
-
-          const signatures = privateKeys
-            .map((keyPair) => {
-              const sig = psbt.data.inputs[i].partialSig.find((sig) => sig.pubkey.equals(keyPair.publicKey));
-              return sig ? sig.signature : undefined;
-            })
-            .filter((sig) => sig);
-
-          const witnessStack =
-            signatures.length == 1
-              ? [...signatures, Buffer.from([]), witnessScript]
-              : [Buffer.from([]), ...signatures, Buffer.from([1]), witnessScript];
-
-          psbt.finalizeInput(i, () => ({
-            finalScriptSig: undefined,
-            finalScriptWitness: this.witnessStackToScriptWitness(witnessStack),
-          }));
       }
     });
 
@@ -257,23 +199,16 @@ export class TransactionBuilder {
     return buffer;
   }
 
-  private updateChangeOutput(
+  private async updateChangeOutput(
     psbt: Psbt,
     inputs: TxInput[],
     outputs: TxOutput[],
     changeOutput: TxOutput,
     feeRateVb: number,
     sequence?: number,
-    privateKeys?: Array<ECPairInterface>,
   ) {
-    const psbtToEstimate = this.constructPsbtFromInsAndOuts(
-      psbt,
-      inputs,
-      [...outputs, changeOutput],
-      privateKeys,
-      sequence,
-    );
-    const fee = Math.ceil(this.estimateFee(psbtToEstimate, feeRateVb));
+    const psbtToEstimate = this.constructPsbtFromInsAndOuts(psbt, inputs, [...outputs, changeOutput], sequence);
+    const fee = Math.ceil(this.estimateFee(await psbtToEstimate, feeRateVb));
 
     const inputsSum = this.sumSatoshis(inputs);
     const outputsSum = this.sumSatoshis(outputs);
@@ -370,14 +305,14 @@ export class TransactionBuilder {
     return data.reduce((accumulator, currentValue) => accumulator + (currentValue as any).satoshis, 0);
   }
 
-  buildAndSignMakerPsbt(inputs: TxInput[], output: TxOutput): Transaction {
-    const psbt = this.constructMakerPsbtFromInsAndOuts(inputs, output);
+  async buildAndSignMakerPsbt(inputs: TxInput[], output: TxOutput): Promise<Transaction> {
+    const psbt = await this.constructMakerPsbtFromInsAndOuts(inputs, output);
 
     return psbt.extractTransaction();
   }
 
-  buildAndSignOneInputTx(input: TxInput): Transaction {
-    const psbt = new Psbt({ network: this.network });
+  async buildAndSignOneInputTx(input: TxInput): Promise<Transaction> {
+    let psbt = new Psbt({ network: this.network });
     psbt.setVersion(2);
     psbt.setLocktime(0);
 
@@ -390,21 +325,24 @@ export class TransactionBuilder {
 
     switch (input.type) {
       case "BitcoinInput":
-        psbt.signInput(0, this.keyPair, [Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY]).finalizeInput(0);
+        psbt = await this.signer.signPsbt(psbt, 0, [Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY]);
+        psbt.finalizeInput(0);
         break;
       case "ReceiptInput":
-        const receiptPrivateKey = Receipt.receiptPrivateKey(this.keyPair, (input as ReceiptInput).proof);
-        const tweakedKeyPair = ECPair.fromPrivateKey(receiptPrivateKey);
-        psbt
-          .signInput(0, tweakedKeyPair, [Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY])
-          .finalizeInput(0);
+        psbt = await this.signer.signPsbt(
+          psbt,
+          0,
+          [Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY],
+          (input as ReceiptInput).proof,
+        );
+        psbt.finalizeInput(0);
     }
 
     return psbt.extractTransaction(true);
   }
 
-  constructTakerSingePsbtFromInsAndOuts(input: TxInput, output: TxOutput): Psbt {
-    const psbt = new Psbt({ network: this.network });
+  async constructTakerSingePsbtFromInsAndOuts(input: TxInput, output: TxOutput): Promise<Psbt> {
+    let psbt = new Psbt({ network: this.network });
     psbt.setVersion(2);
     psbt.setLocktime(0);
 
@@ -422,12 +360,15 @@ export class TransactionBuilder {
 
     switch (input.type) {
       case "BitcoinInput":
-        psbt.signInput(0, this.keyPair, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
+        psbt = await this.signer.signPsbt(psbt, 0, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
         break;
       case "ReceiptInput":
-        const receiptPrivateKey = Receipt.receiptPrivateKey(this.keyPair, (input as ReceiptInput).proof);
-        const tweakedKeyPair = ECPair.fromPrivateKey(receiptPrivateKey);
-        psbt.signInput(0, tweakedKeyPair, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
+        psbt = await this.signer.signPsbt(
+          psbt,
+          0,
+          [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY],
+          (input as ReceiptInput).proof,
+        );
     }
 
     psbt.finalizeInput(0);
@@ -435,50 +376,8 @@ export class TransactionBuilder {
     return psbt;
   }
 
-  constructTakerSingleSignature(input: MultisigReceiptInput, bePubkey: Buffer): Psbt {
-    const psbt = new Psbt({ network: this.network });
-    psbt.setVersion(2);
-    psbt.setLocktime(0);
-
-    psbt.addInput({
-      hash: input.txId,
-      index: input.index,
-      nonWitnessUtxo: Buffer.from(input.hex, "hex"),
-      sighashType: Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY,
-    });
-
-    let keyPair = this.keyPair;
-    let pubkey = keyPair.publicKey;
-    let pubkeys = [pubkey, bePubkey].sort((a, b) => {
-      return toXOnly(a).compare(toXOnly(b));
-    });
-    if (pubkeys[0].equals(keyPair.publicKey)) {
-      const multisigReceiptPrivateKey = Receipt.receiptPrivateKey(keyPair, input.proof);
-
-      keyPair = ECPair.fromPrivateKey(multisigReceiptPrivateKey, { network: this.network });
-    } else {
-      const pubkeyParity = Buffer.from([pubkey[0]]);
-      if (!pubkeyParity.equals(PARITY)) {
-        let privKey = keyPair.privateKey!;
-        let negatedPrivKey = privateNegate(privKey);
-        keyPair = ECPair.fromPrivateKey(Buffer.from(negatedPrivKey));
-      }
-    }
-
-    const witnessScript = input.script;
-
-    psbt.updateInput(0, {
-      witnessScript: witnessScript,
-      witnessUtxo: { script: witnessScript, value: input.satoshis },
-    });
-
-    psbt.signInput(0, keyPair, [Transaction.SIGHASH_NONE + Transaction.SIGHASH_ANYONECANPAY]);
-
-    return psbt;
-  }
-
-  private constructMakerPsbtFromInsAndOuts(inputs: TxInput[], output: TxOutput): Psbt {
-    const psbt = new Psbt({ network: this.network });
+  private async constructMakerPsbtFromInsAndOuts(inputs: TxInput[], output: TxOutput): Promise<Psbt> {
+    let psbt = new Psbt({ network: this.network });
     psbt.setVersion(2);
     psbt.setLocktime(0);
 
@@ -496,15 +395,18 @@ export class TransactionBuilder {
       });
     });
 
-    inputs.forEach((input, i) => {
+    inputs.forEach(async (input, i) => {
       switch (input.type) {
         case "BitcoinInput":
-          psbt.signInput(i, this.keyPair, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
+          psbt = await this.signer.signPsbt(psbt, i, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
           break;
         case "ReceiptInput":
-          const receiptPrivateKey = Receipt.receiptPrivateKey(this.keyPair, (input as ReceiptInput).proof);
-          const tweakedKeyPair = ECPair.fromPrivateKey(receiptPrivateKey);
-          psbt.signInput(i, tweakedKeyPair, [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY]);
+          psbt = await this.signer.signPsbt(
+            psbt,
+            i,
+            [Transaction.SIGHASH_SINGLE + Transaction.SIGHASH_ANYONECANPAY],
+            (input as ReceiptInput).proof,
+          );
       }
 
       psbt.finalizeInput(i);
@@ -513,17 +415,17 @@ export class TransactionBuilder {
     return psbt;
   }
 
-  buildAndSignTakerPsbt(
+  async buildAndSignTakerPsbt(
     psbt: Psbt,
     makerInputs: TxInput[],
     takerInputs: TxInput[],
     outputs: TxOutput[],
     feeRateVb: number,
-  ): Transaction {
+  ): Promise<Transaction> {
     let inputsToSign = Array.from({ length: takerInputs.length }, (_, index) => index);
     this.updateTakerPsbtChangeOutput(psbt.clone(), makerInputs, takerInputs, outputs, inputsToSign, feeRateVb);
 
-    const psbtWithChange = this.constructTakerPsbtFromInsAndOuts(psbt, takerInputs, outputs, inputsToSign);
+    const psbtWithChange = await this.constructTakerPsbtFromInsAndOuts(psbt, takerInputs, outputs, inputsToSign);
 
     psbtWithChange.txInputs.map((input, i) => {
       if (psbtWithChange.data.inputs[i].finalScriptWitness === undefined) {
@@ -535,7 +437,7 @@ export class TransactionBuilder {
     return psbtWithChange.extractTransaction();
   }
 
-  private updateTakerPsbtChangeOutput(
+  private async updateTakerPsbtChangeOutput(
     psbt: Psbt,
     makerInputs: TxInput[],
     takerInputs: TxInput[],
@@ -543,7 +445,7 @@ export class TransactionBuilder {
     inputsToSign: number[],
     feeRateVb: number,
   ) {
-    const psbtToEstimate = this.constructTakerPsbtFromInsAndOuts(psbt, takerInputs, outputs, inputsToSign);
+    const psbtToEstimate = await this.constructTakerPsbtFromInsAndOuts(psbt, takerInputs, outputs, inputsToSign);
 
     psbtToEstimate.txInputs.map((input, i) => {
       if (psbtToEstimate.data.inputs[i].finalScriptWitness === undefined) {
@@ -565,12 +467,12 @@ export class TransactionBuilder {
     outputs[outputs.length - 1].satoshis = change;
   }
 
-  private constructTakerPsbtFromInsAndOuts(
+  private async constructTakerPsbtFromInsAndOuts(
     psbt: Psbt,
     inputs: TxInput[],
     outputs: TxOutput[],
     inputsToSign: number[],
-  ): Psbt {
+  ): Promise<Psbt> {
     outputs.forEach((output) => {
       psbt.addOutput({
         script: this.outputToPayment(output).output!,
@@ -587,16 +489,14 @@ export class TransactionBuilder {
       });
     });
 
-    inputs.forEach((input, i) => {
+    inputs.forEach(async (input, i) => {
       if (inputsToSign.includes(i)) {
         switch (input.type) {
           case "BitcoinInput":
-            psbt.signInput(takerInputs + i, this.keyPair);
+            psbt = await this.signer.signPsbt(psbt, takerInputs + i);
             break;
           case "ReceiptInput":
-            const receiptPrivateKey = Receipt.receiptPrivateKey(this.keyPair, (input as ReceiptInput).proof);
-            const tweakedKeyPair = ECPair.fromPrivateKey(receiptPrivateKey);
-            psbt.signInput(takerInputs + i, tweakedKeyPair);
+            psbt = await this.signer.signPsbt(psbt, takerInputs + i, null, (input as ReceiptInput).proof);
         }
       }
     });
@@ -608,7 +508,7 @@ export class TransactionBuilder {
     return psbt;
   }
 
-  public signRawTransaction(unsignedTx: Transaction, prevouts: Map<String, String>): Transaction {
+  public async signRawTransaction(unsignedTx: Transaction, prevouts: Map<String, String>): Promise<Transaction> {
     let psbt = new Psbt({ network: this.network });
     psbt.setVersion(unsignedTx.version);
     psbt.setLocktime(unsignedTx.locktime);
@@ -625,8 +525,8 @@ export class TransactionBuilder {
       });
     });
 
-    psbt.txInputs.forEach((_, index) => {
-      psbt.signInput(index, this.keyPair);
+    psbt.txInputs.forEach(async (_, index) => {
+      psbt = await this.signer.signPsbt(psbt, index);
     });
 
     psbt.finalizeAllInputs();

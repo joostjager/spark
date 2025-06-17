@@ -22,3 +22,23 @@ func (s *SparkSspServer) QueryLostNodes(ctx context.Context, req *pb.QueryLostNo
 	sspRequestHandler := handler.NewSspRequestHandler(s.config)
 	return errors.WrapWithGRPCError(sspRequestHandler.QueryLostNodes(ctx, req))
 }
+
+func (s *SparkSspServer) MagicSwap(ctx context.Context, req *pb.MagicSwapRequest) (*pb.MagicSwapResponse, error) {
+	sspRequestHandler := handler.NewSspRequestHandler(s.config)
+	return errors.WrapWithGRPCError(sspRequestHandler.MagicSwap(ctx, req))
+}
+
+func (s *SparkSspServer) GetStuckTransfers(ctx context.Context, req *pb.GetStuckTransfersRequest) (*pb.GetStuckTransfersResponse, error) {
+	sspRequestHandler := handler.NewSspRequestHandler(s.config)
+	return errors.WrapWithGRPCError(sspRequestHandler.GetStuckTransfers(ctx, req))
+}
+
+func (s *SparkSspServer) QueryStuckTransfer(ctx context.Context, req *pb.QueryStuckTransferRequest) (*pb.QueryStuckTransferResponse, error) {
+	sspRequestHandler := handler.NewSspRequestHandler(s.config)
+	return errors.WrapWithGRPCError(sspRequestHandler.QueryStuckTransfer(ctx, req))
+}
+
+func (s *SparkSspServer) CancelStuckTransfers(ctx context.Context, req *pb.CancelStuckTransferRequest) (*pb.CancelStuckTransferResponse, error) {
+	sspRequestHandler := handler.NewSspRequestHandler(s.config)
+	return errors.WrapWithGRPCError(sspRequestHandler.CancelStuckTransfer(ctx, req))
+}

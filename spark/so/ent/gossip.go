@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/gossip"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // Gossip is the model entity for the Gossip schema.
@@ -31,7 +31,7 @@ type Gossip struct {
 	// Receipts holds the value of the "receipts" field.
 	Receipts *[]byte `json:"receipts,omitempty"`
 	// Status holds the value of the "status" field.
-	Status       schema.GossipStatus `json:"status,omitempty"`
+	Status       schematype.GossipStatus `json:"status,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -105,7 +105,7 @@ func (_go *Gossip) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				_go.Status = schema.GossipStatus(value.String)
+				_go.Status = schematype.GossipStatus(value.String)
 			}
 		default:
 			_go.selectValues.Set(columns[i], values[i])

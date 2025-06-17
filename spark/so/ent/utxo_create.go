@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 )
 
@@ -76,7 +76,7 @@ func (uc *UtxoCreate) SetAmount(u uint64) *UtxoCreate {
 }
 
 // SetNetwork sets the "network" field.
-func (uc *UtxoCreate) SetNetwork(s schema.Network) *UtxoCreate {
+func (uc *UtxoCreate) SetNetwork(s schematype.Network) *UtxoCreate {
 	uc.mutation.SetNetwork(s)
 	return uc
 }

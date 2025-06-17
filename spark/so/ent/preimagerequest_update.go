@@ -15,7 +15,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/predicate"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/usersignedtransaction"
 )
@@ -46,13 +46,13 @@ func (pru *PreimageRequestUpdate) SetPaymentHash(b []byte) *PreimageRequestUpdat
 }
 
 // SetStatus sets the "status" field.
-func (pru *PreimageRequestUpdate) SetStatus(srs schema.PreimageRequestStatus) *PreimageRequestUpdate {
+func (pru *PreimageRequestUpdate) SetStatus(srs schematype.PreimageRequestStatus) *PreimageRequestUpdate {
 	pru.mutation.SetStatus(srs)
 	return pru
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (pru *PreimageRequestUpdate) SetNillableStatus(srs *schema.PreimageRequestStatus) *PreimageRequestUpdate {
+func (pru *PreimageRequestUpdate) SetNillableStatus(srs *schematype.PreimageRequestStatus) *PreimageRequestUpdate {
 	if srs != nil {
 		pru.SetStatus(*srs)
 	}
@@ -394,13 +394,13 @@ func (pruo *PreimageRequestUpdateOne) SetPaymentHash(b []byte) *PreimageRequestU
 }
 
 // SetStatus sets the "status" field.
-func (pruo *PreimageRequestUpdateOne) SetStatus(srs schema.PreimageRequestStatus) *PreimageRequestUpdateOne {
+func (pruo *PreimageRequestUpdateOne) SetStatus(srs schematype.PreimageRequestStatus) *PreimageRequestUpdateOne {
 	pruo.mutation.SetStatus(srs)
 	return pruo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (pruo *PreimageRequestUpdateOne) SetNillableStatus(srs *schema.PreimageRequestStatus) *PreimageRequestUpdateOne {
+func (pruo *PreimageRequestUpdateOne) SetNillableStatus(srs *schematype.PreimageRequestStatus) *PreimageRequestUpdateOne {
 	if srs != nil {
 		pruo.SetStatus(*srs)
 	}

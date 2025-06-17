@@ -13,7 +13,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // Network is the type for Bitcoin networks used with the operator.
@@ -85,50 +85,50 @@ func NetworkFromProtoNetwork(protoNetwork pb.Network) (Network, error) {
 	}
 }
 
-func NetworkFromSchemaNetwork(schemaNetwork schema.Network) (Network, error) {
+func NetworkFromSchemaNetwork(schemaNetwork st.Network) (Network, error) {
 	switch schemaNetwork {
-	case schema.NetworkMainnet:
+	case st.NetworkMainnet:
 		return Mainnet, nil
-	case schema.NetworkRegtest:
+	case st.NetworkRegtest:
 		return Regtest, nil
-	case schema.NetworkTestnet:
+	case st.NetworkTestnet:
 		return Testnet, nil
-	case schema.NetworkSignet:
+	case st.NetworkSignet:
 		return Signet, nil
-	case schema.NetworkUnspecified:
+	case st.NetworkUnspecified:
 		return Unspecified, fmt.Errorf("invalid network")
 	default:
 		return Unspecified, fmt.Errorf("invalid network")
 	}
 }
 
-func ProtoNetworkFromSchemaNetwork(schemaNetwork schema.Network) (pb.Network, error) {
+func ProtoNetworkFromSchemaNetwork(schemaNetwork st.Network) (pb.Network, error) {
 	switch schemaNetwork {
-	case schema.NetworkMainnet:
+	case st.NetworkMainnet:
 		return pb.Network_MAINNET, nil
-	case schema.NetworkRegtest:
+	case st.NetworkRegtest:
 		return pb.Network_REGTEST, nil
-	case schema.NetworkTestnet:
+	case st.NetworkTestnet:
 		return pb.Network_TESTNET, nil
-	case schema.NetworkSignet:
+	case st.NetworkSignet:
 		return pb.Network_SIGNET, nil
 	default:
 		return pb.Network_MAINNET, fmt.Errorf("invalid network")
 	}
 }
 
-func SchemaNetworkFromNetwork(network Network) (schema.Network, error) {
+func SchemaNetworkFromNetwork(network Network) (st.Network, error) {
 	switch network {
 	case Mainnet:
-		return schema.NetworkMainnet, nil
+		return st.NetworkMainnet, nil
 	case Regtest:
-		return schema.NetworkRegtest, nil
+		return st.NetworkRegtest, nil
 	case Testnet:
-		return schema.NetworkTestnet, nil
+		return st.NetworkTestnet, nil
 	case Signet:
-		return schema.NetworkSignet, nil
+		return st.NetworkSignet, nil
 	default:
-		return schema.NetworkUnspecified, fmt.Errorf("invalid network")
+		return st.NetworkUnspecified, fmt.Errorf("invalid network")
 	}
 }
 
@@ -147,18 +147,18 @@ func ProtoNetworkFromNetwork(network Network) (pb.Network, error) {
 	}
 }
 
-func SchemaNetworkFromProtoNetwork(protoNetwork pb.Network) (schema.Network, error) {
+func SchemaNetworkFromProtoNetwork(protoNetwork pb.Network) (st.Network, error) {
 	switch protoNetwork {
 	case pb.Network_MAINNET:
-		return schema.NetworkMainnet, nil
+		return st.NetworkMainnet, nil
 	case pb.Network_REGTEST:
-		return schema.NetworkRegtest, nil
+		return st.NetworkRegtest, nil
 	case pb.Network_TESTNET:
-		return schema.NetworkTestnet, nil
+		return st.NetworkTestnet, nil
 	case pb.Network_SIGNET:
-		return schema.NetworkSignet, nil
+		return st.NetworkSignet, nil
 	default:
-		return schema.NetworkUnspecified, fmt.Errorf("invalid network")
+		return st.NetworkUnspecified, fmt.Errorf("invalid network")
 	}
 }
 
@@ -176,16 +176,16 @@ func NetworkParams(network Network) *chaincfg.Params {
 	}
 }
 
-func SchemaNetwork(network Network) schema.Network {
+func SchemaNetwork(network Network) st.Network {
 	switch network {
 	case Mainnet:
-		return schema.NetworkMainnet
+		return st.NetworkMainnet
 	case Regtest:
-		return schema.NetworkRegtest
+		return st.NetworkRegtest
 	case Testnet:
-		return schema.NetworkTestnet
+		return st.NetworkTestnet
 	default:
-		return schema.NetworkMainnet
+		return st.NetworkMainnet
 	}
 }
 

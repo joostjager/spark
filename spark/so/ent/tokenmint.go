@@ -30,6 +30,8 @@ type TokenMint struct {
 	IssuerSignature []byte `json:"issuer_signature,omitempty"`
 	// OperatorSpecificIssuerSignature holds the value of the "operator_specific_issuer_signature" field.
 	OperatorSpecificIssuerSignature []byte `json:"operator_specific_issuer_signature,omitempty"`
+	// TokenIdentifier holds the value of the "token_identifier" field.
+	TokenIdentifier []byte `json:"token_identifier,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TokenMintQuery when eager-loading is set.
 	Edges        TokenMintEdges `json:"edges"`
@@ -70,7 +72,7 @@ func (*TokenMint) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tokenmint.FieldIssuerPublicKey, tokenmint.FieldIssuerSignature, tokenmint.FieldOperatorSpecificIssuerSignature:
+		case tokenmint.FieldIssuerPublicKey, tokenmint.FieldIssuerSignature, tokenmint.FieldOperatorSpecificIssuerSignature, tokenmint.FieldTokenIdentifier:
 			values[i] = new([]byte)
 		case tokenmint.FieldWalletProvidedTimestamp:
 			values[i] = new(sql.NullInt64)
@@ -135,6 +137,12 @@ func (tm *TokenMint) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				tm.OperatorSpecificIssuerSignature = *value
 			}
+		case tokenmint.FieldTokenIdentifier:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field token_identifier", values[i])
+			} else if value != nil {
+				tm.TokenIdentifier = *value
+			}
 		default:
 			tm.selectValues.Set(columns[i], values[i])
 		}
@@ -198,6 +206,9 @@ func (tm *TokenMint) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("operator_specific_issuer_signature=")
 	builder.WriteString(fmt.Sprintf("%v", tm.OperatorSpecificIssuerSignature))
+	builder.WriteString(", ")
+	builder.WriteString("token_identifier=")
+	builder.WriteString(fmt.Sprintf("%v", tm.TokenIdentifier))
 	builder.WriteByte(')')
 	return builder.String()
 }

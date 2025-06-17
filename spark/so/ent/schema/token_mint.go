@@ -23,6 +23,7 @@ func (TokenMint) Fields() []ent.Field {
 		field.Uint64("wallet_provided_timestamp").Immutable(),
 		field.Bytes("issuer_signature").NotEmpty().Immutable(),
 		field.Bytes("operator_specific_issuer_signature").Optional().Unique(),
+		field.Bytes("token_identifier").Immutable().Optional(),
 	}
 }
 

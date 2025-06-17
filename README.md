@@ -1,7 +1,5 @@
 # Spark
 
-![spark](https://github.com/user-attachments/assets/f3d71a04-4027-42f2-b02a-e7a06616e33a)
-
 ## [mise](https://mise.jdx.dev/)
 
 To install all of our protobuf, rust, and go toolchains install [mise](https://mise.jdx.dev/getting-started.html), then run:
@@ -125,6 +123,8 @@ The E2E test environment can be run locally in minikube via `./scripts/local-tes
 #### Hermetic/Minikube Setup (`./scripts/local-test.sh`)
 
 ##### minikube
+
+See: [spark/minikube/README.md](https://github.com/lightsparkdev/spark/blob/main/minikube/README.md)
 
 Please run: `spark/minikube/setup.sh`, then `./scripts/local-test.sh`. If want to make local code changes visible in minikube, you'll need to
 

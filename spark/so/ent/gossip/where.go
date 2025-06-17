@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -237,19 +237,19 @@ func ReceiptsLTE(v []byte) predicate.Gossip {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.GossipStatus) predicate.Gossip {
+func StatusEQ(v schematype.GossipStatus) predicate.Gossip {
 	vc := v
 	return predicate.Gossip(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.GossipStatus) predicate.Gossip {
+func StatusNEQ(v schematype.GossipStatus) predicate.Gossip {
 	vc := v
 	return predicate.Gossip(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.GossipStatus) predicate.Gossip {
+func StatusIn(vs ...schematype.GossipStatus) predicate.Gossip {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -258,7 +258,7 @@ func StatusIn(vs ...schema.GossipStatus) predicate.Gossip {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.GossipStatus) predicate.Gossip {
+func StatusNotIn(vs ...schematype.GossipStatus) predicate.Gossip {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

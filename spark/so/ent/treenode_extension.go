@@ -8,7 +8,7 @@ import (
 	"github.com/lightsparkdev/spark/common"
 	pbspark "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	enttreenode "github.com/lightsparkdev/spark/so/ent/treenode"
 )
 
@@ -95,9 +95,9 @@ func (tn *TreeNode) getParentNodeID(ctx context.Context) *string {
 
 // MarkNodeAsLocked marks the node as locked.
 // It will only update the node status if it is in a state to be locked.
-func MarkNodeAsLocked(ctx context.Context, nodeID uuid.UUID, nodeStatus schema.TreeNodeStatus) error {
+func MarkNodeAsLocked(ctx context.Context, nodeID uuid.UUID, nodeStatus st.TreeNodeStatus) error {
 	db := GetDbFromContext(ctx)
-	if nodeStatus != schema.TreeNodeStatusSplitLocked && nodeStatus != schema.TreeNodeStatusTransferLocked {
+	if nodeStatus != st.TreeNodeStatusSplitLocked && nodeStatus != st.TreeNodeStatusTransferLocked {
 		return fmt.Errorf("not updating node status to a locked state: %s", nodeStatus)
 	}
 
@@ -109,7 +109,7 @@ func MarkNodeAsLocked(ctx context.Context, nodeID uuid.UUID, nodeStatus schema.T
 	if err != nil {
 		return err
 	}
-	if node.Status != schema.TreeNodeStatusAvailable {
+	if node.Status != st.TreeNodeStatusAvailable {
 		return fmt.Errorf("node not in a state to be locked: %s", node.Status)
 	}
 

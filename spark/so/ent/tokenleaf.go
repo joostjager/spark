@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
@@ -26,7 +26,7 @@ type TokenLeaf struct {
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TokenLeafStatus `json:"status,omitempty"`
+	Status schematype.TokenLeafStatus `json:"status,omitempty"`
 	// OwnerPublicKey holds the value of the "owner_public_key" field.
 	OwnerPublicKey []byte `json:"owner_public_key,omitempty"`
 	// WithdrawBondSats holds the value of the "withdraw_bond_sats" field.
@@ -52,7 +52,7 @@ type TokenLeaf struct {
 	// ConfirmedWithdrawBlockHash holds the value of the "confirmed_withdraw_block_hash" field.
 	ConfirmedWithdrawBlockHash []byte `json:"confirmed_withdraw_block_hash,omitempty"`
 	// Network holds the value of the "network" field.
-	Network schema.Network `json:"network,omitempty"`
+	Network schematype.Network `json:"network,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TokenLeafQuery when eager-loading is set.
 	Edges                                             TokenLeafEdges `json:"edges"`
@@ -166,7 +166,7 @@ func (tl *TokenLeaf) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				tl.Status = schema.TokenLeafStatus(value.String)
+				tl.Status = schematype.TokenLeafStatus(value.String)
 			}
 		case tokenleaf.FieldOwnerPublicKey:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -244,7 +244,7 @@ func (tl *TokenLeaf) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field network", values[i])
 			} else if value.Valid {
-				tl.Network = schema.Network(value.String)
+				tl.Network = schematype.Network(value.String)
 			}
 		case tokenleaf.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {

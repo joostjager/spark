@@ -18,6 +18,10 @@ import {
 } from "../proto/spark_authn.js";
 import { RetryOptions, SparkCallOptions } from "../types/grpc.js";
 import { WalletConfigService } from "./config.js";
+import {
+  SparkTokenServiceClient,
+  SparkTokenServiceDefinition,
+} from "../proto/spark_token.js";
 
 export class ConnectionManager {
   private config: WalletConfigService;
@@ -25,6 +29,13 @@ export class ConnectionManager {
     string,
     {
       client: SparkServiceClient & { close?: () => void };
+      authToken: string;
+    }
+  > = new Map();
+  private tokenClients: Map<
+    string,
+    {
+      client: SparkTokenServiceClient & { close?: () => void };
       authToken: string;
     }
   > = new Map();
@@ -193,6 +204,28 @@ export class ConnectionManager {
     return client;
   }
 
+  async createSparkTokenClient(
+    address: string,
+    certPath?: string,
+  ): Promise<SparkTokenServiceClient & { close?: () => void }> {
+    if (this.tokenClients.has(address)) {
+      return this.tokenClients.get(address)!.client;
+    }
+    const authToken = await this.authenticate(address);
+    const channel = await this.createChannelWithTLS(address, certPath);
+
+    const middleware = this.createMiddleware(address, authToken);
+    const tokenClient = await this.createGrpcClient<SparkTokenServiceClient>(
+      SparkTokenServiceDefinition,
+      channel,
+      true,
+      middleware,
+    );
+
+    this.tokenClients.set(address, { client: tokenClient, authToken });
+    return tokenClient;
+  }
+
   async getStreamChannel(address: string) {
     return this.streamClients.get(address)?.channel;
   }
@@ -340,7 +373,10 @@ export class ConnectionManager {
   }
 
   private async createGrpcClient<T>(
-    defintion: SparkAuthnServiceDefinition | SparkServiceDefinition,
+    defintion:
+      | SparkAuthnServiceDefinition
+      | SparkServiceDefinition
+      | SparkTokenServiceDefinition,
     channel: Channel | ChannelWeb,
     withRetries: boolean,
     middleware?: any,

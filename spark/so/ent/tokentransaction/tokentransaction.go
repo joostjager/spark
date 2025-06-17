@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -39,6 +39,8 @@ const (
 	EdgeCreatedOutput = "created_output"
 	// EdgeMint holds the string denoting the mint edge name in mutations.
 	EdgeMint = "mint"
+	// EdgeCreate holds the string denoting the create edge name in mutations.
+	EdgeCreate = "create"
 	// Table holds the table name of the tokentransaction in the database.
 	Table = "token_transactions"
 	// SpentOutputTable is the table that holds the spent_output relation/edge.
@@ -62,6 +64,13 @@ const (
 	MintInverseTable = "token_mints"
 	// MintColumn is the table column denoting the mint relation/edge.
 	MintColumn = "token_transaction_mint"
+	// CreateTable is the table that holds the create relation/edge.
+	CreateTable = "token_transactions"
+	// CreateInverseTable is the table name for the TokenCreate entity.
+	// It exists in this package in order to avoid circular dependency with the "tokencreate" package.
+	CreateInverseTable = "token_creates"
+	// CreateColumn is the table column denoting the create relation/edge.
+	CreateColumn = "token_transaction_create"
 )
 
 // Columns holds all SQL columns for tokentransaction fields.
@@ -81,6 +90,7 @@ var Columns = []string{
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
 	"token_transaction_mint",
+	"token_transaction_create",
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -114,7 +124,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.TokenTransactionStatus) error {
+func StatusValidator(s schematype.TokenTransactionStatus) error {
 	switch s {
 	case "STARTED", "STARTED_CANCELLED", "SIGNED", "SIGNED_CANCELLED", "FINALIZED":
 		return nil
@@ -185,6 +195,13 @@ func ByMintField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newMintStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByCreateField orders the results by create field.
+func ByCreateField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCreateStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newSpentOutputStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -204,5 +221,12 @@ func newMintStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MintInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, MintTable, MintColumn),
+	)
+}
+func newCreateStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CreateInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, CreateTable, CreateColumn),
 	)
 }

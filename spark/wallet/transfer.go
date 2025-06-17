@@ -52,6 +52,22 @@ func SendTransfer(
 	return transfer, nil
 }
 
+func CreateTransferPackage(
+	ctx context.Context,
+	transferID uuid.UUID,
+	config *Config,
+	client pb.SparkServiceClient,
+	leaves []LeafKeyTweak,
+	receiverIdentityPubkey []byte,
+) (*pb.TransferPackage, error) {
+	keyTweakInputMap, err := prepareSendTransferKeyTweaks(config, transferID.String(), receiverIdentityPubkey, leaves, map[string][]byte{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare transfer data: %v", err)
+	}
+
+	return prepareTransferPackage(ctx, config, client, transferID, keyTweakInputMap, leaves, receiverIdentityPubkey)
+}
+
 func SendTransferWithKeyTweaks(
 	ctx context.Context,
 	config *Config,
@@ -64,12 +80,8 @@ func SendTransferWithKeyTweaks(
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate transfer id: %v", err)
 	}
-	keyTweakInputMap, err := prepareSendTransferKeyTweaks(config, transferID.String(), receiverIdentityPubkey, leaves, map[string][]byte{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare transfer data: %v", err)
-	}
 
-	transferPackage, err := prepareTransferPackage(ctx, config, client, transferID, keyTweakInputMap, leaves, receiverIdentityPubkey)
+	transferPackage, err := CreateTransferPackage(ctx, transferID, config, client, leaves, receiverIdentityPubkey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare transfer data: %v", err)
 	}
@@ -177,6 +189,39 @@ func prepareTransferPackage(
 	transferPackage.UserSignature = signature.Serialize()
 
 	return transferPackage, nil
+}
+
+func DeliverTransferPackage(
+	ctx context.Context,
+	config *Config,
+	transfer *pb.Transfer,
+	client pb.SparkServiceClient,
+	leaves []LeafKeyTweak,
+	refundSignatureMap map[string][]byte,
+) (*pb.Transfer, error) {
+	keyTweakInputMap, err := prepareSendTransferKeyTweaks(config, transfer.Id, transfer.ReceiverIdentityPublicKey, leaves, refundSignatureMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare key tweaks: %v", err)
+	}
+	transferUUID, err := uuid.Parse(transfer.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse transfer id %s: %w", transfer.Id, err)
+	}
+
+	transferPackage, err := prepareTransferPackage(ctx, config, client, transferUUID, keyTweakInputMap, leaves, transfer.ReceiverIdentityPublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare transfer data: %v", err)
+	}
+
+	resp, err := client.FinalizeTransferWithTransferPackage(ctx, &pb.FinalizeTransferWithTransferPackageRequest{
+		TransferId:             transfer.Id,
+		OwnerIdentityPublicKey: config.IdentityPublicKey(),
+		TransferPackage:        transferPackage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to finalize transfer: %v", err)
+	}
+	return resp.Transfer, nil
 }
 
 func SendTransferTweakKey(

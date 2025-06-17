@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 )
@@ -124,8 +124,8 @@ func GetOwnedTokenOutputs(ctx context.Context, ownerPublicKeys [][]byte, tokenPu
 			// has not yet been signed by this SO (if a transaction with it has been started
 			// and not yet signed it is still considered owned).
 			tokenoutput.StatusIn(
-				schema.TokenOutputStatusCreatedFinalized,
-				schema.TokenOutputStatusSpentStarted,
+				st.TokenOutputStatusCreatedFinalized,
+				st.TokenOutputStatusSpentStarted,
 			),
 			tokenoutput.ConfirmedWithdrawBlockHashIsNil(),
 		).

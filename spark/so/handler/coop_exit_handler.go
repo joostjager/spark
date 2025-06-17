@@ -11,7 +11,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/helper"
 )
 
@@ -44,7 +44,7 @@ func (h *CooperativeExitHandler) CooperativeExit(ctx context.Context, req *pb.Co
 	transfer, leafMap, err := transferHandler.createTransfer(
 		ctx,
 		req.Transfer.TransferId,
-		schema.TransferTypeCooperativeExit,
+		st.TransferTypeCooperativeExit,
 		req.Transfer.ExpiryTime.AsTime(),
 		req.Transfer.OwnerIdentityPublicKey,
 		req.Transfer.ReceiverIdentityPublicKey,

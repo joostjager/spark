@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
@@ -26,7 +26,7 @@ type TokenOutput struct {
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TokenOutputStatus `json:"status,omitempty"`
+	Status schematype.TokenOutputStatus `json:"status,omitempty"`
 	// OwnerPublicKey holds the value of the "owner_public_key" field.
 	OwnerPublicKey []byte `json:"owner_public_key,omitempty"`
 	// WithdrawBondSats holds the value of the "withdraw_bond_sats" field.
@@ -52,7 +52,9 @@ type TokenOutput struct {
 	// ConfirmedWithdrawBlockHash holds the value of the "confirmed_withdraw_block_hash" field.
 	ConfirmedWithdrawBlockHash []byte `json:"confirmed_withdraw_block_hash,omitempty"`
 	// Network holds the value of the "network" field.
-	Network schema.Network `json:"network,omitempty"`
+	Network schematype.Network `json:"network,omitempty"`
+	// TokenIdentifier holds the value of the "token_identifier" field.
+	TokenIdentifier []byte `json:"token_identifier,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TokenOutputQuery when eager-loading is set.
 	Edges                                         TokenOutputEdges `json:"edges"`
@@ -113,7 +115,7 @@ func (*TokenOutput) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tokenoutput.FieldOwnerPublicKey, tokenoutput.FieldWithdrawRevocationCommitment, tokenoutput.FieldTokenPublicKey, tokenoutput.FieldTokenAmount, tokenoutput.FieldSpentOwnershipSignature, tokenoutput.FieldSpentOperatorSpecificOwnershipSignature, tokenoutput.FieldSpentRevocationSecret, tokenoutput.FieldConfirmedWithdrawBlockHash:
+		case tokenoutput.FieldOwnerPublicKey, tokenoutput.FieldWithdrawRevocationCommitment, tokenoutput.FieldTokenPublicKey, tokenoutput.FieldTokenAmount, tokenoutput.FieldSpentOwnershipSignature, tokenoutput.FieldSpentOperatorSpecificOwnershipSignature, tokenoutput.FieldSpentRevocationSecret, tokenoutput.FieldConfirmedWithdrawBlockHash, tokenoutput.FieldTokenIdentifier:
 			values[i] = new([]byte)
 		case tokenoutput.FieldWithdrawBondSats, tokenoutput.FieldWithdrawRelativeBlockLocktime, tokenoutput.FieldCreatedTransactionOutputVout, tokenoutput.FieldSpentTransactionInputVout:
 			values[i] = new(sql.NullInt64)
@@ -166,7 +168,7 @@ func (to *TokenOutput) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				to.Status = schema.TokenOutputStatus(value.String)
+				to.Status = schematype.TokenOutputStatus(value.String)
 			}
 		case tokenoutput.FieldOwnerPublicKey:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -244,7 +246,13 @@ func (to *TokenOutput) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field network", values[i])
 			} else if value.Valid {
-				to.Network = schema.Network(value.String)
+				to.Network = schematype.Network(value.String)
+			}
+		case tokenoutput.FieldTokenIdentifier:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field token_identifier", values[i])
+			} else if value != nil {
+				to.TokenIdentifier = *value
 			}
 		case tokenoutput.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -365,6 +373,9 @@ func (to *TokenOutput) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("network=")
 	builder.WriteString(fmt.Sprintf("%v", to.Network))
+	builder.WriteString(", ")
+	builder.WriteString("token_identifier=")
+	builder.WriteString(fmt.Sprintf("%v", to.TokenIdentifier))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
@@ -39,13 +39,13 @@ func (tnu *TreeNodeUpdate) SetUpdateTime(t time.Time) *TreeNodeUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (tnu *TreeNodeUpdate) SetStatus(sns schema.TreeNodeStatus) *TreeNodeUpdate {
+func (tnu *TreeNodeUpdate) SetStatus(sns schematype.TreeNodeStatus) *TreeNodeUpdate {
 	tnu.mutation.SetStatus(sns)
 	return tnu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tnu *TreeNodeUpdate) SetNillableStatus(sns *schema.TreeNodeStatus) *TreeNodeUpdate {
+func (tnu *TreeNodeUpdate) SetNillableStatus(sns *schematype.TreeNodeStatus) *TreeNodeUpdate {
 	if sns != nil {
 		tnu.SetStatus(*sns)
 	}
@@ -558,13 +558,13 @@ func (tnuo *TreeNodeUpdateOne) SetUpdateTime(t time.Time) *TreeNodeUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (tnuo *TreeNodeUpdateOne) SetStatus(sns schema.TreeNodeStatus) *TreeNodeUpdateOne {
+func (tnuo *TreeNodeUpdateOne) SetStatus(sns schematype.TreeNodeStatus) *TreeNodeUpdateOne {
 	tnuo.mutation.SetStatus(sns)
 	return tnuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tnuo *TreeNodeUpdateOne) SetNillableStatus(sns *schema.TreeNodeStatus) *TreeNodeUpdateOne {
+func (tnuo *TreeNodeUpdateOne) SetNillableStatus(sns *schematype.TreeNodeStatus) *TreeNodeUpdateOne {
 	if sns != nil {
 		tnuo.SetStatus(*sns)
 	}

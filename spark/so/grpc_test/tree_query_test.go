@@ -2,6 +2,7 @@ package grpctest
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -104,6 +105,12 @@ func TestTreeQuery(t *testing.T) {
 		for id := range resp.Nodes {
 			nodeIDs = append(nodeIDs, id)
 		}
+
+		// We return these in a map from the SO, which has an undefined ordering in protobufs, so sort
+		// them to ensure our checks later are deterministic.
+		sort.Slice(nodeIDs, func(i, j int) bool {
+			return nodeIDs[i] > nodeIDs[j]
+		})
 
 		req.Limit = 1
 		resp, err = client.QueryNodes(ctx, req)

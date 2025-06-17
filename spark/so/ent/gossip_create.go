@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/gossip"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // GossipCreate is the builder for creating a Gossip entity.
@@ -69,13 +69,13 @@ func (gc *GossipCreate) SetReceipts(b []byte) *GossipCreate {
 }
 
 // SetStatus sets the "status" field.
-func (gc *GossipCreate) SetStatus(ss schema.GossipStatus) *GossipCreate {
+func (gc *GossipCreate) SetStatus(ss schematype.GossipStatus) *GossipCreate {
 	gc.mutation.SetStatus(ss)
 	return gc
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (gc *GossipCreate) SetNillableStatus(ss *schema.GossipStatus) *GossipCreate {
+func (gc *GossipCreate) SetNillableStatus(ss *schematype.GossipStatus) *GossipCreate {
 	if ss != nil {
 		gc.SetStatus(*ss)
 	}

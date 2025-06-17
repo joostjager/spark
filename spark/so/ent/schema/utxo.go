@@ -5,6 +5,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // Transaction outputs seen confirmed on chain by chain watcher.
@@ -28,7 +29,7 @@ func (Utxo) Fields() []ent.Field {
 		field.Bytes("txid").NotEmpty().Immutable(),
 		field.Uint32("vout").Immutable(),
 		field.Uint64("amount").Immutable(),
-		field.Enum("network").GoType(Network("")).Immutable(),
+		field.Enum("network").GoType(st.Network("")).Immutable(),
 		field.Bytes("pk_script").Immutable(),
 	}
 }

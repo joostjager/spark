@@ -73,11 +73,17 @@ func (s *SparkServer) FinalizeTransfer(ctx context.Context, req *pb.FinalizeTran
 	return errors.WrapWithGRPCError(transferHander.FinalizeTransfer(ctx, req))
 }
 
+func (s *SparkServer) FinalizeTransferWithTransferPackage(ctx context.Context, req *pb.FinalizeTransferWithTransferPackageRequest) (*pb.FinalizeTransferResponse, error) {
+	ctx, _ = logging.WithIdentityPubkey(ctx, req.OwnerIdentityPublicKey)
+	transferHandler := handler.NewTransferHandler(s.config)
+	return errors.WrapWithGRPCError(transferHandler.FinalizeTransferWithTransferPackage(ctx, req))
+}
+
 // CancelTransfer cancels a transfer from sender before key is tweaked.
 func (s *SparkServer) CancelTransfer(ctx context.Context, req *pb.CancelTransferRequest) (*pb.CancelTransferResponse, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.SenderIdentityPublicKey)
 	transferHander := handler.NewTransferHandler(s.config)
-	return errors.WrapWithGRPCError(transferHander.CancelTransfer(ctx, req, handler.CancelTransferIntentExternal))
+	return errors.WrapWithGRPCError(transferHander.CancelTransfer(ctx, req))
 }
 
 // QueryPendingTransfers queries the pending transfers to claim.
@@ -214,7 +220,7 @@ func (s *SparkServer) ReturnLightningPayment(ctx context.Context, req *pb.Return
 // StartTokenTransaction reserves revocation keyshares, and fills the revocation commitment (and other SO-derived fields) to create the final token transaction.
 func (s *SparkServer) StartTokenTransaction(ctx context.Context, req *pb.StartTokenTransactionRequest) (*pb.StartTokenTransactionResponse, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.IdentityPublicKey)
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.StartTokenTransaction(ctx, s.config, req))
 }
 
@@ -228,7 +234,7 @@ func (s *SparkServer) QueryNodes(ctx context.Context, req *pb.QueryNodesRequest)
 // allow the wallet to combine these shares into the fully resolved revocation secret necessary for transaction finalization.
 func (s *SparkServer) SignTokenTransaction(ctx context.Context, req *pb.SignTokenTransactionRequest) (*pb.SignTokenTransactionResponse, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.IdentityPublicKey)
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.SignTokenTransaction(ctx, s.config, req))
 }
 
@@ -236,7 +242,7 @@ func (s *SparkServer) SignTokenTransaction(ctx context.Context, req *pb.SignToke
 // to finalize the transaction. This operation irreversibly spends the inputs associated with the transaction.
 func (s *SparkServer) FinalizeTokenTransaction(ctx context.Context, req *pb.FinalizeTokenTransactionRequest) (*emptypb.Empty, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.IdentityPublicKey)
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.FinalizeTokenTransaction(ctx, s.config, req))
 }
 
@@ -244,19 +250,19 @@ func (s *SparkServer) FinalizeTokenTransaction(ctx context.Context, req *pb.Fina
 // Unfreeze undos this operation and re-enables transfers.
 func (s *SparkServer) FreezeTokens(ctx context.Context, req *pb.FreezeTokensRequest) (*pb.FreezeTokensResponse, error) {
 	ctx, _ = logging.WithIdentityPubkey(ctx, req.FreezeTokensPayload.OwnerPublicKey)
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.FreezeTokens(ctx, req))
 }
 
 // QueryTokenTransactions returns the token transactions currently owned by the provided owner public key.
 func (s *SparkServer) QueryTokenTransactions(ctx context.Context, req *pb.QueryTokenTransactionsRequest) (*pb.QueryTokenTransactionsResponse, error) {
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.QueryTokenTransactions(ctx, s.config, req))
 }
 
 // QueryTokenOutputs returns the token outputs currently owned by the provided owner public key.
 func (s *SparkServer) QueryTokenOutputs(ctx context.Context, req *pb.QueryTokenOutputsRequest) (*pb.QueryTokenOutputsResponse, error) {
-	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.db, s.lrc20Client)
+	tokenTransactionHandler := handler.NewTokenTransactionHandler(s.config, s.config, s.db, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.QueryTokenOutputs(ctx, s.config, req))
 }
 

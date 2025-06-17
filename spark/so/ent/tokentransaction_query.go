@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
@@ -30,6 +31,7 @@ type TokenTransactionQuery struct {
 	withSpentOutput   *TokenOutputQuery
 	withCreatedOutput *TokenOutputQuery
 	withMint          *TokenMintQuery
+	withCreate        *TokenCreateQuery
 	withFKs           bool
 	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
@@ -127,6 +129,28 @@ func (ttq *TokenTransactionQuery) QueryMint() *TokenMintQuery {
 			sqlgraph.From(tokentransaction.Table, tokentransaction.FieldID, selector),
 			sqlgraph.To(tokenmint.Table, tokenmint.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, tokentransaction.MintTable, tokentransaction.MintColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(ttq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCreate chains the current query on the "create" edge.
+func (ttq *TokenTransactionQuery) QueryCreate() *TokenCreateQuery {
+	query := (&TokenCreateClient{config: ttq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := ttq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := ttq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tokentransaction.Table, tokentransaction.FieldID, selector),
+			sqlgraph.To(tokencreate.Table, tokencreate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, tokentransaction.CreateTable, tokentransaction.CreateColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(ttq.driver.Dialect(), step)
 		return fromU, nil
@@ -329,6 +353,7 @@ func (ttq *TokenTransactionQuery) Clone() *TokenTransactionQuery {
 		withSpentOutput:   ttq.withSpentOutput.Clone(),
 		withCreatedOutput: ttq.withCreatedOutput.Clone(),
 		withMint:          ttq.withMint.Clone(),
+		withCreate:        ttq.withCreate.Clone(),
 		// clone intermediate query.
 		sql:  ttq.sql.Clone(),
 		path: ttq.path,
@@ -365,6 +390,17 @@ func (ttq *TokenTransactionQuery) WithMint(opts ...func(*TokenMintQuery)) *Token
 		opt(query)
 	}
 	ttq.withMint = query
+	return ttq
+}
+
+// WithCreate tells the query-builder to eager-load the nodes that are connected to
+// the "create" edge. The optional arguments are used to configure the query builder of the edge.
+func (ttq *TokenTransactionQuery) WithCreate(opts ...func(*TokenCreateQuery)) *TokenTransactionQuery {
+	query := (&TokenCreateClient{config: ttq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	ttq.withCreate = query
 	return ttq
 }
 
@@ -447,13 +483,14 @@ func (ttq *TokenTransactionQuery) sqlAll(ctx context.Context, hooks ...queryHook
 		nodes       = []*TokenTransaction{}
 		withFKs     = ttq.withFKs
 		_spec       = ttq.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			ttq.withSpentOutput != nil,
 			ttq.withCreatedOutput != nil,
 			ttq.withMint != nil,
+			ttq.withCreate != nil,
 		}
 	)
-	if ttq.withMint != nil {
+	if ttq.withMint != nil || ttq.withCreate != nil {
 		withFKs = true
 	}
 	if withFKs {
@@ -497,6 +534,12 @@ func (ttq *TokenTransactionQuery) sqlAll(ctx context.Context, hooks ...queryHook
 	if query := ttq.withMint; query != nil {
 		if err := ttq.loadMint(ctx, query, nodes, nil,
 			func(n *TokenTransaction, e *TokenMint) { n.Edges.Mint = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := ttq.withCreate; query != nil {
+		if err := ttq.loadCreate(ctx, query, nodes, nil,
+			func(n *TokenTransaction, e *TokenCreate) { n.Edges.Create = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -590,6 +633,38 @@ func (ttq *TokenTransactionQuery) loadMint(ctx context.Context, query *TokenMint
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "token_transaction_mint" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (ttq *TokenTransactionQuery) loadCreate(ctx context.Context, query *TokenCreateQuery, nodes []*TokenTransaction, init func(*TokenTransaction), assign func(*TokenTransaction, *TokenCreate)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*TokenTransaction)
+	for i := range nodes {
+		if nodes[i].token_transaction_create == nil {
+			continue
+		}
+		fk := *nodes[i].token_transaction_create
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(tokencreate.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "token_transaction_create" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)

@@ -25,22 +25,26 @@ export class BtcUtxosCoinSelection {
     const approximateFee = (transactionSize * BigInt(feeRateVb * 10_000)) / 10_000n;
     const defaultIncrementalValue = (68n * BigInt(feeRateVb * 10_000)) / 10_000n;
 
-    return this.coinSelection(
-      approximateFee + minimalAmount,
-      customIncrementalValue || defaultIncrementalValue,
-      onlyBtcUtxos,
-    );
+    const target = approximateFee + minimalAmount;
+    const incrementalValue = customIncrementalValue || defaultIncrementalValue;
+
+    const result = this.coinSelection(target, incrementalValue, onlyBtcUtxos);
+
+    return result;
   }
 
   coinSelection(target: bigint, utxoIncrementValue: bigint, onlyBtcUtxos = false): Array<BitcoinUtxo | Lrc20Utxo> {
     // Target would be bigger if we will add the utxoIncrementValue to the target
     const targetOnFirstIteration = target + utxoIncrementValue;
+
     // Check if total UTXOs value is equal to target
     const utxos = (onlyBtcUtxos ? this.utxos.filter((utxo) => !(utxo instanceof Lrc20Utxo)) : this.utxos).filter(
       (utxo) =>
         this.reservedUtxos.findIndex((reserved) => reserved.txid == utxo.txid && reserved.vout == utxo.vout) == -1,
     );
+
     const totalValue = utxos.reduce((acc, utxo) => acc + BigInt(utxo.satoshis), 0n);
+
     if (totalValue === targetOnFirstIteration + BigInt(utxos.length) * utxoIncrementValue) {
       return utxos;
     }

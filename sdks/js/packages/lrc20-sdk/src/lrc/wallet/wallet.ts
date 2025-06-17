@@ -8,9 +8,7 @@ import {
   type Network as BitcoinJsNetwork,
 } from "bitcoinjs-lib";
 import { plainToInstance } from "class-transformer";
-import { ECPairInterface } from "ecpair";
 import { publicKeyToAddress } from "../../address/index.ts";
-import { ECPair } from "../../bitcoin-core.ts";
 import { NetworkType, toNetworkType, toPsbtNetwork } from "../../network/index.ts";
 import { AddressType } from "../../types.ts";
 import { BasicAuth, ElectrsApi, Lrc20JsonRPC } from "../api/index.ts";
@@ -30,8 +28,6 @@ import {
   Lrc20TransactionType,
   Lrc20TransactionTypeEnum,
   Lrc20Utxo,
-  MultisigReceiptInput,
-  MultisigReceiptOutput,
   Payment,
   PubkeyFreezeAnnouncement,
   Receipt,
@@ -64,6 +60,7 @@ import {
   toEvenParity,
   toXOnly,
 } from "../utils/index.ts";
+import { DefaultTokenSigner, TokenSigner } from "../signer/signer.ts";
 
 export interface LRC20WalletApiConfig {
   lrc20NodeUrl: string;
@@ -80,9 +77,9 @@ export interface MayHaveLrc20WalletApiConfig {
 }
 
 export class LRCWallet {
+  public signer: TokenSigner | undefined;
   public p2trAddress: string;
   public p2wpkhAddress: string;
-  public addressInnerKey: Buffer;
   public pubkey: Buffer;
   public btcUtxos: Array<Lrc20Utxo | BitcoinUtxo> = [];
   public spentBtcUtxos: Array<Lrc20Utxo | BitcoinUtxo> = [];
@@ -94,44 +91,31 @@ export class LRCWallet {
   private unspentBtcUtxo: Array<Lrc20Utxo | BitcoinUtxo> = [];
   private networkType: NetworkType;
   private builder: TransactionBuilder;
-  private keyPair: ECPairInterface;
   private network: BitcoinJsNetwork;
   private electrsApi: ElectrsApi;
   private lrcNodeApi: Lrc20JsonRPC;
   private tokenInfoMap: Map<string, TokenPubkeyInfo> = new Map();
 
-  private readonly privateKeyHex: string;
+  constructor(btcNetwork: BitcoinJsNetwork, networkType: NetworkType, signer?: TokenSigner) {
+    this.signer = signer ?? new DefaultTokenSigner();
+    this.network = btcNetwork;
+    this.networkType = networkType;
+  }
 
-  constructor(
-    privateKeyHex: string,
+  public static async create(
     btcNetwork: BitcoinJsNetwork,
     networkType: NetworkType,
     apiConfig?: LRC20WalletApiConfig,
-  ) {
-    this.privateKeyHex = privateKeyHex;
-    this.network = btcNetwork;
-    this.networkType = networkType;
-
-    this.init(apiConfig);
+    signer?: TokenSigner,
+  ): Promise<LRCWallet> {
+    const wallet = new LRCWallet(btcNetwork, networkType, signer);
+    await wallet.init(apiConfig);
+    return wallet;
   }
 
-  public getNetwork(): BitcoinJsNetwork {
-    return this.network;
-  }
-
-  public getKeypair(): ECPairInterface {
-    return this.keyPair;
-  }
-
-  public getElectrsApi(): ElectrsApi {
-    return this.electrsApi;
-  }
-
-  protected init(apiConfig?: LRC20WalletApiConfig) {
-    this.keyPair = ECPair.fromPrivateKey(Buffer.from(this.privateKeyHex, "hex"), { network: this.network });
-    this.pubkey = this.keyPair.publicKey;
-    this.builder = new TransactionBuilder(this.keyPair, this.network);
-    this.addressInnerKey = this.keyPair.publicKey;
+  protected async init(apiConfig?: LRC20WalletApiConfig) {
+    this.pubkey = Buffer.from(await this.signer.getIdentityPublicKey());
+    this.builder = new TransactionBuilder(this.signer, this.network);
 
     const electrsUrl = apiConfig?.electrsUrl || ELECTRS_URL[this.networkType] || ELECTRS_URL["default"];
 
@@ -151,7 +135,7 @@ export class LRCWallet {
       ? new Lrc20JsonRPC(apiConfig.lrc20NodeUrl)
       : new Lrc20JsonRPC(LRC_NODE_URL[this.networkType] || LRC_NODE_URL["default"]);
 
-    const pubkeyHex = this.keyPair.publicKey.toString("hex");
+    const pubkeyHex = Buffer.from(await this.signer.getIdentityPublicKey()).toString("hex");
     const networkType = toNetworkType(this.network);
 
     this.p2trAddress = publicKeyToAddress(pubkeyHex, AddressType.P2TR, networkType);
@@ -161,7 +145,7 @@ export class LRCWallet {
   public async syncWallet(): Promise<void> {
     // Get bitcoin utxos
     const bech32Address = payments.p2wpkh({
-      pubkey: this.keyPair.publicKey,
+      pubkey: this.pubkey,
       network: this.network,
     }).address!;
     let btcUtxos = await this.fetchUtxos(bech32Address);
@@ -173,6 +157,14 @@ export class LRCWallet {
     );
 
     this.btcUtxos = btcUtxos;
+  }
+
+  public getNetwork(): BitcoinJsNetwork {
+    return this.network;
+  }
+
+  public getElectrsApi(): ElectrsApi {
+    return this.electrsApi;
   }
 
   private async fetchUtxos(address: string): Promise<BitcoinUtxo[]> {
@@ -207,11 +199,11 @@ export class LRCWallet {
     return utxos;
   }
 
-  public changeNetwork(network: NetworkType): void {
+  public async changeNetwork(network: NetworkType): Promise<void> {
     this.networkType = network;
     this.network = toPsbtNetwork(network);
 
-    this.init();
+    await this.init();
 
     // Clear UTXO arrays and reset lastLrc20Page
     this.lrc20Utxos = [];
@@ -285,9 +277,9 @@ export class LRCWallet {
       return BitcoinOutput.createFromRaw(transfer.receiverP2WPKH, transfer.sats);
     });
 
-    const changeOutput = this.createRawBtcChangeOutput();
+    const changeOutput = await this.createRawBtcChangeOutput();
 
-    return this.builder.buildAndSignTransaction(inputs, outputs, changeOutput, feeRateVb, [], locktime, sequence);
+    return await this.builder.buildAndSignTransaction(inputs, outputs, changeOutput, feeRateVb, locktime, sequence);
   }
 
   public async prepareAnnouncement(
@@ -297,28 +289,28 @@ export class LRCWallet {
     sequence = 0,
   ): Promise<Lrc20Transaction> {
     const tokenPubkeyAnnouncementOutput = await this.builder.buildAnnouncementOutput(announcement);
-    const changeOutput = this.createRawBtcChangeOutput();
-    const inputs = await this.createInputsFromUtxos(
-      new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(0, 0, 2, feeRateVb, true),
-    );
+    const changeOutput = await this.createRawBtcChangeOutput();
+    const selectedUtxos = new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(0, 0, 2, feeRateVb, true);
+    const inputs = await this.createInputsFromUtxos(selectedUtxos);
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       [tokenPubkeyAnnouncementOutput],
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
 
-    return this.convertToLrc20Transaction(
+    const lrc20Tx = this.convertToLrc20Transaction(
       inputs,
       [tokenPubkeyAnnouncementOutput, changeOutput],
       tx,
       Lrc20TransactionTypeEnum.Announcement,
       announcement,
     );
+
+    return lrc20Tx;
   }
 
   public async prepareTransferOwnership(
@@ -328,17 +320,16 @@ export class LRCWallet {
     sequence = 0,
   ): Promise<Lrc20Transaction> {
     const transferOwnershipOutput = await this.builder.buildTransferOwnershipOutput(announcement);
-    const changeOutput = this.createRawBtcChangeOutput();
+    const changeOutput = await this.createRawBtcChangeOutput();
     const inputs = await this.createInputsFromUtxos(
       new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(0, 0, 2, feeRateVb, true),
     );
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       [transferOwnershipOutput],
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
@@ -367,12 +358,11 @@ export class LRCWallet {
       new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(0, 0, 3, feeRateVb),
     );
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       [tokenPubkeyAnnouncementOutput, btcOutput],
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
@@ -393,17 +383,16 @@ export class LRCWallet {
     sequence = 0,
   ): Promise<Lrc20Transaction> {
     const freezeAnnouncementOutput = await this.builder.buildFreezeOutput(freeze);
-    const changeOutput = this.createRawBtcChangeOutput();
+    const changeOutput = await this.createRawBtcChangeOutput();
     const inputs = await this.createInputsFromUtxos(
       new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(0, 0, 2, feeRateVb, true),
     );
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       [freezeAnnouncementOutput],
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
@@ -436,12 +425,11 @@ export class LRCWallet {
     const issuanceAnnouncementOutput = await this.builder.buildIssuanceOutput(issuanceOutputs);
     const changeOutput = this.createReceiptBtcChangeOutput();
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       [issuanceAnnouncementOutput, ...issuanceOutputs],
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
@@ -472,12 +460,11 @@ export class LRCWallet {
     const exitOutputs = this.createOutputs(tokens);
     const changeOutput = this.createReceiptBtcChangeOutput();
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       inputs,
       exitOutputs,
       changeOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
@@ -510,17 +497,16 @@ export class LRCWallet {
       ),
     );
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       [...btcInputs, ...lrc20Inputs],
       [...lrc20Outputs, ...changeLrc20Outputs],
       changeBtcOutput,
       feeRateVb,
-      [],
       locktime,
       sequence,
     );
 
-    return this.convertToLrc20Transaction(
+    return await this.convertToLrc20Transaction(
       [...btcInputs, ...lrc20Inputs],
       [...lrc20Outputs, ...changeLrc20Outputs, changeBtcOutput],
       tx,
@@ -541,55 +527,11 @@ export class LRCWallet {
     const changeBtcOutput = this.createReceiptBtcChangeOutput();
     const changeLrc20Outputs = this.createLrc20ChangeOutputs(lrc20Inputs, lrc20Outputs);
 
-    const tx = this.builder.buildAndSignTransaction(
+    const tx = await this.builder.buildAndSignTransaction(
       [...btcInputs, ...lrc20Inputs],
       [...lrc20Outputs, ...changeLrc20Outputs],
       changeBtcOutput,
       feeRateVb,
-      [],
-      locktime,
-      sequence,
-    );
-
-    return this.convertToLrc20Transaction(
-      [...btcInputs, ...lrc20Inputs],
-      [...lrc20Outputs, ...changeLrc20Outputs, changeBtcOutput],
-      tx,
-      Lrc20TransactionTypeEnum.Transfer,
-    );
-  }
-
-  public async prepareMultisigTransfer(
-    txid: string,
-    privateKeys: Array<ECPairInterface>,
-    tokens: Array<Payment>,
-    feeRateVb: number,
-    locktime = 0,
-    sequence = 0,
-  ): Promise<Lrc20Transaction> {
-    const lrc20Outputs = this.createOutputs(tokens);
-    const multisigInputTx = await this.lrcNodeApi.getRawLrc20Tx(txid);
-    const [utxos, _] = Lrc20Utxo.fromLrc20Transaction(Lrc20Transaction.fromLrc20TransactionDto(multisigInputTx.data));
-    const p2wshUtxos = utxos.filter((utxo) => utxo.receipt.type == ReceiptProofType.P2WSH);
-    const lrc20Inputs = await this.createInputsFromUtxos(p2wshUtxos);
-    const changeBtcOutput = this.createReceiptBtcChangeOutput();
-    const changeLrc20Outputs = this.createLrc20ChangeOutputs(lrc20Inputs, lrc20Outputs);
-    const btcInputs = await this.createInputsFromUtxos(
-      new BtcUtxosCoinSelection(this.btcUtxos).selectUtxos(
-        0,
-        [...lrc20Inputs].length,
-        [...lrc20Outputs, ...changeLrc20Outputs, changeBtcOutput].length,
-        feeRateVb,
-        false,
-      ),
-    );
-
-    const tx = this.builder.buildAndSignTransaction(
-      [...btcInputs, ...lrc20Inputs],
-      [...lrc20Outputs, ...changeLrc20Outputs],
-      changeBtcOutput,
-      feeRateVb,
-      privateKeys,
       locktime,
       sequence,
     );
@@ -627,7 +569,7 @@ export class LRCWallet {
       );
     }
 
-    const tx = this.builder.buildAndSignOneInputTx(inputs[0]);
+    const tx = await this.builder.buildAndSignOneInputTx(inputs[0]);
 
     return this.convertToLrc20Transaction([...inputs], [], tx, Lrc20TransactionTypeEnum.Transfer);
   }
@@ -643,7 +585,7 @@ export class LRCWallet {
 
     const p2trAddress = payments.p2tr({
       network: this.network,
-      pubkey: toXOnly(this.keyPair.publicKey),
+      pubkey: toXOnly(Buffer.from(await this.signer.getIdentityPublicKey())),
     }).address!;
 
     let lrc20Outputs: TxOutput[] = [];
@@ -711,7 +653,7 @@ export class LRCWallet {
 
     const inputs = await this.createInputsFromUtxos(selectedLrc20Utxos);
 
-    const tx = this.builder.buildAndSignMakerPsbt([...inputs], lrc20Outputs[0]);
+    const tx = await this.builder.buildAndSignMakerPsbt([...inputs], lrc20Outputs[0]);
 
     return this.convertToLrc20Transaction([...inputs], [lrc20Outputs[0]], tx, Lrc20TransactionTypeEnum.Transfer);
   }
@@ -834,7 +776,7 @@ export class LRCWallet {
     );
     const makerInputs = await this.createInputsFromUtxos([...selectedLrc20Utxos, ...btcInputs]);
 
-    const tx = this.builder.buildAndSignTakerPsbt(
+    const tx = await this.builder.buildAndSignTakerPsbt(
       psbt,
       takerInputs,
       makerInputs,
@@ -998,7 +940,7 @@ export class LRCWallet {
     );
     const makerInputs = await this.createInputsFromUtxos([...btcInputs]);
 
-    const tx = this.builder.buildAndSignTakerPsbt(
+    const tx = await this.builder.buildAndSignTakerPsbt(
       psbt,
       takerInputs,
       makerInputs,
@@ -1236,7 +1178,7 @@ export class LRCWallet {
         const announcementInfo = {
           tokenPubkey: (outputs[1] as ReceiptOutput).receipt.tokenPubkey.inner.toString("hex"),
           amount: outputs
-            .filter((output) => output instanceof ReceiptOutput || output instanceof MultisigReceiptOutput)
+            .filter((output) => output instanceof ReceiptOutput)
             .reduce((acc, output) => {
               return acc + (output as ReceiptOutput).receipt.tokenAmount.amount;
             }, 0n),
@@ -1269,7 +1211,7 @@ export class LRCWallet {
     const amountsMap = new Map<string, { inputsSum: bigint; outputsSum: bigint }>();
 
     inputs.forEach((input) => {
-      if (input instanceof ReceiptInput || input instanceof MultisigReceiptInput) {
+      if (input instanceof ReceiptInput) {
         const tokenPubkey = input.proof.tokenPubkey.inner.toString("hex");
         if (amountsMap.get(tokenPubkey)) {
           const data = amountsMap.get(tokenPubkey)!;
@@ -1285,10 +1227,7 @@ export class LRCWallet {
     });
 
     outputs.forEach((output) => {
-      if (
-        (output instanceof ReceiptOutput || output instanceof MultisigReceiptOutput) &&
-        !output.receipt.isEmptyReceipt()
-      ) {
+      if (output instanceof ReceiptOutput && !output.receipt.isEmptyReceipt()) {
         const tokenPubkey = output.receipt.tokenPubkey.inner.toString("hex");
         const data = amountsMap.get(tokenPubkey)!;
         data.outputsSum += output.receipt.tokenAmount.amount;
@@ -1310,10 +1249,7 @@ export class LRCWallet {
     return changeOutputs;
   }
 
-  private createLrc20ChangeOutput(
-    changeReceipt: Receipt,
-    receiverPubKey: Buffer = this.addressInnerKey,
-  ): ReceiptOutput {
+  private createLrc20ChangeOutput(changeReceipt: Receipt, receiverPubKey: Buffer = this.pubkey): ReceiptOutput {
     return ReceiptOutput.createFromRaw(receiverPubKey, 1000, changeReceipt);
   }
 
@@ -1321,9 +1257,6 @@ export class LRCWallet {
     const inputProofs = new Map<number, ReceiptProof>();
     inputs.forEach((input, index) => {
       if (input instanceof ReceiptInput) {
-        inputProofs.set(index, input.toReceiptProofs());
-      }
-      if (input instanceof MultisigReceiptInput) {
         inputProofs.set(index, input.toReceiptProofs());
       }
     });
@@ -1410,15 +1343,11 @@ export class LRCWallet {
   }
 
   private createReceiptBtcChangeOutput(): ReceiptOutput {
-    return ReceiptOutput.createFromRaw(
-      this.addressInnerKey,
-      DUST_AMOUNT,
-      new Receipt(new TokenAmount(0n), new TokenPubkey()),
-    );
+    return ReceiptOutput.createFromRaw(this.pubkey, DUST_AMOUNT, new Receipt(new TokenAmount(0n), new TokenPubkey()));
   }
 
-  private createRawBtcChangeOutput(): BitcoinOutput {
-    return new BitcoinOutput(this.keyPair.publicKey, DUST_AMOUNT);
+  private async createRawBtcChangeOutput(): Promise<BitcoinOutput> {
+    return new BitcoinOutput(this.pubkey, DUST_AMOUNT);
   }
 
   private createOutputProofs(outputs: TxOutput[], index = 0): Map<number, ReceiptProof> {
@@ -1430,25 +1359,23 @@ export class LRCWallet {
       if (output instanceof SparkExitOutput) {
         outputProofs.set(index++, (output as SparkExitOutput).toReceiptProof());
       }
-      if (output instanceof MultisigReceiptOutput) {
-        outputProofs.set(index++, (output as MultisigReceiptOutput).toReceiptProof(this.network));
-      }
     });
 
     return outputProofs;
   }
 
   public async createInputsFromUtxos(utxos: Array<BitcoinUtxo | Lrc20Utxo>): Promise<TxInput[]> {
-    return Promise.all(
+    const inputs = await Promise.all(
       utxos.map(async (utxo) => {
-        return BitcoinInput.createFromRaw(
-          utxo.txid,
-          Number(utxo.vout),
-          await this.electrsApi.getTransactionHex(utxo.txid),
-          utxo.satoshis,
-        );
+        const hex = await this.electrsApi.getTransactionHex(utxo.txid);
+
+        const input = BitcoinInput.createFromRaw(utxo.txid, Number(utxo.vout), hex, utxo.satoshis);
+
+        return input;
       }),
     );
+
+    return inputs;
   }
 
   public createOutputs(
@@ -1488,21 +1415,6 @@ export class LRCWallet {
       } else if (typeof token.recipient === "string") {
         const addressParsed = address.fromBech32(token.recipient);
         return ReceiptOutput.createFromRaw(toEvenParity(addressParsed.data), token.sats || 1000, receipt);
-      } else if (Array.isArray(token.recipient)) {
-        const expiryPublicKey = token.expiryKey ? token.expiryKey : token.recipient[0];
-        const expiryReceiptKey = Receipt.receiptPublicKey(address.fromBech32(expiryPublicKey).data, receipt);
-
-        return MultisigReceiptOutput.createFromRaw(
-          token.recipient.map((addr) => {
-            const addressParsed = address.fromBech32(addr);
-            return toEvenParity(addressParsed.data);
-          }),
-          token.m || 2,
-          token.sats || 1000,
-          receipt,
-          token.cltvOutputLocktime,
-          expiryReceiptKey,
-        );
       }
     });
   }

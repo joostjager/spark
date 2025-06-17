@@ -9,7 +9,7 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -28,7 +28,7 @@ func (h *InvestigationHandler) InvestigateLeaves(ctx context.Context) error {
 
 	leaves, err := db.TreeNode.
 		Query().
-		Where(treenode.StatusEQ(schema.TreeNodeStatusInvestigation)).
+		Where(treenode.StatusEQ(st.TreeNodeStatusInvestigation)).
 		Limit(1000).
 		WithSigningKeyshare().
 		All(ctx)
@@ -101,12 +101,12 @@ func (h *InvestigationHandler) InvestigateLeaves(ctx context.Context) error {
 
 	for _, leaf := range leaves {
 		if _, ok := badNodes[leaf.ID.String()]; ok {
-			_, err = leaf.Update().SetStatus(schema.TreeNodeStatusLost).Save(ctx)
+			_, err = leaf.Update().SetStatus(st.TreeNodeStatusLost).Save(ctx)
 			if err != nil {
 				return err
 			}
 		} else {
-			_, err = leaf.Update().SetStatus(schema.TreeNodeStatusAvailable).Save(ctx)
+			_, err = leaf.Update().SetStatus(st.TreeNodeStatusAvailable).Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -161,14 +161,14 @@ func (h *InvestigationHandler) ResolveLeafInvestigation(ctx context.Context, req
 	}
 
 	for _, leaf := range lostLeaves {
-		_, err = leaf.Update().SetStatus(schema.TreeNodeStatusLost).Save(ctx)
+		_, err = leaf.Update().SetStatus(st.TreeNodeStatusLost).Save(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	for _, leaf := range availableLeaves {
-		_, err = leaf.Update().SetStatus(schema.TreeNodeStatusAvailable).Save(ctx)
+		_, err = leaf.Update().SetStatus(st.TreeNodeStatusAvailable).Save(ctx)
 		if err != nil {
 			return nil, err
 		}

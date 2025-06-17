@@ -12,11 +12,7 @@ const TOKEN_PUBKEY =
   "02e85316cc097bd7dffbc97c2ceeeb2ff984eccb227cdac6b29bad0b1e02146c0d";
 const SATOSHIS = 15000;
 
-const wallet = new LRCWallet(
-  "4799979d5e417e3d6d00cf89a77d4f3c0354d295810326c6b0bf4b45aedb38f3",
-  bitcoin.networks.regtest,
-  NetworkType.REGTEST,
-);
+const wallet = new LRCWallet(bitcoin.networks.regtest, NetworkType.REGTEST);
 
 const main = async () => {
   await wallet.syncWallet();

@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 )
@@ -27,9 +27,9 @@ type Tree struct {
 	// OwnerIdentityPubkey holds the value of the "owner_identity_pubkey" field.
 	OwnerIdentityPubkey []byte `json:"owner_identity_pubkey,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TreeStatus `json:"status,omitempty"`
+	Status schematype.TreeStatus `json:"status,omitempty"`
 	// Network holds the value of the "network" field.
-	Network schema.Network `json:"network,omitempty"`
+	Network schematype.Network `json:"network,omitempty"`
 	// BaseTxid holds the value of the "base_txid" field.
 	BaseTxid []byte `json:"base_txid,omitempty"`
 	// Vout holds the value of the "vout" field.
@@ -132,13 +132,13 @@ func (t *Tree) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				t.Status = schema.TreeStatus(value.String)
+				t.Status = schematype.TreeStatus(value.String)
 			}
 		case tree.FieldNetwork:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field network", values[i])
 			} else if value.Valid {
-				t.Network = schema.Network(value.String)
+				t.Network = schematype.Network(value.String)
 			}
 		case tree.FieldBaseTxid:
 			if value, ok := values[i].(*[]byte); !ok {

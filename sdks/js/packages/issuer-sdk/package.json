@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/issuer-sdk",
-  "version": "0.0.63",
+  "version": "0.0.71",
   "description": "Spark Issuer SDK for token issuance",
   "license": "Apache-2.0",
   "module": "./dist/index.js",
@@ -35,7 +35,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "yarn tsc && tsup",
@@ -61,9 +62,9 @@
     "types": "tsc"
   },
   "dependencies": {
-    "@buildonspark/lrc20-sdk": "0.0.54",
-    "@buildonspark/spark-sdk": "0.1.32",
-    "@lightsparkdev/core": "^1.4.0",
+    "@buildonspark/lrc20-sdk": "0.0.57",
+    "@buildonspark/spark-sdk": "0.1.40",
+    "@lightsparkdev/core": "^1.4.1",
     "@noble/curves": "^1.8.0",
     "@scure/btc-signer": "^1.5.0",
     "bitcoinjs-lib": "^6.1.5",

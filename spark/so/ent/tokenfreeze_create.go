@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 )
 
@@ -51,7 +51,7 @@ func (tfc *TokenFreezeCreate) SetNillableUpdateTime(t *time.Time) *TokenFreezeCr
 }
 
 // SetStatus sets the "status" field.
-func (tfc *TokenFreezeCreate) SetStatus(sfs schema.TokenFreezeStatus) *TokenFreezeCreate {
+func (tfc *TokenFreezeCreate) SetStatus(sfs schematype.TokenFreezeStatus) *TokenFreezeCreate {
 	tfc.mutation.SetStatus(sfs)
 	return tfc
 }

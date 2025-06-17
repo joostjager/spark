@@ -135,7 +135,7 @@ func TestPointPolynomial(t *testing.T) {
 		expectedPoint := pointFromScalar(scalarFromInt(tc.expected))
 		result := poly.Eval(x)
 
-		if !pointEqual(result, expectedPoint) {
+		if !PointEqual(result, expectedPoint) {
 			t.Errorf("Point polynomial P(%d) gave incorrect result", tc.x)
 		}
 	}
@@ -192,7 +192,7 @@ func TestPointLagrangeInterpolation(t *testing.T) {
 	// Reconstruct at x=0 (should give us the secret point)
 	reconstructed := ReconstructPoint(points)
 
-	if !pointEqual(reconstructed, secretPoint) {
+	if !PointEqual(reconstructed, secretPoint) {
 		t.Errorf("Point Lagrange interpolation failed to reconstruct secret point")
 	}
 }
@@ -376,7 +376,7 @@ func TestScalarPointConsistency(t *testing.T) {
 		pointResult := pointPoly.Eval(x)
 		expectedPoint := pointFromScalar(scalarResult)
 
-		if !pointEqual(pointResult, expectedPoint) {
+		if !PointEqual(pointResult, expectedPoint) {
 			t.Errorf("Inconsistency at x=%d between scalar and point polynomial", xVal)
 		}
 	}

@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
@@ -71,13 +71,13 @@ func (ttrc *TokenTransactionReceiptCreate) SetOperatorSignature(b []byte) *Token
 }
 
 // SetStatus sets the "status" field.
-func (ttrc *TokenTransactionReceiptCreate) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionReceiptCreate {
+func (ttrc *TokenTransactionReceiptCreate) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionReceiptCreate {
 	ttrc.mutation.SetStatus(sts)
 	return ttrc
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttrc *TokenTransactionReceiptCreate) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionReceiptCreate {
+func (ttrc *TokenTransactionReceiptCreate) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionReceiptCreate {
 	if sts != nil {
 		ttrc.SetStatus(*sts)
 	}

@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common/logging"
 	pb "github.com/lightsparkdev/spark/proto/spark"
+	tokenpb "github.com/lightsparkdev/spark/proto/spark_token"
 	"github.com/lightsparkdev/spark/so"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 	"github.com/lightsparkdev/spark/so/utils"
@@ -41,16 +42,16 @@ func CreateStartedTransactionEntities(
 	logger := logging.GetLoggerFromContext(ctx)
 	db := GetDbFromContext(ctx)
 
-	partialTokenTransactionHash, err := utils.HashTokenTransaction(tokenTransaction, true)
+	partialTokenTransactionHash, err := utils.HashTokenTransactionV0(tokenTransaction, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash partial token transaction: %w", err)
 	}
-	finalTokenTransactionHash, err := utils.HashTokenTransaction(tokenTransaction, false)
+	finalTokenTransactionHash, err := utils.HashTokenTransactionV0(tokenTransaction, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash final token transaction: %w", err)
 	}
 
-	var network schema.Network
+	var network st.Network
 	err = network.UnmarshalProto(tokenTransaction.Network)
 	if err != nil {
 		logger.Error("Failed to unmarshal network", "error", err)
@@ -70,7 +71,7 @@ func CreateStartedTransactionEntities(
 		tokenTransactionEnt, err = db.TokenTransaction.Create().
 			SetPartialTokenTransactionHash(partialTokenTransactionHash).
 			SetFinalizedTokenTransactionHash(finalTokenTransactionHash).
-			SetStatus(schema.TokenTransactionStatusStarted).
+			SetStatus(st.TokenTransactionStatusStarted).
 			SetCoordinatorPublicKey(coordinatorPublicKey).
 			SetExpiryTime(transactionExpiryTime).
 			SetMintID(tokenMintEnt.ID).
@@ -93,7 +94,7 @@ func CreateStartedTransactionEntities(
 		tokenTransactionEnt, err = db.TokenTransaction.Create().
 			SetPartialTokenTransactionHash(partialTokenTransactionHash).
 			SetFinalizedTokenTransactionHash(finalTokenTransactionHash).
-			SetStatus(schema.TokenTransactionStatusStarted).
+			SetStatus(st.TokenTransactionStatusStarted).
 			SetCoordinatorPublicKey(coordinatorPublicKey).
 			SetExpiryTime(transactionExpiryTime).
 			Save(ctx)
@@ -103,7 +104,7 @@ func CreateStartedTransactionEntities(
 
 		for outputIndex, outputToSpendEnt := range orderedOutputToSpendEnts {
 			_, err = db.TokenOutput.UpdateOne(outputToSpendEnt).
-				SetStatus(schema.TokenOutputStatusSpentStarted).
+				SetStatus(st.TokenOutputStatusSpentStarted).
 				SetOutputSpentTokenTransactionID(tokenTransactionEnt.ID).
 				SetSpentOwnershipSignature(ownershipSignatures[outputIndex].Signature).
 				SetSpentTransactionInputVout(int32(outputIndex)).
@@ -130,7 +131,7 @@ func CreateStartedTransactionEntities(
 				Create().
 				// TODO: Consider whether the coordinator instead of the wallet should define this ID.
 				SetID(outputUUID).
-				SetStatus(schema.TokenOutputStatusCreatedStarted).
+				SetStatus(st.TokenOutputStatusCreatedStarted).
 				SetOwnerPublicKey(output.OwnerPublicKey).
 				SetWithdrawBondSats(*output.WithdrawBondSats).
 				SetWithdrawRelativeBlockLocktime(*output.WithdrawRelativeBlockLocktime).
@@ -162,19 +163,19 @@ func UpdateSignedTransaction(
 	// Update the token transaction with the operator signature and new status
 	_, err := GetDbFromContext(ctx).TokenTransaction.UpdateOne(tokenTransactionEnt).
 		SetOperatorSignature(operatorSignature).
-		SetStatus(schema.TokenTransactionStatusSigned).
+		SetStatus(st.TokenTransactionStatusSigned).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update token transaction with operator signature and status: %w", err)
 	}
 
-	newInputStatus := schema.TokenOutputStatusSpentSigned
-	newOutputLeafStatus := schema.TokenOutputStatusCreatedSigned
+	newInputStatus := st.TokenOutputStatusSpentSigned
+	newOutputLeafStatus := st.TokenOutputStatusCreatedSigned
 	if tokenTransactionEnt.Edges.Mint != nil {
 		// If this is a mint, update status straight to finalized because a follow up Finalize() call
 		// is not necessary for mint.
-		newInputStatus = schema.TokenOutputStatusSpentFinalized
-		newOutputLeafStatus = schema.TokenOutputStatusCreatedFinalized
+		newInputStatus = st.TokenOutputStatusSpentFinalized
+		newOutputLeafStatus = st.TokenOutputStatusCreatedFinalized
 		if len(operatorSpecificOwnershipSignatures) != 1 {
 			return fmt.Errorf(
 				"expected 1 ownership signature for mint, got %d",
@@ -242,7 +243,7 @@ func UpdateFinalizedTransaction(
 ) error {
 	// Update the token transaction with the operator signature and new status
 	_, err := GetDbFromContext(ctx).TokenTransaction.UpdateOne(tokenTransactionEnt).
-		SetStatus(schema.TokenTransactionStatusFinalized).
+		SetStatus(st.TokenTransactionStatusFinalized).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update token transaction with finalized status: %w", err)
@@ -263,7 +264,7 @@ func UpdateFinalizedTransaction(
 	for _, outputToSpendEnt := range tokenTransactionEnt.Edges.SpentOutput {
 		inputIndex := outputToSpendEnt.SpentTransactionInputVout
 		_, err := GetDbFromContext(ctx).TokenOutput.UpdateOne(outputToSpendEnt).
-			SetStatus(schema.TokenOutputStatusSpentFinalized).
+			SetStatus(st.TokenOutputStatusSpentFinalized).
 			SetSpentRevocationSecret(revocationSecrets[inputIndex].RevocationSecret).
 			Save(ctx)
 		if err != nil {
@@ -278,7 +279,50 @@ func UpdateFinalizedTransaction(
 	}
 	_, err = GetDbFromContext(ctx).TokenOutput.Update().
 		Where(tokenoutput.IDIn(outputIDs...)).
-		SetStatus(schema.TokenOutputStatusCreatedFinalized).
+		SetStatus(st.TokenOutputStatusCreatedFinalized).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to bulk update output status to finalized: %w", err)
+	}
+	return nil
+}
+
+// TODO: CNT-330 We should be finalizing when we have the revocation keyshares.
+func FinalizeTokenTransactionWithoutRevocationKeys(
+	ctx context.Context,
+	tokenTransactionEnt *TokenTransaction,
+) error {
+	// Update the token transaction with the operator signature and new status
+	_, err := GetDbFromContext(ctx).TokenTransaction.UpdateOne(tokenTransactionEnt).
+		SetStatus(st.TokenTransactionStatusFinalized).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to update token transaction with finalized status: %w", err)
+	}
+
+	spentLeaves := tokenTransactionEnt.Edges.SpentOutput
+	if len(spentLeaves) == 0 {
+		return fmt.Errorf("no spent outputs found for transaction. cannot finalize")
+	}
+	// Update inputs.
+	for _, outputToSpendEnt := range tokenTransactionEnt.Edges.SpentOutput {
+		_, err := GetDbFromContext(ctx).TokenOutput.UpdateOne(outputToSpendEnt).
+			SetStatus(st.TokenOutputStatusSpentFinalized).
+			SetSpentRevocationSecret([]byte{}).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to update spent output to signed: %w", err)
+		}
+	}
+
+	// Update outputs.
+	outputIDs := make([]uuid.UUID, len(tokenTransactionEnt.Edges.CreatedOutput))
+	for i, output := range tokenTransactionEnt.Edges.CreatedOutput {
+		outputIDs[i] = output.ID
+	}
+	_, err = GetDbFromContext(ctx).TokenOutput.Update().
+		Where(tokenoutput.IDIn(outputIDs...)).
+		SetStatus(st.TokenOutputStatusCreatedFinalized).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bulk update output status to finalized: %w", err)
@@ -301,12 +345,12 @@ func UpdateCancelledTransaction(
 	for _, output := range spentLeaves {
 		allOutputIDs = append(allOutputIDs, output.ID)
 		// Verify output is in the expected state
-		if output.Status != schema.TokenOutputStatusSpentStarted && output.Status != schema.TokenOutputStatusSpentSigned {
+		if output.Status != st.TokenOutputStatusSpentStarted && output.Status != st.TokenOutputStatusSpentSigned {
 			return fmt.Errorf("spent output ID %s has status %s, expected %s or %s",
 				output.ID.String(),
 				output.Status,
-				schema.TokenOutputStatusSpentStarted,
-				schema.TokenOutputStatusSpentSigned)
+				st.TokenOutputStatusSpentStarted,
+				st.TokenOutputStatusSpentSigned)
 		}
 	}
 
@@ -314,12 +358,12 @@ func UpdateCancelledTransaction(
 	for _, output := range tokenTransactionEnt.Edges.CreatedOutput {
 		allOutputIDs = append(allOutputIDs, output.ID)
 		// Verify output is in the expected state
-		if output.Status != schema.TokenOutputStatusCreatedStarted && output.Status != schema.TokenOutputStatusCreatedSigned {
+		if output.Status != st.TokenOutputStatusCreatedStarted && output.Status != st.TokenOutputStatusCreatedSigned {
 			return fmt.Errorf("created output ID %s has status %s, expected %s or %s",
 				output.ID.String(),
 				output.Status,
-				schema.TokenOutputStatusCreatedStarted,
-				schema.TokenOutputStatusCreatedSigned)
+				st.TokenOutputStatusCreatedStarted,
+				st.TokenOutputStatusCreatedSigned)
 		}
 	}
 
@@ -332,16 +376,16 @@ func UpdateCancelledTransaction(
 		return fmt.Errorf("failed to lock all token outputs for update: %w", err)
 	}
 
-	var newStatus schema.TokenTransactionStatus
-	if tokenTransactionEnt.Status == schema.TokenTransactionStatusStarted {
-		newStatus = schema.TokenTransactionStatusStartedCancelled
-	} else if tokenTransactionEnt.Status == schema.TokenTransactionStatusSigned {
-		newStatus = schema.TokenTransactionStatusSignedCancelled
+	var newStatus st.TokenTransactionStatus
+	if tokenTransactionEnt.Status == st.TokenTransactionStatusStarted {
+		newStatus = st.TokenTransactionStatusStartedCancelled
+	} else if tokenTransactionEnt.Status == st.TokenTransactionStatusSigned {
+		newStatus = st.TokenTransactionStatusSignedCancelled
 	} else {
 		return fmt.Errorf("token transaction status %s is not valid for cancelling", tokenTransactionEnt.Status)
 	}
 	_, err = db.TokenTransaction.UpdateOne(tokenTransactionEnt).
-		SetStatus(schema.TokenTransactionStatus(newStatus)).
+		SetStatus(st.TokenTransactionStatus(newStatus)).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update token transaction with finalized status: %w", err)
@@ -349,26 +393,26 @@ func UpdateCancelledTransaction(
 
 	// Update spent outputs to re-enable spending.
 	_, err = db.TokenOutput.Update().
-		Where(tokenoutput.StatusIn(schema.TokenOutputStatusSpentStarted, schema.TokenOutputStatusSpentSigned)).
+		Where(tokenoutput.StatusIn(st.TokenOutputStatusSpentStarted, st.TokenOutputStatusSpentSigned)).
 		Where(tokenoutput.IDIn(allOutputIDs...)).
-		SetStatus(schema.TokenOutputStatusCreatedFinalized).
+		SetStatus(st.TokenOutputStatusCreatedFinalized).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bulk update spent output status to created finalized: %w", err)
 	}
 	// Update created outputs to invalidate them
 	_, err = db.TokenOutput.Update().
-		Where(tokenoutput.StatusEQ(schema.TokenOutputStatusCreatedStarted)).
+		Where(tokenoutput.StatusEQ(st.TokenOutputStatusCreatedStarted)).
 		Where(tokenoutput.IDIn(allOutputIDs...)).
-		SetStatus(schema.TokenOutputStatusCreatedStartedCancelled).
+		SetStatus(st.TokenOutputStatusCreatedStartedCancelled).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bulk update created output status to started cancelled: %w", err)
 	}
 	_, err = db.TokenOutput.Update().
-		Where(tokenoutput.StatusEQ(schema.TokenOutputStatusCreatedSigned)).
+		Where(tokenoutput.StatusEQ(st.TokenOutputStatusCreatedSigned)).
 		Where(tokenoutput.IDIn(allOutputIDs...)).
-		SetStatus(schema.TokenOutputStatusCreatedSignedCancelled).
+		SetStatus(st.TokenOutputStatusCreatedSignedCancelled).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bulk update created output status to signed cancelled: %w", err)
@@ -394,14 +438,14 @@ func FetchPartialTokenTransactionData(ctx context.Context, partialTokenTransacti
 }
 
 // FetchTokenTransactionData refetches the transaction with all its relations.
-func FetchAndLockTokenTransactionData(ctx context.Context, finalTokenTransaction *pb.TokenTransaction) (*TokenTransaction, error) {
-	finalTokenTransactionHash, err := utils.HashTokenTransaction(finalTokenTransaction, false)
+func FetchAndLockTokenTransactionData(ctx context.Context, finalTokenTransaction *tokenpb.TokenTransaction) (*TokenTransaction, error) {
+	calculatedFinalTokenTransactionHash, err := utils.HashTokenTransaction(finalTokenTransaction, false)
 	if err != nil {
 		return nil, err
 	}
 
 	tokenTransaction, err := GetDbFromContext(ctx).TokenTransaction.Query().
-		Where(tokentransaction.FinalizedTokenTransactionHash(finalTokenTransactionHash)).
+		Where(tokentransaction.FinalizedTokenTransactionHash(calculatedFinalTokenTransactionHash)).
 		WithCreatedOutput().
 		WithSpentOutput(func(q *TokenOutputQuery) {
 			// Needed to enable marshalling of the token transaction proto.

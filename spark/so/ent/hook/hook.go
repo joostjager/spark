@@ -105,6 +105,18 @@ func (f SigningNonceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SigningNonceMutation", m)
 }
 
+// The TokenCreateFunc type is an adapter to allow the use of ordinary
+// function as TokenCreate mutator.
+type TokenCreateFunc func(context.Context, *ent.TokenCreateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TokenCreateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TokenCreateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TokenCreateMutation", m)
+}
+
 // The TokenFreezeFunc type is an adapter to allow the use of ordinary
 // function as TokenFreeze mutator.
 type TokenFreezeFunc func(context.Context, *ent.TokenFreezeMutation) (ent.Value, error)

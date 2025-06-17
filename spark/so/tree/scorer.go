@@ -9,7 +9,7 @@ import (
 	"github.com/lightsparkdev/spark/common/logging"
 	pb "github.com/lightsparkdev/spark/proto/spark_tree"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 )
 
@@ -59,7 +59,7 @@ func (s *PolarityScorer) Start() {
 		s.logger.Info("checking for leaves updated after", slog.Time("last_updated", lastUpdated))
 		leaves, err := s.dbClient.TreeNode.Query().
 			Where(
-				treenode.StatusEQ(schema.TreeNodeStatusAvailable),
+				treenode.StatusEQ(st.TreeNodeStatusAvailable),
 				treenode.UpdateTimeGTE(lastUpdated),
 			).
 			Order(

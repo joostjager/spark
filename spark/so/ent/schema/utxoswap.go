@@ -7,57 +7,12 @@ import (
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
-	pb "github.com/lightsparkdev/spark/proto/spark"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // UtxoSwap holds the schema definition for the UtxoSwap entity.
 type UtxoSwap struct {
 	ent.Schema
-}
-
-type UtxoSwapStatus string
-
-const (
-	UtxoSwapStatusCreated   UtxoSwapStatus = "CREATED"
-	UtxoSwapStatusCompleted UtxoSwapStatus = "COMPLETED"
-	UtxoSwapStatusCancelled UtxoSwapStatus = "CANCELLED"
-)
-
-func (UtxoSwapStatus) Values() []string {
-	return []string{
-		string(UtxoSwapStatusCreated),
-		string(UtxoSwapStatusCompleted),
-		string(UtxoSwapStatusCancelled),
-	}
-}
-
-type UtxoSwapRequestType string
-
-const (
-	UtxoSwapRequestTypeFixedAmount UtxoSwapRequestType = "FIXED_AMOUNT"
-	UtxoSwapRequestTypeMaxFee      UtxoSwapRequestType = "MAX_FEE"
-	UtxoSwapRequestTypeRefund      UtxoSwapRequestType = "REFUND"
-)
-
-func (UtxoSwapRequestType) Values() []string {
-	return []string{
-		string(UtxoSwapRequestTypeFixedAmount),
-		string(UtxoSwapRequestTypeMaxFee),
-		string(UtxoSwapRequestTypeRefund),
-	}
-}
-
-func UtxoSwapFromProtoRequestType(requestType pb.UtxoSwapRequestType) UtxoSwapRequestType {
-	switch requestType {
-	case pb.UtxoSwapRequestType_Fixed:
-		return UtxoSwapRequestTypeFixedAmount
-	case pb.UtxoSwapRequestType_MaxFee:
-		return UtxoSwapRequestTypeMaxFee
-	case pb.UtxoSwapRequestType_Refund:
-		return UtxoSwapRequestTypeRefund
-	default:
-		return UtxoSwapRequestTypeFixedAmount
-	}
 }
 
 // Add generic fields
@@ -76,9 +31,9 @@ func (UtxoSwap) Indexes() []ent.Index {
 // Fields of the UtxoSwap.
 func (UtxoSwap) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("status").GoType(UtxoSwapStatus("")),
+		field.Enum("status").GoType(st.UtxoSwapStatus("")),
 		// quote
-		field.Enum("request_type").GoType(UtxoSwapRequestType("")),
+		field.Enum("request_type").GoType(st.UtxoSwapRequestType("")),
 		field.Uint64("credit_amount_sats").Optional(),
 		field.Uint64("max_fee_sats").Optional(),
 		field.Bytes("ssp_signature").Optional(),

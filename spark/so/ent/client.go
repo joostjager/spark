@@ -24,6 +24,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/signingnonce"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
@@ -60,6 +61,8 @@ type Client struct {
 	SigningKeyshare *SigningKeyshareClient
 	// SigningNonce is the client for interacting with the SigningNonce builders.
 	SigningNonce *SigningNonceClient
+	// TokenCreate is the client for interacting with the TokenCreate builders.
+	TokenCreate *TokenCreateClient
 	// TokenFreeze is the client for interacting with the TokenFreeze builders.
 	TokenFreeze *TokenFreezeClient
 	// TokenLeaf is the client for interacting with the TokenLeaf builders.
@@ -105,6 +108,7 @@ func (c *Client) init() {
 	c.PreimageShare = NewPreimageShareClient(c.config)
 	c.SigningKeyshare = NewSigningKeyshareClient(c.config)
 	c.SigningNonce = NewSigningNonceClient(c.config)
+	c.TokenCreate = NewTokenCreateClient(c.config)
 	c.TokenFreeze = NewTokenFreezeClient(c.config)
 	c.TokenLeaf = NewTokenLeafClient(c.config)
 	c.TokenMint = NewTokenMintClient(c.config)
@@ -218,6 +222,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PreimageShare:           NewPreimageShareClient(cfg),
 		SigningKeyshare:         NewSigningKeyshareClient(cfg),
 		SigningNonce:            NewSigningNonceClient(cfg),
+		TokenCreate:             NewTokenCreateClient(cfg),
 		TokenFreeze:             NewTokenFreezeClient(cfg),
 		TokenLeaf:               NewTokenLeafClient(cfg),
 		TokenMint:               NewTokenMintClient(cfg),
@@ -258,6 +263,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PreimageShare:           NewPreimageShareClient(cfg),
 		SigningKeyshare:         NewSigningKeyshareClient(cfg),
 		SigningNonce:            NewSigningNonceClient(cfg),
+		TokenCreate:             NewTokenCreateClient(cfg),
 		TokenFreeze:             NewTokenFreezeClient(cfg),
 		TokenLeaf:               NewTokenLeafClient(cfg),
 		TokenMint:               NewTokenMintClient(cfg),
@@ -301,10 +307,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.Gossip, c.PreimageRequest,
-		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenFreeze, c.TokenLeaf,
-		c.TokenMint, c.TokenOutput, c.TokenTransaction, c.TokenTransactionReceipt,
-		c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode, c.UserSignedTransaction,
-		c.Utxo, c.UtxoSwap,
+		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenCreate,
+		c.TokenFreeze, c.TokenLeaf, c.TokenMint, c.TokenOutput, c.TokenTransaction,
+		c.TokenTransactionReceipt, c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode,
+		c.UserSignedTransaction, c.Utxo, c.UtxoSwap,
 	} {
 		n.Use(hooks...)
 	}
@@ -315,10 +321,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BlockHeight, c.CooperativeExit, c.DepositAddress, c.Gossip, c.PreimageRequest,
-		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenFreeze, c.TokenLeaf,
-		c.TokenMint, c.TokenOutput, c.TokenTransaction, c.TokenTransactionReceipt,
-		c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode, c.UserSignedTransaction,
-		c.Utxo, c.UtxoSwap,
+		c.PreimageShare, c.SigningKeyshare, c.SigningNonce, c.TokenCreate,
+		c.TokenFreeze, c.TokenLeaf, c.TokenMint, c.TokenOutput, c.TokenTransaction,
+		c.TokenTransactionReceipt, c.Transfer, c.TransferLeaf, c.Tree, c.TreeNode,
+		c.UserSignedTransaction, c.Utxo, c.UtxoSwap,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -343,6 +349,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SigningKeyshare.mutate(ctx, m)
 	case *SigningNonceMutation:
 		return c.SigningNonce.mutate(ctx, m)
+	case *TokenCreateMutation:
+		return c.TokenCreate.mutate(ctx, m)
 	case *TokenFreezeMutation:
 		return c.TokenFreeze.mutate(ctx, m)
 	case *TokenLeafMutation:
@@ -1566,6 +1574,155 @@ func (c *SigningNonceClient) mutate(ctx context.Context, m *SigningNonceMutation
 	}
 }
 
+// TokenCreateClient is a client for the TokenCreate schema.
+type TokenCreateClient struct {
+	config
+}
+
+// NewTokenCreateClient returns a client for the TokenCreate from the given config.
+func NewTokenCreateClient(c config) *TokenCreateClient {
+	return &TokenCreateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `tokencreate.Hooks(f(g(h())))`.
+func (c *TokenCreateClient) Use(hooks ...Hook) {
+	c.hooks.TokenCreate = append(c.hooks.TokenCreate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `tokencreate.Intercept(f(g(h())))`.
+func (c *TokenCreateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TokenCreate = append(c.inters.TokenCreate, interceptors...)
+}
+
+// Create returns a builder for creating a TokenCreate entity.
+func (c *TokenCreateClient) Create() *TokenCreateCreate {
+	mutation := newTokenCreateMutation(c.config, OpCreate)
+	return &TokenCreateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TokenCreate entities.
+func (c *TokenCreateClient) CreateBulk(builders ...*TokenCreateCreate) *TokenCreateCreateBulk {
+	return &TokenCreateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TokenCreateClient) MapCreateBulk(slice any, setFunc func(*TokenCreateCreate, int)) *TokenCreateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TokenCreateCreateBulk{err: fmt.Errorf("calling to TokenCreateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TokenCreateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TokenCreateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TokenCreate.
+func (c *TokenCreateClient) Update() *TokenCreateUpdate {
+	mutation := newTokenCreateMutation(c.config, OpUpdate)
+	return &TokenCreateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TokenCreateClient) UpdateOne(tc *TokenCreate) *TokenCreateUpdateOne {
+	mutation := newTokenCreateMutation(c.config, OpUpdateOne, withTokenCreate(tc))
+	return &TokenCreateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TokenCreateClient) UpdateOneID(id uuid.UUID) *TokenCreateUpdateOne {
+	mutation := newTokenCreateMutation(c.config, OpUpdateOne, withTokenCreateID(id))
+	return &TokenCreateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TokenCreate.
+func (c *TokenCreateClient) Delete() *TokenCreateDelete {
+	mutation := newTokenCreateMutation(c.config, OpDelete)
+	return &TokenCreateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TokenCreateClient) DeleteOne(tc *TokenCreate) *TokenCreateDeleteOne {
+	return c.DeleteOneID(tc.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TokenCreateClient) DeleteOneID(id uuid.UUID) *TokenCreateDeleteOne {
+	builder := c.Delete().Where(tokencreate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TokenCreateDeleteOne{builder}
+}
+
+// Query returns a query builder for TokenCreate.
+func (c *TokenCreateClient) Query() *TokenCreateQuery {
+	return &TokenCreateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTokenCreate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TokenCreate entity by its id.
+func (c *TokenCreateClient) Get(ctx context.Context, id uuid.UUID) (*TokenCreate, error) {
+	return c.Query().Where(tokencreate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TokenCreateClient) GetX(ctx context.Context, id uuid.UUID) *TokenCreate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTokenTransaction queries the token_transaction edge of a TokenCreate.
+func (c *TokenCreateClient) QueryTokenTransaction(tc *TokenCreate) *TokenTransactionQuery {
+	query := (&TokenTransactionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := tc.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tokencreate.Table, tokencreate.FieldID, id),
+			sqlgraph.To(tokentransaction.Table, tokentransaction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, tokencreate.TokenTransactionTable, tokencreate.TokenTransactionColumn),
+		)
+		fromV = sqlgraph.Neighbors(tc.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TokenCreateClient) Hooks() []Hook {
+	return c.hooks.TokenCreate
+}
+
+// Interceptors returns the client interceptors.
+func (c *TokenCreateClient) Interceptors() []Interceptor {
+	return c.inters.TokenCreate
+}
+
+func (c *TokenCreateClient) mutate(ctx context.Context, m *TokenCreateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TokenCreateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TokenCreateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TokenCreateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TokenCreateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TokenCreate mutation op: %q", m.Op())
+	}
+}
+
 // TokenFreezeClient is a client for the TokenFreeze schema.
 type TokenFreezeClient struct {
 	config
@@ -2375,6 +2532,22 @@ func (c *TokenTransactionClient) QueryMint(tt *TokenTransaction) *TokenMintQuery
 			sqlgraph.From(tokentransaction.Table, tokentransaction.FieldID, id),
 			sqlgraph.To(tokenmint.Table, tokenmint.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, tokentransaction.MintTable, tokentransaction.MintColumn),
+		)
+		fromV = sqlgraph.Neighbors(tt.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCreate queries the create edge of a TokenTransaction.
+func (c *TokenTransactionClient) QueryCreate(tt *TokenTransaction) *TokenCreateQuery {
+	query := (&TokenCreateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := tt.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tokentransaction.Table, tokentransaction.FieldID, id),
+			sqlgraph.To(tokencreate.Table, tokencreate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, tokentransaction.CreateTable, tokentransaction.CreateColumn),
 		)
 		fromV = sqlgraph.Neighbors(tt.driver.Dialect(), step)
 		return fromV, nil
@@ -3747,15 +3920,16 @@ func (c *UtxoSwapClient) mutate(ctx context.Context, m *UtxoSwapMutation) (Value
 type (
 	hooks struct {
 		BlockHeight, CooperativeExit, DepositAddress, Gossip, PreimageRequest,
-		PreimageShare, SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf,
-		TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt, Transfer,
-		TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo, UtxoSwap []ent.Hook
+		PreimageShare, SigningKeyshare, SigningNonce, TokenCreate, TokenFreeze,
+		TokenLeaf, TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt,
+		Transfer, TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo,
+		UtxoSwap []ent.Hook
 	}
 	inters struct {
 		BlockHeight, CooperativeExit, DepositAddress, Gossip, PreimageRequest,
-		PreimageShare, SigningKeyshare, SigningNonce, TokenFreeze, TokenLeaf,
-		TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt, Transfer,
-		TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo,
+		PreimageShare, SigningKeyshare, SigningNonce, TokenCreate, TokenFreeze,
+		TokenLeaf, TokenMint, TokenOutput, TokenTransaction, TokenTransactionReceipt,
+		Transfer, TransferLeaf, Tree, TreeNode, UserSignedTransaction, Utxo,
 		UtxoSwap []ent.Interceptor
 	}
 )

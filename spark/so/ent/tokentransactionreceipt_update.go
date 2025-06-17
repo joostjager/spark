@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
@@ -63,13 +63,13 @@ func (ttru *TokenTransactionReceiptUpdate) ClearOperatorSignature() *TokenTransa
 }
 
 // SetStatus sets the "status" field.
-func (ttru *TokenTransactionReceiptUpdate) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionReceiptUpdate {
+func (ttru *TokenTransactionReceiptUpdate) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionReceiptUpdate {
 	ttru.mutation.SetStatus(sts)
 	return ttru
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttru *TokenTransactionReceiptUpdate) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionReceiptUpdate {
+func (ttru *TokenTransactionReceiptUpdate) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionReceiptUpdate {
 	if sts != nil {
 		ttru.SetStatus(*sts)
 	}
@@ -443,13 +443,13 @@ func (ttruo *TokenTransactionReceiptUpdateOne) ClearOperatorSignature() *TokenTr
 }
 
 // SetStatus sets the "status" field.
-func (ttruo *TokenTransactionReceiptUpdateOne) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionReceiptUpdateOne {
+func (ttruo *TokenTransactionReceiptUpdateOne) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionReceiptUpdateOne {
 	ttruo.mutation.SetStatus(sts)
 	return ttruo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttruo *TokenTransactionReceiptUpdateOne) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionReceiptUpdateOne {
+func (ttruo *TokenTransactionReceiptUpdateOne) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionReceiptUpdateOne {
 	if sts != nil {
 		ttruo.SetStatus(*sts)
 	}

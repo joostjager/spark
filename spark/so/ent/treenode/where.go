@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -238,19 +238,19 @@ func ValueLTE(v uint64) predicate.TreeNode {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TreeNodeStatus) predicate.TreeNode {
+func StatusEQ(v schematype.TreeNodeStatus) predicate.TreeNode {
 	vc := v
 	return predicate.TreeNode(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TreeNodeStatus) predicate.TreeNode {
+func StatusNEQ(v schematype.TreeNodeStatus) predicate.TreeNode {
 	vc := v
 	return predicate.TreeNode(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TreeNodeStatus) predicate.TreeNode {
+func StatusIn(vs ...schematype.TreeNodeStatus) predicate.TreeNode {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -259,7 +259,7 @@ func StatusIn(vs ...schema.TreeNodeStatus) predicate.TreeNode {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TreeNodeStatus) predicate.TreeNode {
+func StatusNotIn(vs ...schematype.TreeNodeStatus) predicate.TreeNode {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

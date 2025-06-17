@@ -13,7 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
@@ -63,13 +64,13 @@ func (ttu *TokenTransactionUpdate) ClearOperatorSignature() *TokenTransactionUpd
 }
 
 // SetStatus sets the "status" field.
-func (ttu *TokenTransactionUpdate) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionUpdate {
+func (ttu *TokenTransactionUpdate) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionUpdate {
 	ttu.mutation.SetStatus(sts)
 	return ttu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttu *TokenTransactionUpdate) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionUpdate {
+func (ttu *TokenTransactionUpdate) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionUpdate {
 	if sts != nil {
 		ttu.SetStatus(*sts)
 	}
@@ -143,6 +144,25 @@ func (ttu *TokenTransactionUpdate) SetMint(t *TokenMint) *TokenTransactionUpdate
 	return ttu.SetMintID(t.ID)
 }
 
+// SetCreateID sets the "create" edge to the TokenCreate entity by ID.
+func (ttu *TokenTransactionUpdate) SetCreateID(id uuid.UUID) *TokenTransactionUpdate {
+	ttu.mutation.SetCreateID(id)
+	return ttu
+}
+
+// SetNillableCreateID sets the "create" edge to the TokenCreate entity by ID if the given value is not nil.
+func (ttu *TokenTransactionUpdate) SetNillableCreateID(id *uuid.UUID) *TokenTransactionUpdate {
+	if id != nil {
+		ttu = ttu.SetCreateID(*id)
+	}
+	return ttu
+}
+
+// SetCreate sets the "create" edge to the TokenCreate entity.
+func (ttu *TokenTransactionUpdate) SetCreate(t *TokenCreate) *TokenTransactionUpdate {
+	return ttu.SetCreateID(t.ID)
+}
+
 // Mutation returns the TokenTransactionMutation object of the builder.
 func (ttu *TokenTransactionUpdate) Mutation() *TokenTransactionMutation {
 	return ttu.mutation
@@ -193,6 +213,12 @@ func (ttu *TokenTransactionUpdate) RemoveCreatedOutput(t ...*TokenOutput) *Token
 // ClearMint clears the "mint" edge to the TokenMint entity.
 func (ttu *TokenTransactionUpdate) ClearMint() *TokenTransactionUpdate {
 	ttu.mutation.ClearMint()
+	return ttu
+}
+
+// ClearCreate clears the "create" edge to the TokenCreate entity.
+func (ttu *TokenTransactionUpdate) ClearCreate() *TokenTransactionUpdate {
+	ttu.mutation.ClearCreate()
 	return ttu
 }
 
@@ -413,6 +439,35 @@ func (ttu *TokenTransactionUpdate) sqlSave(ctx context.Context) (n int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if ttu.mutation.CreateCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   tokentransaction.CreateTable,
+			Columns: []string{tokentransaction.CreateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tokencreate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttu.mutation.CreateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   tokentransaction.CreateTable,
+			Columns: []string{tokentransaction.CreateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tokencreate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ttu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tokentransaction.Label}
@@ -464,13 +519,13 @@ func (ttuo *TokenTransactionUpdateOne) ClearOperatorSignature() *TokenTransactio
 }
 
 // SetStatus sets the "status" field.
-func (ttuo *TokenTransactionUpdateOne) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionUpdateOne {
+func (ttuo *TokenTransactionUpdateOne) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionUpdateOne {
 	ttuo.mutation.SetStatus(sts)
 	return ttuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttuo *TokenTransactionUpdateOne) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionUpdateOne {
+func (ttuo *TokenTransactionUpdateOne) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionUpdateOne {
 	if sts != nil {
 		ttuo.SetStatus(*sts)
 	}
@@ -544,6 +599,25 @@ func (ttuo *TokenTransactionUpdateOne) SetMint(t *TokenMint) *TokenTransactionUp
 	return ttuo.SetMintID(t.ID)
 }
 
+// SetCreateID sets the "create" edge to the TokenCreate entity by ID.
+func (ttuo *TokenTransactionUpdateOne) SetCreateID(id uuid.UUID) *TokenTransactionUpdateOne {
+	ttuo.mutation.SetCreateID(id)
+	return ttuo
+}
+
+// SetNillableCreateID sets the "create" edge to the TokenCreate entity by ID if the given value is not nil.
+func (ttuo *TokenTransactionUpdateOne) SetNillableCreateID(id *uuid.UUID) *TokenTransactionUpdateOne {
+	if id != nil {
+		ttuo = ttuo.SetCreateID(*id)
+	}
+	return ttuo
+}
+
+// SetCreate sets the "create" edge to the TokenCreate entity.
+func (ttuo *TokenTransactionUpdateOne) SetCreate(t *TokenCreate) *TokenTransactionUpdateOne {
+	return ttuo.SetCreateID(t.ID)
+}
+
 // Mutation returns the TokenTransactionMutation object of the builder.
 func (ttuo *TokenTransactionUpdateOne) Mutation() *TokenTransactionMutation {
 	return ttuo.mutation
@@ -594,6 +668,12 @@ func (ttuo *TokenTransactionUpdateOne) RemoveCreatedOutput(t ...*TokenOutput) *T
 // ClearMint clears the "mint" edge to the TokenMint entity.
 func (ttuo *TokenTransactionUpdateOne) ClearMint() *TokenTransactionUpdateOne {
 	ttuo.mutation.ClearMint()
+	return ttuo
+}
+
+// ClearCreate clears the "create" edge to the TokenCreate entity.
+func (ttuo *TokenTransactionUpdateOne) ClearCreate() *TokenTransactionUpdateOne {
+	ttuo.mutation.ClearCreate()
 	return ttuo
 }
 
@@ -837,6 +917,35 @@ func (ttuo *TokenTransactionUpdateOne) sqlSave(ctx context.Context) (_node *Toke
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tokenmint.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if ttuo.mutation.CreateCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   tokentransaction.CreateTable,
+			Columns: []string{tokentransaction.CreateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tokencreate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ttuo.mutation.CreateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   tokentransaction.CreateTable,
+			Columns: []string{tokentransaction.CreateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tokencreate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

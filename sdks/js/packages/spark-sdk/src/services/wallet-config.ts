@@ -140,7 +140,8 @@ export type ConfigOptions = MayHaveLrc20WalletApiConfig &
     readonly frostSignerAddress?: string;
     readonly lrc20Address?: string;
     readonly threshold?: number;
-    readonly useTokenTransactionSchnorrSignatures?: boolean;
+    readonly tokenSignatures?: "ECDSA" | "SCHNORR";
+    readonly tokenTransactionVersion?: "V0" | "V1";
     readonly electrsUrl?: string;
     readonly lrc20ApiConfig?: LRC20WalletApiConfig;
     readonly sspClientOptions?: SspClientOptions;
@@ -172,7 +173,8 @@ const BASE_CONFIG: Required<ConfigOptions> = {
   frostSignerAddress: getLocalFrostSignerAddress(),
   threshold: 2,
   signingOperators: getLocalSigningOperators(),
-  useTokenTransactionSchnorrSignatures: true,
+  tokenSignatures: "SCHNORR",
+  tokenTransactionVersion: "V0",
   electrsUrl: getElectrsUrl("LOCAL"),
   expectedWithdrawBondSats: 10000,
   expectedWithdrawRelativeBlockLocktime: 1000,
@@ -199,7 +201,7 @@ export const LOCAL_WALLET_CONFIG_SCHNORR: Required<ConfigOptions> = {
 
 export const LOCAL_WALLET_CONFIG_ECDSA: Required<ConfigOptions> = {
   ...LOCAL_WALLET_CONFIG,
-  useTokenTransactionSchnorrSignatures: false,
+  tokenSignatures: "ECDSA",
   threshold: 3, // 3 for issuance tests.
 };
 

@@ -24,7 +24,10 @@ import {
   getTxId,
 } from "../utils/bitcoin.js";
 import { getNetwork, Network } from "../utils/network.js";
-import { getEphemeralAnchorOutput } from "../utils/transaction.js";
+import {
+  DEFAULT_FEE_SATS,
+  getEphemeralAnchorOutput,
+} from "../utils/transaction.js";
 import { WalletConfigService } from "./config.js";
 import { ConnectionManager } from "./connection.js";
 
@@ -41,6 +44,17 @@ export type CreationNodeWithNonces = CreationNode & {
 };
 
 const INITIAL_TIME_LOCK = 2000;
+
+/**
+ * Subtracts the default fee from the amount if it's greater than the fee.
+ * Returns the original amount if it's less than or equal to the fee.
+ */
+function maybeApplyFee(amount: bigint): bigint {
+  if (amount > BigInt(DEFAULT_FEE_SATS)) {
+    return amount - BigInt(DEFAULT_FEE_SATS);
+  }
+  return amount;
+}
 
 export class TreeCreationService {
   private readonly config: WalletConfigService;
@@ -303,7 +317,7 @@ export class TreeCreationService {
       children: [],
     };
 
-    const tx = new Transaction();
+    const tx = new Transaction({ version: 3 });
     tx.addInput({
       txid: getTxId(parentTx),
       index: vout,
@@ -316,10 +330,9 @@ export class TreeCreationService {
 
     tx.addOutput({
       script: parentTxOut.script,
-      amount: parentTxOut.amount,
+      amount: parentTxOut.amount, // maybeApplyFee(parentTxOut.amount),
     });
 
-    // Add ephemeral anchor
     tx.addOutput(getEphemeralAnchorOutput());
 
     const signingNonceCommitment =
@@ -342,7 +355,7 @@ export class TreeCreationService {
       children: [],
     };
 
-    const childTx = new Transaction();
+    const childTx = new Transaction({ version: 3 });
     childTx.addInput({
       txid: getTxId(tx),
       index: 0,
@@ -351,10 +364,9 @@ export class TreeCreationService {
 
     childTx.addOutput({
       script: parentTxOut.script,
-      amount: parentTxOut.amount,
+      amount: parentTxOut.amount, // maybeApplyFee(parentTxOut.amount),
     });
 
-    // Add ephemeral anchor
     childTx.addOutput(getEphemeralAnchorOutput());
 
     const childSigningNonceCommitment =
@@ -368,7 +380,7 @@ export class TreeCreationService {
     childCreationNode.nodeTxSigningCommitment = childSigningNonceCommitment;
     childCreationNode.nodeTxSigningJob = childSigningJob;
 
-    const refundTx = new Transaction();
+    const refundTx = new Transaction({ version: 3 });
     refundTx.addInput({
       txid: getTxId(childTx),
       index: 0,
@@ -385,8 +397,10 @@ export class TreeCreationService {
     const refundPkScript = OutScript.encode(refundAddress);
     refundTx.addOutput({
       script: refundPkScript,
-      amount: parentTxOut.amount,
+      amount: maybeApplyFee(parentTxOut.amount),
     });
+
+    refundTx.addOutput(getEphemeralAnchorOutput());
 
     const refundSigningNonceCommitment =
       await this.config.signer.getRandomSigningCommitment();
@@ -415,7 +429,7 @@ export class TreeCreationService {
     if (!parentTxOutput?.script || !parentTxOutput?.amount) {
       throw new Error("parentTxOutput is undefined");
     }
-    const rootNodeTx = new Transaction();
+    const rootNodeTx = new Transaction({ version: 3 });
     rootNodeTx.addInput({
       txid: getTxId(parentTx),
       index: vout,
@@ -428,15 +442,16 @@ export class TreeCreationService {
       }
       const childAddress = Address(getNetwork(network)).decode(child.address);
       const childPkScript = OutScript.encode(childAddress);
+
+      // First subtract fee from total amount, then split between children
+      // const feeAdjustedAmount = maybeApplyFee(parentTxOutput.amount);
       rootNodeTx.addOutput({
         script: childPkScript,
-        amount: parentTxOutput.amount / 2n,
+        amount: parentTxOutput.amount / 2n, // feeAdjustedAmount / 2n,
       });
     }
 
-    // Add ephemeral anchor output
-    const anchor = getEphemeralAnchorOutput();
-    rootNodeTx.addOutput(anchor);
+    rootNodeTx.addOutput(getEphemeralAnchorOutput());
 
     const rootNodeSigningCommitment =
       await this.config.signer.getRandomSigningCommitment();

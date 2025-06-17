@@ -11,7 +11,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	enttreenode "github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/objects"
@@ -49,7 +49,7 @@ func (h *ExtendLeafHandler) ExtendLeaf(ctx context.Context, req *pb.ExtendLeafRe
 		return nil, fmt.Errorf("failed to get leaf node: %w", err)
 	}
 
-	if leaf.Status != schema.TreeNodeStatusAvailable {
+	if leaf.Status != st.TreeNodeStatusAvailable {
 		return nil, fmt.Errorf("leaf %s is not available, status: %s", leafUUID, leaf.Status)
 	}
 
@@ -117,7 +117,7 @@ func (h *ExtendLeafHandler) ExtendLeaf(ctx context.Context, req *pb.ExtendLeafRe
 		TreeNode.
 		Create().
 		SetTreeID(treeID.ID).
-		SetStatus(schema.TreeNodeStatusAvailable).
+		SetStatus(st.TreeNodeStatusAvailable).
 		SetOwnerIdentityPubkey(req.OwnerIdentityPublicKey).
 		SetOwnerSigningPubkey(leaf.OwnerSigningPubkey).
 		SetValue(leaf.Value).
@@ -135,7 +135,7 @@ func (h *ExtendLeafHandler) ExtendLeaf(ctx context.Context, req *pb.ExtendLeafRe
 	_, err = db.
 		TreeNode.
 		UpdateOneID(leaf.ID).
-		SetStatus(schema.TreeNodeStatusSplitLocked).
+		SetStatus(st.TreeNodeStatusSplitLocked).
 		SetRawRefundTx(nil).
 		Save(ctx)
 	if err != nil {

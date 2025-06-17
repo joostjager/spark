@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 )
 
@@ -36,13 +36,13 @@ func (tfu *TokenFreezeUpdate) SetUpdateTime(t time.Time) *TokenFreezeUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (tfu *TokenFreezeUpdate) SetStatus(sfs schema.TokenFreezeStatus) *TokenFreezeUpdate {
+func (tfu *TokenFreezeUpdate) SetStatus(sfs schematype.TokenFreezeStatus) *TokenFreezeUpdate {
 	tfu.mutation.SetStatus(sfs)
 	return tfu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tfu *TokenFreezeUpdate) SetNillableStatus(sfs *schema.TokenFreezeStatus) *TokenFreezeUpdate {
+func (tfu *TokenFreezeUpdate) SetNillableStatus(sfs *schematype.TokenFreezeStatus) *TokenFreezeUpdate {
 	if sfs != nil {
 		tfu.SetStatus(*sfs)
 	}
@@ -181,13 +181,13 @@ func (tfuo *TokenFreezeUpdateOne) SetUpdateTime(t time.Time) *TokenFreezeUpdateO
 }
 
 // SetStatus sets the "status" field.
-func (tfuo *TokenFreezeUpdateOne) SetStatus(sfs schema.TokenFreezeStatus) *TokenFreezeUpdateOne {
+func (tfuo *TokenFreezeUpdateOne) SetStatus(sfs schematype.TokenFreezeStatus) *TokenFreezeUpdateOne {
 	tfuo.mutation.SetStatus(sfs)
 	return tfuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tfuo *TokenFreezeUpdateOne) SetNillableStatus(sfs *schema.TokenFreezeStatus) *TokenFreezeUpdateOne {
+func (tfuo *TokenFreezeUpdateOne) SetNillableStatus(sfs *schematype.TokenFreezeStatus) *TokenFreezeUpdateOne {
 	if sfs != nil {
 		tfuo.SetStatus(*sfs)
 	}

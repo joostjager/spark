@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 )
 
@@ -51,7 +51,7 @@ func (skc *SigningKeyshareCreate) SetNillableUpdateTime(t *time.Time) *SigningKe
 }
 
 // SetStatus sets the "status" field.
-func (skc *SigningKeyshareCreate) SetStatus(sks schema.SigningKeyshareStatus) *SigningKeyshareCreate {
+func (skc *SigningKeyshareCreate) SetStatus(sks schematype.SigningKeyshareStatus) *SigningKeyshareCreate {
 	skc.mutation.SetStatus(sks)
 	return skc
 }

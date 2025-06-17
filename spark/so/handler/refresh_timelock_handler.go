@@ -13,7 +13,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/objects"
 )
@@ -65,7 +65,7 @@ func (h *RefreshTimelockHandler) RefreshTimelock(ctx context.Context, req *pb.Re
 			}
 			rawTxBytes = node.RawTx
 		}
-		if i == len(req.SigningJobs)-1 && node.Status != schema.TreeNodeStatusAvailable && node.Status != schema.TreeNodeStatusOnChain {
+		if i == len(req.SigningJobs)-1 && node.Status != st.TreeNodeStatusAvailable && node.Status != st.TreeNodeStatusOnChain {
 			return nil, fmt.Errorf("cannot refresh leaf node %s because it is not available or on-chain", node.ID)
 		}
 

@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -118,7 +118,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.UtxoSwapStatus) error {
+func StatusValidator(s schematype.UtxoSwapStatus) error {
 	switch s {
 	case "CREATED", "COMPLETED", "CANCELLED":
 		return nil
@@ -128,7 +128,7 @@ func StatusValidator(s schema.UtxoSwapStatus) error {
 }
 
 // RequestTypeValidator is a validator for the "request_type" field enum values. It is called by the builders before save.
-func RequestTypeValidator(rt schema.UtxoSwapRequestType) error {
+func RequestTypeValidator(rt schematype.UtxoSwapRequestType) error {
 	switch rt {
 	case "FIXED_AMOUNT", "MAX_FEE", "REFUND":
 		return nil

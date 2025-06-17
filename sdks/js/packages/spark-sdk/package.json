@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/spark-sdk",
-  "version": "0.1.32",
+  "version": "0.1.40",
   "author": "",
   "license": "Apache-2.0",
   "main": "./dist/index.js",
@@ -15,7 +15,8 @@
     "src",
     "android",
     "ios",
-    "*.podspec"
+    "*.podspec",
+    "CHANGELOG.md"
   ],
   "exports": {
     ".": {
@@ -48,10 +49,6 @@
       "import": "./dist/services/wallet-config.js",
       "require": "./dist/services/wallet-config.cjs"
     },
-    "./test-util": {
-      "import": "./dist/tests/test-util.js",
-      "require": "./dist/tests/test-util.cjs"
-    },
     "./utils": {
       "import": "./dist/utils/index.js",
       "require": "./dist/utils/index.cjs"
@@ -80,6 +77,10 @@
       "import": "./dist/proto/spark.js",
       "require": "./dist/proto/spark.cjs"
     },
+    "./proto/spark_token": {
+      "import": "./dist/proto/spark_token.js",
+      "require": "./dist/proto/spark_token.cjs"
+    },
     "./proto/lrc20": {
       "import": "./dist/proto/lrc20.js",
       "require": "./dist/proto/lrc20.cjs"
@@ -103,8 +104,7 @@
     "url": false
   },
   "scripts": {
-    "build": "NODE_ENV=production yarn tsc && rm -rf dist && tsup",
-    "build:dev": "NODE_ENV=development yarn tsc && tsup",
+    "build": "yarn tsc && rm -rf dist && tsup",
     "build:watch": "yarn build --watch --clean=false",
     "clean": "rm -rf dist",
     "circular-deps": "madge --circular --extensions ts,tsx src",
@@ -126,7 +126,7 @@
     "types:watch": "tsc-absolute --watch",
     "types": "tsc",
     "patch-wasm": "node ./wasm/patch-wasm.mjs",
-    "generate:proto": "PATH=\"$PATH:./node_modules/.bin\" protoc --ts_proto_out=./src/proto --ts_proto_opt=outputServices=nice-grpc,useExactTypes=false,outputServices=generic-definitions,oneof=unions,importSuffix=.js --proto_path=../../../../protos spark.proto mock.proto spark_authn.proto && yarn format:fix"
+    "generate:proto": "PATH=\"$PATH:./node_modules/.bin\" protoc --ts_proto_out=./src/proto --ts_proto_opt=outputServices=nice-grpc,useExactTypes=false,outputServices=generic-definitions,oneof=unions,importSuffix=.js --proto_path=../../../../protos spark.proto spark_token.proto mock.proto spark_authn.proto && yarn format:fix"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.17.4",
@@ -147,9 +147,10 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@bitcoinerlab/secp256k1": "^1.1.1",
     "@bufbuild/protobuf": "^2.2.5",
-    "@buildonspark/lrc20-sdk": "0.0.54",
-    "@lightsparkdev/core": "^1.4.0",
+    "@buildonspark/lrc20-sdk": "0.0.57",
+    "@lightsparkdev/core": "^1.4.1",
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.1",
     "@opentelemetry/api": "^1.9.0",
@@ -167,7 +168,6 @@
     "eciesjs": "^0.4.13",
     "eventemitter3": "^5.0.1",
     "js-base64": "^3.7.7",
-    "light-bolt11-decoder": "^3.2.0",
     "nice-grpc": "^2.1.10",
     "nice-grpc-client-middleware-retry": "^3.1.10",
     "nice-grpc-common": "^2.0.2",

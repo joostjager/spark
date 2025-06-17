@@ -19,9 +19,10 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/predicate"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/signingnonce"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
@@ -54,6 +55,7 @@ const (
 	TypePreimageShare           = "PreimageShare"
 	TypeSigningKeyshare         = "SigningKeyshare"
 	TypeSigningNonce            = "SigningNonce"
+	TypeTokenCreate             = "TokenCreate"
 	TypeTokenFreeze             = "TokenFreeze"
 	TypeTokenLeaf               = "TokenLeaf"
 	TypeTokenMint               = "TokenMint"
@@ -79,7 +81,7 @@ type BlockHeightMutation struct {
 	update_time   *time.Time
 	height        *int64
 	addheight     *int64
-	network       *schema.Network
+	network       *schematype.Network
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*BlockHeight, error)
@@ -319,12 +321,12 @@ func (m *BlockHeightMutation) ResetHeight() {
 }
 
 // SetNetwork sets the "network" field.
-func (m *BlockHeightMutation) SetNetwork(s schema.Network) {
+func (m *BlockHeightMutation) SetNetwork(s schematype.Network) {
 	m.network = &s
 }
 
 // Network returns the value of the "network" field in the mutation.
-func (m *BlockHeightMutation) Network() (r schema.Network, exists bool) {
+func (m *BlockHeightMutation) Network() (r schematype.Network, exists bool) {
 	v := m.network
 	if v == nil {
 		return
@@ -335,7 +337,7 @@ func (m *BlockHeightMutation) Network() (r schema.Network, exists bool) {
 // OldNetwork returns the old "network" field's value of the BlockHeight entity.
 // If the BlockHeight object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *BlockHeightMutation) OldNetwork(ctx context.Context) (v schema.Network, err error) {
+func (m *BlockHeightMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
 	}
@@ -465,7 +467,7 @@ func (m *BlockHeightMutation) SetField(name string, value ent.Value) error {
 		m.SetHeight(v)
 		return nil
 	case blockheight.FieldNetwork:
-		v, ok := value.(schema.Network)
+		v, ok := value.(schematype.Network)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -2327,7 +2329,7 @@ type GossipMutation struct {
 	appendparticipants []string
 	message            *[]byte
 	receipts           *[]byte
-	status             *schema.GossipStatus
+	status             *schematype.GossipStatus
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*Gossip, error)
@@ -2634,12 +2636,12 @@ func (m *GossipMutation) ResetReceipts() {
 }
 
 // SetStatus sets the "status" field.
-func (m *GossipMutation) SetStatus(ss schema.GossipStatus) {
+func (m *GossipMutation) SetStatus(ss schematype.GossipStatus) {
 	m.status = &ss
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *GossipMutation) Status() (r schema.GossipStatus, exists bool) {
+func (m *GossipMutation) Status() (r schematype.GossipStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -2650,7 +2652,7 @@ func (m *GossipMutation) Status() (r schema.GossipStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the Gossip entity.
 // If the Gossip object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GossipMutation) OldStatus(ctx context.Context) (v schema.GossipStatus, err error) {
+func (m *GossipMutation) OldStatus(ctx context.Context) (v schematype.GossipStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -2808,7 +2810,7 @@ func (m *GossipMutation) SetField(name string, value ent.Value) error {
 		m.SetReceipts(v)
 		return nil
 	case gossip.FieldStatus:
-		v, ok := value.(schema.GossipStatus)
+		v, ok := value.(schematype.GossipStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -2942,7 +2944,7 @@ type PreimageRequestMutation struct {
 	create_time              *time.Time
 	update_time              *time.Time
 	payment_hash             *[]byte
-	status                   *schema.PreimageRequestStatus
+	status                   *schematype.PreimageRequestStatus
 	receiver_identity_pubkey *[]byte
 	preimage                 *[]byte
 	clearedFields            map[string]struct{}
@@ -3171,12 +3173,12 @@ func (m *PreimageRequestMutation) ResetPaymentHash() {
 }
 
 // SetStatus sets the "status" field.
-func (m *PreimageRequestMutation) SetStatus(srs schema.PreimageRequestStatus) {
+func (m *PreimageRequestMutation) SetStatus(srs schematype.PreimageRequestStatus) {
 	m.status = &srs
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *PreimageRequestMutation) Status() (r schema.PreimageRequestStatus, exists bool) {
+func (m *PreimageRequestMutation) Status() (r schematype.PreimageRequestStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -3187,7 +3189,7 @@ func (m *PreimageRequestMutation) Status() (r schema.PreimageRequestStatus, exis
 // OldStatus returns the old "status" field's value of the PreimageRequest entity.
 // If the PreimageRequest object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PreimageRequestMutation) OldStatus(ctx context.Context) (v schema.PreimageRequestStatus, err error) {
+func (m *PreimageRequestMutation) OldStatus(ctx context.Context) (v schematype.PreimageRequestStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -3561,7 +3563,7 @@ func (m *PreimageRequestMutation) SetField(name string, value ent.Value) error {
 		m.SetPaymentHash(v)
 		return nil
 	case preimagerequest.FieldStatus:
-		v, ok := value.(schema.PreimageRequestStatus)
+		v, ok := value.(schematype.PreimageRequestStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -4554,7 +4556,7 @@ type SigningKeyshareMutation struct {
 	id                   *uuid.UUID
 	create_time          *time.Time
 	update_time          *time.Time
-	status               *schema.SigningKeyshareStatus
+	status               *schematype.SigningKeyshareStatus
 	secret_share         *[]byte
 	public_shares        *map[string][]uint8
 	public_key           *[]byte
@@ -4745,12 +4747,12 @@ func (m *SigningKeyshareMutation) ResetUpdateTime() {
 }
 
 // SetStatus sets the "status" field.
-func (m *SigningKeyshareMutation) SetStatus(sks schema.SigningKeyshareStatus) {
+func (m *SigningKeyshareMutation) SetStatus(sks schematype.SigningKeyshareStatus) {
 	m.status = &sks
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *SigningKeyshareMutation) Status() (r schema.SigningKeyshareStatus, exists bool) {
+func (m *SigningKeyshareMutation) Status() (r schematype.SigningKeyshareStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -4761,7 +4763,7 @@ func (m *SigningKeyshareMutation) Status() (r schema.SigningKeyshareStatus, exis
 // OldStatus returns the old "status" field's value of the SigningKeyshare entity.
 // If the SigningKeyshare object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SigningKeyshareMutation) OldStatus(ctx context.Context) (v schema.SigningKeyshareStatus, err error) {
+func (m *SigningKeyshareMutation) OldStatus(ctx context.Context) (v schematype.SigningKeyshareStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -5132,7 +5134,7 @@ func (m *SigningKeyshareMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdateTime(v)
 		return nil
 	case signingkeyshare.FieldStatus:
-		v, ok := value.(schema.SigningKeyshareStatus)
+		v, ok := value.(schematype.SigningKeyshareStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -5895,6 +5897,1209 @@ func (m *SigningNonceMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown SigningNonce edge %s", name)
 }
 
+// TokenCreateMutation represents an operation that mutates the TokenCreate nodes in the graph.
+type TokenCreateMutation struct {
+	config
+	op                                 Op
+	typ                                string
+	id                                 *uuid.UUID
+	create_time                        *time.Time
+	update_time                        *time.Time
+	issuer_public_key                  *[]byte
+	wallet_provided_timestamp          *uint64
+	addwallet_provided_timestamp       *int64
+	issuer_signature                   *[]byte
+	operator_specific_issuer_signature *[]byte
+	creation_entity_public_key         *[]byte
+	token_name                         *string
+	token_ticker                       *string
+	decimals                           *uint32
+	adddecimals                        *int32
+	max_supply                         *[]byte
+	is_freezable                       *bool
+	network                            *schematype.Network
+	clearedFields                      map[string]struct{}
+	token_transaction                  map[uuid.UUID]struct{}
+	removedtoken_transaction           map[uuid.UUID]struct{}
+	clearedtoken_transaction           bool
+	done                               bool
+	oldValue                           func(context.Context) (*TokenCreate, error)
+	predicates                         []predicate.TokenCreate
+}
+
+var _ ent.Mutation = (*TokenCreateMutation)(nil)
+
+// tokencreateOption allows management of the mutation configuration using functional options.
+type tokencreateOption func(*TokenCreateMutation)
+
+// newTokenCreateMutation creates new mutation for the TokenCreate entity.
+func newTokenCreateMutation(c config, op Op, opts ...tokencreateOption) *TokenCreateMutation {
+	m := &TokenCreateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTokenCreate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTokenCreateID sets the ID field of the mutation.
+func withTokenCreateID(id uuid.UUID) tokencreateOption {
+	return func(m *TokenCreateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TokenCreate
+		)
+		m.oldValue = func(ctx context.Context) (*TokenCreate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TokenCreate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTokenCreate sets the old TokenCreate of the mutation.
+func withTokenCreate(node *TokenCreate) tokencreateOption {
+	return func(m *TokenCreateMutation) {
+		m.oldValue = func(context.Context) (*TokenCreate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TokenCreateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TokenCreateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of TokenCreate entities.
+func (m *TokenCreateMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TokenCreateMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TokenCreateMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TokenCreate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *TokenCreateMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *TokenCreateMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldCreateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *TokenCreateMutation) ResetCreateTime() {
+	m.create_time = nil
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *TokenCreateMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *TokenCreateMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldUpdateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *TokenCreateMutation) ResetUpdateTime() {
+	m.update_time = nil
+}
+
+// SetIssuerPublicKey sets the "issuer_public_key" field.
+func (m *TokenCreateMutation) SetIssuerPublicKey(b []byte) {
+	m.issuer_public_key = &b
+}
+
+// IssuerPublicKey returns the value of the "issuer_public_key" field in the mutation.
+func (m *TokenCreateMutation) IssuerPublicKey() (r []byte, exists bool) {
+	v := m.issuer_public_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIssuerPublicKey returns the old "issuer_public_key" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldIssuerPublicKey(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIssuerPublicKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIssuerPublicKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIssuerPublicKey: %w", err)
+	}
+	return oldValue.IssuerPublicKey, nil
+}
+
+// ResetIssuerPublicKey resets all changes to the "issuer_public_key" field.
+func (m *TokenCreateMutation) ResetIssuerPublicKey() {
+	m.issuer_public_key = nil
+}
+
+// SetWalletProvidedTimestamp sets the "wallet_provided_timestamp" field.
+func (m *TokenCreateMutation) SetWalletProvidedTimestamp(u uint64) {
+	m.wallet_provided_timestamp = &u
+	m.addwallet_provided_timestamp = nil
+}
+
+// WalletProvidedTimestamp returns the value of the "wallet_provided_timestamp" field in the mutation.
+func (m *TokenCreateMutation) WalletProvidedTimestamp() (r uint64, exists bool) {
+	v := m.wallet_provided_timestamp
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletProvidedTimestamp returns the old "wallet_provided_timestamp" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldWalletProvidedTimestamp(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletProvidedTimestamp is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletProvidedTimestamp requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletProvidedTimestamp: %w", err)
+	}
+	return oldValue.WalletProvidedTimestamp, nil
+}
+
+// AddWalletProvidedTimestamp adds u to the "wallet_provided_timestamp" field.
+func (m *TokenCreateMutation) AddWalletProvidedTimestamp(u int64) {
+	if m.addwallet_provided_timestamp != nil {
+		*m.addwallet_provided_timestamp += u
+	} else {
+		m.addwallet_provided_timestamp = &u
+	}
+}
+
+// AddedWalletProvidedTimestamp returns the value that was added to the "wallet_provided_timestamp" field in this mutation.
+func (m *TokenCreateMutation) AddedWalletProvidedTimestamp() (r int64, exists bool) {
+	v := m.addwallet_provided_timestamp
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWalletProvidedTimestamp clears the value of the "wallet_provided_timestamp" field.
+func (m *TokenCreateMutation) ClearWalletProvidedTimestamp() {
+	m.wallet_provided_timestamp = nil
+	m.addwallet_provided_timestamp = nil
+	m.clearedFields[tokencreate.FieldWalletProvidedTimestamp] = struct{}{}
+}
+
+// WalletProvidedTimestampCleared returns if the "wallet_provided_timestamp" field was cleared in this mutation.
+func (m *TokenCreateMutation) WalletProvidedTimestampCleared() bool {
+	_, ok := m.clearedFields[tokencreate.FieldWalletProvidedTimestamp]
+	return ok
+}
+
+// ResetWalletProvidedTimestamp resets all changes to the "wallet_provided_timestamp" field.
+func (m *TokenCreateMutation) ResetWalletProvidedTimestamp() {
+	m.wallet_provided_timestamp = nil
+	m.addwallet_provided_timestamp = nil
+	delete(m.clearedFields, tokencreate.FieldWalletProvidedTimestamp)
+}
+
+// SetIssuerSignature sets the "issuer_signature" field.
+func (m *TokenCreateMutation) SetIssuerSignature(b []byte) {
+	m.issuer_signature = &b
+}
+
+// IssuerSignature returns the value of the "issuer_signature" field in the mutation.
+func (m *TokenCreateMutation) IssuerSignature() (r []byte, exists bool) {
+	v := m.issuer_signature
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIssuerSignature returns the old "issuer_signature" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldIssuerSignature(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIssuerSignature is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIssuerSignature requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIssuerSignature: %w", err)
+	}
+	return oldValue.IssuerSignature, nil
+}
+
+// ClearIssuerSignature clears the value of the "issuer_signature" field.
+func (m *TokenCreateMutation) ClearIssuerSignature() {
+	m.issuer_signature = nil
+	m.clearedFields[tokencreate.FieldIssuerSignature] = struct{}{}
+}
+
+// IssuerSignatureCleared returns if the "issuer_signature" field was cleared in this mutation.
+func (m *TokenCreateMutation) IssuerSignatureCleared() bool {
+	_, ok := m.clearedFields[tokencreate.FieldIssuerSignature]
+	return ok
+}
+
+// ResetIssuerSignature resets all changes to the "issuer_signature" field.
+func (m *TokenCreateMutation) ResetIssuerSignature() {
+	m.issuer_signature = nil
+	delete(m.clearedFields, tokencreate.FieldIssuerSignature)
+}
+
+// SetOperatorSpecificIssuerSignature sets the "operator_specific_issuer_signature" field.
+func (m *TokenCreateMutation) SetOperatorSpecificIssuerSignature(b []byte) {
+	m.operator_specific_issuer_signature = &b
+}
+
+// OperatorSpecificIssuerSignature returns the value of the "operator_specific_issuer_signature" field in the mutation.
+func (m *TokenCreateMutation) OperatorSpecificIssuerSignature() (r []byte, exists bool) {
+	v := m.operator_specific_issuer_signature
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperatorSpecificIssuerSignature returns the old "operator_specific_issuer_signature" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldOperatorSpecificIssuerSignature(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperatorSpecificIssuerSignature is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperatorSpecificIssuerSignature requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperatorSpecificIssuerSignature: %w", err)
+	}
+	return oldValue.OperatorSpecificIssuerSignature, nil
+}
+
+// ClearOperatorSpecificIssuerSignature clears the value of the "operator_specific_issuer_signature" field.
+func (m *TokenCreateMutation) ClearOperatorSpecificIssuerSignature() {
+	m.operator_specific_issuer_signature = nil
+	m.clearedFields[tokencreate.FieldOperatorSpecificIssuerSignature] = struct{}{}
+}
+
+// OperatorSpecificIssuerSignatureCleared returns if the "operator_specific_issuer_signature" field was cleared in this mutation.
+func (m *TokenCreateMutation) OperatorSpecificIssuerSignatureCleared() bool {
+	_, ok := m.clearedFields[tokencreate.FieldOperatorSpecificIssuerSignature]
+	return ok
+}
+
+// ResetOperatorSpecificIssuerSignature resets all changes to the "operator_specific_issuer_signature" field.
+func (m *TokenCreateMutation) ResetOperatorSpecificIssuerSignature() {
+	m.operator_specific_issuer_signature = nil
+	delete(m.clearedFields, tokencreate.FieldOperatorSpecificIssuerSignature)
+}
+
+// SetCreationEntityPublicKey sets the "creation_entity_public_key" field.
+func (m *TokenCreateMutation) SetCreationEntityPublicKey(b []byte) {
+	m.creation_entity_public_key = &b
+}
+
+// CreationEntityPublicKey returns the value of the "creation_entity_public_key" field in the mutation.
+func (m *TokenCreateMutation) CreationEntityPublicKey() (r []byte, exists bool) {
+	v := m.creation_entity_public_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreationEntityPublicKey returns the old "creation_entity_public_key" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldCreationEntityPublicKey(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreationEntityPublicKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreationEntityPublicKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreationEntityPublicKey: %w", err)
+	}
+	return oldValue.CreationEntityPublicKey, nil
+}
+
+// ResetCreationEntityPublicKey resets all changes to the "creation_entity_public_key" field.
+func (m *TokenCreateMutation) ResetCreationEntityPublicKey() {
+	m.creation_entity_public_key = nil
+}
+
+// SetTokenName sets the "token_name" field.
+func (m *TokenCreateMutation) SetTokenName(s string) {
+	m.token_name = &s
+}
+
+// TokenName returns the value of the "token_name" field in the mutation.
+func (m *TokenCreateMutation) TokenName() (r string, exists bool) {
+	v := m.token_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenName returns the old "token_name" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldTokenName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenName: %w", err)
+	}
+	return oldValue.TokenName, nil
+}
+
+// ResetTokenName resets all changes to the "token_name" field.
+func (m *TokenCreateMutation) ResetTokenName() {
+	m.token_name = nil
+}
+
+// SetTokenTicker sets the "token_ticker" field.
+func (m *TokenCreateMutation) SetTokenTicker(s string) {
+	m.token_ticker = &s
+}
+
+// TokenTicker returns the value of the "token_ticker" field in the mutation.
+func (m *TokenCreateMutation) TokenTicker() (r string, exists bool) {
+	v := m.token_ticker
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenTicker returns the old "token_ticker" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldTokenTicker(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenTicker is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenTicker requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenTicker: %w", err)
+	}
+	return oldValue.TokenTicker, nil
+}
+
+// ResetTokenTicker resets all changes to the "token_ticker" field.
+func (m *TokenCreateMutation) ResetTokenTicker() {
+	m.token_ticker = nil
+}
+
+// SetDecimals sets the "decimals" field.
+func (m *TokenCreateMutation) SetDecimals(u uint32) {
+	m.decimals = &u
+	m.adddecimals = nil
+}
+
+// Decimals returns the value of the "decimals" field in the mutation.
+func (m *TokenCreateMutation) Decimals() (r uint32, exists bool) {
+	v := m.decimals
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDecimals returns the old "decimals" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldDecimals(ctx context.Context) (v uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDecimals is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDecimals requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDecimals: %w", err)
+	}
+	return oldValue.Decimals, nil
+}
+
+// AddDecimals adds u to the "decimals" field.
+func (m *TokenCreateMutation) AddDecimals(u int32) {
+	if m.adddecimals != nil {
+		*m.adddecimals += u
+	} else {
+		m.adddecimals = &u
+	}
+}
+
+// AddedDecimals returns the value that was added to the "decimals" field in this mutation.
+func (m *TokenCreateMutation) AddedDecimals() (r int32, exists bool) {
+	v := m.adddecimals
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDecimals resets all changes to the "decimals" field.
+func (m *TokenCreateMutation) ResetDecimals() {
+	m.decimals = nil
+	m.adddecimals = nil
+}
+
+// SetMaxSupply sets the "max_supply" field.
+func (m *TokenCreateMutation) SetMaxSupply(b []byte) {
+	m.max_supply = &b
+}
+
+// MaxSupply returns the value of the "max_supply" field in the mutation.
+func (m *TokenCreateMutation) MaxSupply() (r []byte, exists bool) {
+	v := m.max_supply
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxSupply returns the old "max_supply" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldMaxSupply(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxSupply is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxSupply requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxSupply: %w", err)
+	}
+	return oldValue.MaxSupply, nil
+}
+
+// ResetMaxSupply resets all changes to the "max_supply" field.
+func (m *TokenCreateMutation) ResetMaxSupply() {
+	m.max_supply = nil
+}
+
+// SetIsFreezable sets the "is_freezable" field.
+func (m *TokenCreateMutation) SetIsFreezable(b bool) {
+	m.is_freezable = &b
+}
+
+// IsFreezable returns the value of the "is_freezable" field in the mutation.
+func (m *TokenCreateMutation) IsFreezable() (r bool, exists bool) {
+	v := m.is_freezable
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsFreezable returns the old "is_freezable" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldIsFreezable(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsFreezable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsFreezable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsFreezable: %w", err)
+	}
+	return oldValue.IsFreezable, nil
+}
+
+// ResetIsFreezable resets all changes to the "is_freezable" field.
+func (m *TokenCreateMutation) ResetIsFreezable() {
+	m.is_freezable = nil
+}
+
+// SetNetwork sets the "network" field.
+func (m *TokenCreateMutation) SetNetwork(s schematype.Network) {
+	m.network = &s
+}
+
+// Network returns the value of the "network" field in the mutation.
+func (m *TokenCreateMutation) Network() (r schematype.Network, exists bool) {
+	v := m.network
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetwork returns the old "network" field's value of the TokenCreate entity.
+// If the TokenCreate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenCreateMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetwork requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetwork: %w", err)
+	}
+	return oldValue.Network, nil
+}
+
+// ResetNetwork resets all changes to the "network" field.
+func (m *TokenCreateMutation) ResetNetwork() {
+	m.network = nil
+}
+
+// AddTokenTransactionIDs adds the "token_transaction" edge to the TokenTransaction entity by ids.
+func (m *TokenCreateMutation) AddTokenTransactionIDs(ids ...uuid.UUID) {
+	if m.token_transaction == nil {
+		m.token_transaction = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.token_transaction[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTokenTransaction clears the "token_transaction" edge to the TokenTransaction entity.
+func (m *TokenCreateMutation) ClearTokenTransaction() {
+	m.clearedtoken_transaction = true
+}
+
+// TokenTransactionCleared reports if the "token_transaction" edge to the TokenTransaction entity was cleared.
+func (m *TokenCreateMutation) TokenTransactionCleared() bool {
+	return m.clearedtoken_transaction
+}
+
+// RemoveTokenTransactionIDs removes the "token_transaction" edge to the TokenTransaction entity by IDs.
+func (m *TokenCreateMutation) RemoveTokenTransactionIDs(ids ...uuid.UUID) {
+	if m.removedtoken_transaction == nil {
+		m.removedtoken_transaction = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.token_transaction, ids[i])
+		m.removedtoken_transaction[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTokenTransaction returns the removed IDs of the "token_transaction" edge to the TokenTransaction entity.
+func (m *TokenCreateMutation) RemovedTokenTransactionIDs() (ids []uuid.UUID) {
+	for id := range m.removedtoken_transaction {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TokenTransactionIDs returns the "token_transaction" edge IDs in the mutation.
+func (m *TokenCreateMutation) TokenTransactionIDs() (ids []uuid.UUID) {
+	for id := range m.token_transaction {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTokenTransaction resets all changes to the "token_transaction" edge.
+func (m *TokenCreateMutation) ResetTokenTransaction() {
+	m.token_transaction = nil
+	m.clearedtoken_transaction = false
+	m.removedtoken_transaction = nil
+}
+
+// Where appends a list predicates to the TokenCreateMutation builder.
+func (m *TokenCreateMutation) Where(ps ...predicate.TokenCreate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TokenCreateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TokenCreateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TokenCreate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TokenCreateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TokenCreateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TokenCreate).
+func (m *TokenCreateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TokenCreateMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.create_time != nil {
+		fields = append(fields, tokencreate.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, tokencreate.FieldUpdateTime)
+	}
+	if m.issuer_public_key != nil {
+		fields = append(fields, tokencreate.FieldIssuerPublicKey)
+	}
+	if m.wallet_provided_timestamp != nil {
+		fields = append(fields, tokencreate.FieldWalletProvidedTimestamp)
+	}
+	if m.issuer_signature != nil {
+		fields = append(fields, tokencreate.FieldIssuerSignature)
+	}
+	if m.operator_specific_issuer_signature != nil {
+		fields = append(fields, tokencreate.FieldOperatorSpecificIssuerSignature)
+	}
+	if m.creation_entity_public_key != nil {
+		fields = append(fields, tokencreate.FieldCreationEntityPublicKey)
+	}
+	if m.token_name != nil {
+		fields = append(fields, tokencreate.FieldTokenName)
+	}
+	if m.token_ticker != nil {
+		fields = append(fields, tokencreate.FieldTokenTicker)
+	}
+	if m.decimals != nil {
+		fields = append(fields, tokencreate.FieldDecimals)
+	}
+	if m.max_supply != nil {
+		fields = append(fields, tokencreate.FieldMaxSupply)
+	}
+	if m.is_freezable != nil {
+		fields = append(fields, tokencreate.FieldIsFreezable)
+	}
+	if m.network != nil {
+		fields = append(fields, tokencreate.FieldNetwork)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TokenCreateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case tokencreate.FieldCreateTime:
+		return m.CreateTime()
+	case tokencreate.FieldUpdateTime:
+		return m.UpdateTime()
+	case tokencreate.FieldIssuerPublicKey:
+		return m.IssuerPublicKey()
+	case tokencreate.FieldWalletProvidedTimestamp:
+		return m.WalletProvidedTimestamp()
+	case tokencreate.FieldIssuerSignature:
+		return m.IssuerSignature()
+	case tokencreate.FieldOperatorSpecificIssuerSignature:
+		return m.OperatorSpecificIssuerSignature()
+	case tokencreate.FieldCreationEntityPublicKey:
+		return m.CreationEntityPublicKey()
+	case tokencreate.FieldTokenName:
+		return m.TokenName()
+	case tokencreate.FieldTokenTicker:
+		return m.TokenTicker()
+	case tokencreate.FieldDecimals:
+		return m.Decimals()
+	case tokencreate.FieldMaxSupply:
+		return m.MaxSupply()
+	case tokencreate.FieldIsFreezable:
+		return m.IsFreezable()
+	case tokencreate.FieldNetwork:
+		return m.Network()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TokenCreateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case tokencreate.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case tokencreate.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case tokencreate.FieldIssuerPublicKey:
+		return m.OldIssuerPublicKey(ctx)
+	case tokencreate.FieldWalletProvidedTimestamp:
+		return m.OldWalletProvidedTimestamp(ctx)
+	case tokencreate.FieldIssuerSignature:
+		return m.OldIssuerSignature(ctx)
+	case tokencreate.FieldOperatorSpecificIssuerSignature:
+		return m.OldOperatorSpecificIssuerSignature(ctx)
+	case tokencreate.FieldCreationEntityPublicKey:
+		return m.OldCreationEntityPublicKey(ctx)
+	case tokencreate.FieldTokenName:
+		return m.OldTokenName(ctx)
+	case tokencreate.FieldTokenTicker:
+		return m.OldTokenTicker(ctx)
+	case tokencreate.FieldDecimals:
+		return m.OldDecimals(ctx)
+	case tokencreate.FieldMaxSupply:
+		return m.OldMaxSupply(ctx)
+	case tokencreate.FieldIsFreezable:
+		return m.OldIsFreezable(ctx)
+	case tokencreate.FieldNetwork:
+		return m.OldNetwork(ctx)
+	}
+	return nil, fmt.Errorf("unknown TokenCreate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TokenCreateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case tokencreate.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case tokencreate.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case tokencreate.FieldIssuerPublicKey:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIssuerPublicKey(v)
+		return nil
+	case tokencreate.FieldWalletProvidedTimestamp:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletProvidedTimestamp(v)
+		return nil
+	case tokencreate.FieldIssuerSignature:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIssuerSignature(v)
+		return nil
+	case tokencreate.FieldOperatorSpecificIssuerSignature:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperatorSpecificIssuerSignature(v)
+		return nil
+	case tokencreate.FieldCreationEntityPublicKey:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreationEntityPublicKey(v)
+		return nil
+	case tokencreate.FieldTokenName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenName(v)
+		return nil
+	case tokencreate.FieldTokenTicker:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenTicker(v)
+		return nil
+	case tokencreate.FieldDecimals:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDecimals(v)
+		return nil
+	case tokencreate.FieldMaxSupply:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxSupply(v)
+		return nil
+	case tokencreate.FieldIsFreezable:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsFreezable(v)
+		return nil
+	case tokencreate.FieldNetwork:
+		v, ok := value.(schematype.Network)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetwork(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TokenCreate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TokenCreateMutation) AddedFields() []string {
+	var fields []string
+	if m.addwallet_provided_timestamp != nil {
+		fields = append(fields, tokencreate.FieldWalletProvidedTimestamp)
+	}
+	if m.adddecimals != nil {
+		fields = append(fields, tokencreate.FieldDecimals)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TokenCreateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case tokencreate.FieldWalletProvidedTimestamp:
+		return m.AddedWalletProvidedTimestamp()
+	case tokencreate.FieldDecimals:
+		return m.AddedDecimals()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TokenCreateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case tokencreate.FieldWalletProvidedTimestamp:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletProvidedTimestamp(v)
+		return nil
+	case tokencreate.FieldDecimals:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDecimals(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TokenCreate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TokenCreateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(tokencreate.FieldWalletProvidedTimestamp) {
+		fields = append(fields, tokencreate.FieldWalletProvidedTimestamp)
+	}
+	if m.FieldCleared(tokencreate.FieldIssuerSignature) {
+		fields = append(fields, tokencreate.FieldIssuerSignature)
+	}
+	if m.FieldCleared(tokencreate.FieldOperatorSpecificIssuerSignature) {
+		fields = append(fields, tokencreate.FieldOperatorSpecificIssuerSignature)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TokenCreateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TokenCreateMutation) ClearField(name string) error {
+	switch name {
+	case tokencreate.FieldWalletProvidedTimestamp:
+		m.ClearWalletProvidedTimestamp()
+		return nil
+	case tokencreate.FieldIssuerSignature:
+		m.ClearIssuerSignature()
+		return nil
+	case tokencreate.FieldOperatorSpecificIssuerSignature:
+		m.ClearOperatorSpecificIssuerSignature()
+		return nil
+	}
+	return fmt.Errorf("unknown TokenCreate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TokenCreateMutation) ResetField(name string) error {
+	switch name {
+	case tokencreate.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case tokencreate.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case tokencreate.FieldIssuerPublicKey:
+		m.ResetIssuerPublicKey()
+		return nil
+	case tokencreate.FieldWalletProvidedTimestamp:
+		m.ResetWalletProvidedTimestamp()
+		return nil
+	case tokencreate.FieldIssuerSignature:
+		m.ResetIssuerSignature()
+		return nil
+	case tokencreate.FieldOperatorSpecificIssuerSignature:
+		m.ResetOperatorSpecificIssuerSignature()
+		return nil
+	case tokencreate.FieldCreationEntityPublicKey:
+		m.ResetCreationEntityPublicKey()
+		return nil
+	case tokencreate.FieldTokenName:
+		m.ResetTokenName()
+		return nil
+	case tokencreate.FieldTokenTicker:
+		m.ResetTokenTicker()
+		return nil
+	case tokencreate.FieldDecimals:
+		m.ResetDecimals()
+		return nil
+	case tokencreate.FieldMaxSupply:
+		m.ResetMaxSupply()
+		return nil
+	case tokencreate.FieldIsFreezable:
+		m.ResetIsFreezable()
+		return nil
+	case tokencreate.FieldNetwork:
+		m.ResetNetwork()
+		return nil
+	}
+	return fmt.Errorf("unknown TokenCreate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TokenCreateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.token_transaction != nil {
+		edges = append(edges, tokencreate.EdgeTokenTransaction)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TokenCreateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case tokencreate.EdgeTokenTransaction:
+		ids := make([]ent.Value, 0, len(m.token_transaction))
+		for id := range m.token_transaction {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TokenCreateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedtoken_transaction != nil {
+		edges = append(edges, tokencreate.EdgeTokenTransaction)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TokenCreateMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case tokencreate.EdgeTokenTransaction:
+		ids := make([]ent.Value, 0, len(m.removedtoken_transaction))
+		for id := range m.removedtoken_transaction {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TokenCreateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtoken_transaction {
+		edges = append(edges, tokencreate.EdgeTokenTransaction)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TokenCreateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case tokencreate.EdgeTokenTransaction:
+		return m.clearedtoken_transaction
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TokenCreateMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown TokenCreate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TokenCreateMutation) ResetEdge(name string) error {
+	switch name {
+	case tokencreate.EdgeTokenTransaction:
+		m.ResetTokenTransaction()
+		return nil
+	}
+	return fmt.Errorf("unknown TokenCreate edge %s", name)
+}
+
 // TokenFreezeMutation represents an operation that mutates the TokenFreeze nodes in the graph.
 type TokenFreezeMutation struct {
 	config
@@ -5903,7 +7108,7 @@ type TokenFreezeMutation struct {
 	id                                  *uuid.UUID
 	create_time                         *time.Time
 	update_time                         *time.Time
-	status                              *schema.TokenFreezeStatus
+	status                              *schematype.TokenFreezeStatus
 	owner_public_key                    *[]byte
 	token_public_key                    *[]byte
 	issuer_signature                    *[]byte
@@ -6094,12 +7299,12 @@ func (m *TokenFreezeMutation) ResetUpdateTime() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TokenFreezeMutation) SetStatus(sfs schema.TokenFreezeStatus) {
+func (m *TokenFreezeMutation) SetStatus(sfs schematype.TokenFreezeStatus) {
 	m.status = &sfs
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TokenFreezeMutation) Status() (r schema.TokenFreezeStatus, exists bool) {
+func (m *TokenFreezeMutation) Status() (r schematype.TokenFreezeStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -6110,7 +7315,7 @@ func (m *TokenFreezeMutation) Status() (r schema.TokenFreezeStatus, exists bool)
 // OldStatus returns the old "status" field's value of the TokenFreeze entity.
 // If the TokenFreeze object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenFreezeMutation) OldStatus(ctx context.Context) (v schema.TokenFreezeStatus, err error) {
+func (m *TokenFreezeMutation) OldStatus(ctx context.Context) (v schematype.TokenFreezeStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -6495,7 +7700,7 @@ func (m *TokenFreezeMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdateTime(v)
 		return nil
 	case tokenfreeze.FieldStatus:
-		v, ok := value.(schema.TokenFreezeStatus)
+		v, ok := value.(schematype.TokenFreezeStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -6705,7 +7910,7 @@ type TokenLeafMutation struct {
 	id                                               *uuid.UUID
 	create_time                                      *time.Time
 	update_time                                      *time.Time
-	status                                           *schema.TokenLeafStatus
+	status                                           *schematype.TokenLeafStatus
 	owner_public_key                                 *[]byte
 	withdraw_bond_sats                               *uint64
 	addwithdraw_bond_sats                            *int64
@@ -6722,7 +7927,7 @@ type TokenLeafMutation struct {
 	addleaf_spent_transaction_input_vout             *int32
 	leaf_spent_revocation_private_key                *[]byte
 	confirmed_withdraw_block_hash                    *[]byte
-	network                                          *schema.Network
+	network                                          *schematype.Network
 	clearedFields                                    map[string]struct{}
 	revocation_keyshare                              *uuid.UUID
 	clearedrevocation_keyshare                       bool
@@ -6912,12 +8117,12 @@ func (m *TokenLeafMutation) ResetUpdateTime() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TokenLeafMutation) SetStatus(sls schema.TokenLeafStatus) {
+func (m *TokenLeafMutation) SetStatus(sls schematype.TokenLeafStatus) {
 	m.status = &sls
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TokenLeafMutation) Status() (r schema.TokenLeafStatus, exists bool) {
+func (m *TokenLeafMutation) Status() (r schematype.TokenLeafStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -6928,7 +8133,7 @@ func (m *TokenLeafMutation) Status() (r schema.TokenLeafStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the TokenLeaf entity.
 // If the TokenLeaf object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenLeafMutation) OldStatus(ctx context.Context) (v schema.TokenLeafStatus, err error) {
+func (m *TokenLeafMutation) OldStatus(ctx context.Context) (v schematype.TokenLeafStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -7526,12 +8731,12 @@ func (m *TokenLeafMutation) ResetConfirmedWithdrawBlockHash() {
 }
 
 // SetNetwork sets the "network" field.
-func (m *TokenLeafMutation) SetNetwork(s schema.Network) {
+func (m *TokenLeafMutation) SetNetwork(s schematype.Network) {
 	m.network = &s
 }
 
 // Network returns the value of the "network" field in the mutation.
-func (m *TokenLeafMutation) Network() (r schema.Network, exists bool) {
+func (m *TokenLeafMutation) Network() (r schematype.Network, exists bool) {
 	v := m.network
 	if v == nil {
 		return
@@ -7542,7 +8747,7 @@ func (m *TokenLeafMutation) Network() (r schema.Network, exists bool) {
 // OldNetwork returns the old "network" field's value of the TokenLeaf entity.
 // If the TokenLeaf object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenLeafMutation) OldNetwork(ctx context.Context) (v schema.Network, err error) {
+func (m *TokenLeafMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
 	}
@@ -7879,7 +9084,7 @@ func (m *TokenLeafMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdateTime(v)
 		return nil
 	case tokenleaf.FieldStatus:
-		v, ok := value.(schema.TokenLeafStatus)
+		v, ok := value.(schematype.TokenLeafStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -7970,7 +9175,7 @@ func (m *TokenLeafMutation) SetField(name string, value ent.Value) error {
 		m.SetConfirmedWithdrawBlockHash(v)
 		return nil
 	case tokenleaf.FieldNetwork:
-		v, ok := value.(schema.Network)
+		v, ok := value.(schematype.Network)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -8290,6 +9495,7 @@ type TokenMintMutation struct {
 	addwallet_provided_timestamp       *int64
 	issuer_signature                   *[]byte
 	operator_specific_issuer_signature *[]byte
+	token_identifier                   *[]byte
 	clearedFields                      map[string]struct{}
 	token_transaction_receipt          map[uuid.UUID]struct{}
 	removedtoken_transaction_receipt   map[uuid.UUID]struct{}
@@ -8655,6 +9861,55 @@ func (m *TokenMintMutation) ResetOperatorSpecificIssuerSignature() {
 	delete(m.clearedFields, tokenmint.FieldOperatorSpecificIssuerSignature)
 }
 
+// SetTokenIdentifier sets the "token_identifier" field.
+func (m *TokenMintMutation) SetTokenIdentifier(b []byte) {
+	m.token_identifier = &b
+}
+
+// TokenIdentifier returns the value of the "token_identifier" field in the mutation.
+func (m *TokenMintMutation) TokenIdentifier() (r []byte, exists bool) {
+	v := m.token_identifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenIdentifier returns the old "token_identifier" field's value of the TokenMint entity.
+// If the TokenMint object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenMintMutation) OldTokenIdentifier(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenIdentifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenIdentifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenIdentifier: %w", err)
+	}
+	return oldValue.TokenIdentifier, nil
+}
+
+// ClearTokenIdentifier clears the value of the "token_identifier" field.
+func (m *TokenMintMutation) ClearTokenIdentifier() {
+	m.token_identifier = nil
+	m.clearedFields[tokenmint.FieldTokenIdentifier] = struct{}{}
+}
+
+// TokenIdentifierCleared returns if the "token_identifier" field was cleared in this mutation.
+func (m *TokenMintMutation) TokenIdentifierCleared() bool {
+	_, ok := m.clearedFields[tokenmint.FieldTokenIdentifier]
+	return ok
+}
+
+// ResetTokenIdentifier resets all changes to the "token_identifier" field.
+func (m *TokenMintMutation) ResetTokenIdentifier() {
+	m.token_identifier = nil
+	delete(m.clearedFields, tokenmint.FieldTokenIdentifier)
+}
+
 // AddTokenTransactionReceiptIDs adds the "token_transaction_receipt" edge to the TokenTransactionReceipt entity by ids.
 func (m *TokenMintMutation) AddTokenTransactionReceiptIDs(ids ...uuid.UUID) {
 	if m.token_transaction_receipt == nil {
@@ -8797,7 +10052,7 @@ func (m *TokenMintMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TokenMintMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.create_time != nil {
 		fields = append(fields, tokenmint.FieldCreateTime)
 	}
@@ -8815,6 +10070,9 @@ func (m *TokenMintMutation) Fields() []string {
 	}
 	if m.operator_specific_issuer_signature != nil {
 		fields = append(fields, tokenmint.FieldOperatorSpecificIssuerSignature)
+	}
+	if m.token_identifier != nil {
+		fields = append(fields, tokenmint.FieldTokenIdentifier)
 	}
 	return fields
 }
@@ -8836,6 +10094,8 @@ func (m *TokenMintMutation) Field(name string) (ent.Value, bool) {
 		return m.IssuerSignature()
 	case tokenmint.FieldOperatorSpecificIssuerSignature:
 		return m.OperatorSpecificIssuerSignature()
+	case tokenmint.FieldTokenIdentifier:
+		return m.TokenIdentifier()
 	}
 	return nil, false
 }
@@ -8857,6 +10117,8 @@ func (m *TokenMintMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldIssuerSignature(ctx)
 	case tokenmint.FieldOperatorSpecificIssuerSignature:
 		return m.OldOperatorSpecificIssuerSignature(ctx)
+	case tokenmint.FieldTokenIdentifier:
+		return m.OldTokenIdentifier(ctx)
 	}
 	return nil, fmt.Errorf("unknown TokenMint field %s", name)
 }
@@ -8908,6 +10170,13 @@ func (m *TokenMintMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOperatorSpecificIssuerSignature(v)
 		return nil
+	case tokenmint.FieldTokenIdentifier:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenIdentifier(v)
+		return nil
 	}
 	return fmt.Errorf("unknown TokenMint field %s", name)
 }
@@ -8956,6 +10225,9 @@ func (m *TokenMintMutation) ClearedFields() []string {
 	if m.FieldCleared(tokenmint.FieldOperatorSpecificIssuerSignature) {
 		fields = append(fields, tokenmint.FieldOperatorSpecificIssuerSignature)
 	}
+	if m.FieldCleared(tokenmint.FieldTokenIdentifier) {
+		fields = append(fields, tokenmint.FieldTokenIdentifier)
+	}
 	return fields
 }
 
@@ -8972,6 +10244,9 @@ func (m *TokenMintMutation) ClearField(name string) error {
 	switch name {
 	case tokenmint.FieldOperatorSpecificIssuerSignature:
 		m.ClearOperatorSpecificIssuerSignature()
+		return nil
+	case tokenmint.FieldTokenIdentifier:
+		m.ClearTokenIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown TokenMint nullable field %s", name)
@@ -8998,6 +10273,9 @@ func (m *TokenMintMutation) ResetField(name string) error {
 		return nil
 	case tokenmint.FieldOperatorSpecificIssuerSignature:
 		m.ResetOperatorSpecificIssuerSignature()
+		return nil
+	case tokenmint.FieldTokenIdentifier:
+		m.ResetTokenIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown TokenMint field %s", name)
@@ -9121,7 +10399,7 @@ type TokenOutputMutation struct {
 	id                                          *uuid.UUID
 	create_time                                 *time.Time
 	update_time                                 *time.Time
-	status                                      *schema.TokenOutputStatus
+	status                                      *schematype.TokenOutputStatus
 	owner_public_key                            *[]byte
 	withdraw_bond_sats                          *uint64
 	addwithdraw_bond_sats                       *int64
@@ -9138,7 +10416,8 @@ type TokenOutputMutation struct {
 	addspent_transaction_input_vout             *int32
 	spent_revocation_secret                     *[]byte
 	confirmed_withdraw_block_hash               *[]byte
-	network                                     *schema.Network
+	network                                     *schematype.Network
+	token_identifier                            *[]byte
 	clearedFields                               map[string]struct{}
 	revocation_keyshare                         *uuid.UUID
 	clearedrevocation_keyshare                  bool
@@ -9328,12 +10607,12 @@ func (m *TokenOutputMutation) ResetUpdateTime() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TokenOutputMutation) SetStatus(sos schema.TokenOutputStatus) {
+func (m *TokenOutputMutation) SetStatus(sos schematype.TokenOutputStatus) {
 	m.status = &sos
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TokenOutputMutation) Status() (r schema.TokenOutputStatus, exists bool) {
+func (m *TokenOutputMutation) Status() (r schematype.TokenOutputStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -9344,7 +10623,7 @@ func (m *TokenOutputMutation) Status() (r schema.TokenOutputStatus, exists bool)
 // OldStatus returns the old "status" field's value of the TokenOutput entity.
 // If the TokenOutput object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenOutputMutation) OldStatus(ctx context.Context) (v schema.TokenOutputStatus, err error) {
+func (m *TokenOutputMutation) OldStatus(ctx context.Context) (v schematype.TokenOutputStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -9942,12 +11221,12 @@ func (m *TokenOutputMutation) ResetConfirmedWithdrawBlockHash() {
 }
 
 // SetNetwork sets the "network" field.
-func (m *TokenOutputMutation) SetNetwork(s schema.Network) {
+func (m *TokenOutputMutation) SetNetwork(s schematype.Network) {
 	m.network = &s
 }
 
 // Network returns the value of the "network" field in the mutation.
-func (m *TokenOutputMutation) Network() (r schema.Network, exists bool) {
+func (m *TokenOutputMutation) Network() (r schematype.Network, exists bool) {
 	v := m.network
 	if v == nil {
 		return
@@ -9958,7 +11237,7 @@ func (m *TokenOutputMutation) Network() (r schema.Network, exists bool) {
 // OldNetwork returns the old "network" field's value of the TokenOutput entity.
 // If the TokenOutput object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenOutputMutation) OldNetwork(ctx context.Context) (v schema.Network, err error) {
+func (m *TokenOutputMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
 	}
@@ -9988,6 +11267,55 @@ func (m *TokenOutputMutation) NetworkCleared() bool {
 func (m *TokenOutputMutation) ResetNetwork() {
 	m.network = nil
 	delete(m.clearedFields, tokenoutput.FieldNetwork)
+}
+
+// SetTokenIdentifier sets the "token_identifier" field.
+func (m *TokenOutputMutation) SetTokenIdentifier(b []byte) {
+	m.token_identifier = &b
+}
+
+// TokenIdentifier returns the value of the "token_identifier" field in the mutation.
+func (m *TokenOutputMutation) TokenIdentifier() (r []byte, exists bool) {
+	v := m.token_identifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenIdentifier returns the old "token_identifier" field's value of the TokenOutput entity.
+// If the TokenOutput object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TokenOutputMutation) OldTokenIdentifier(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenIdentifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenIdentifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenIdentifier: %w", err)
+	}
+	return oldValue.TokenIdentifier, nil
+}
+
+// ClearTokenIdentifier clears the value of the "token_identifier" field.
+func (m *TokenOutputMutation) ClearTokenIdentifier() {
+	m.token_identifier = nil
+	m.clearedFields[tokenoutput.FieldTokenIdentifier] = struct{}{}
+}
+
+// TokenIdentifierCleared returns if the "token_identifier" field was cleared in this mutation.
+func (m *TokenOutputMutation) TokenIdentifierCleared() bool {
+	_, ok := m.clearedFields[tokenoutput.FieldTokenIdentifier]
+	return ok
+}
+
+// ResetTokenIdentifier resets all changes to the "token_identifier" field.
+func (m *TokenOutputMutation) ResetTokenIdentifier() {
+	m.token_identifier = nil
+	delete(m.clearedFields, tokenoutput.FieldTokenIdentifier)
 }
 
 // SetRevocationKeyshareID sets the "revocation_keyshare" edge to the SigningKeyshare entity by id.
@@ -10141,7 +11469,7 @@ func (m *TokenOutputMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TokenOutputMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.create_time != nil {
 		fields = append(fields, tokenoutput.FieldCreateTime)
 	}
@@ -10190,6 +11518,9 @@ func (m *TokenOutputMutation) Fields() []string {
 	if m.network != nil {
 		fields = append(fields, tokenoutput.FieldNetwork)
 	}
+	if m.token_identifier != nil {
+		fields = append(fields, tokenoutput.FieldTokenIdentifier)
+	}
 	return fields
 }
 
@@ -10230,6 +11561,8 @@ func (m *TokenOutputMutation) Field(name string) (ent.Value, bool) {
 		return m.ConfirmedWithdrawBlockHash()
 	case tokenoutput.FieldNetwork:
 		return m.Network()
+	case tokenoutput.FieldTokenIdentifier:
+		return m.TokenIdentifier()
 	}
 	return nil, false
 }
@@ -10271,6 +11604,8 @@ func (m *TokenOutputMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldConfirmedWithdrawBlockHash(ctx)
 	case tokenoutput.FieldNetwork:
 		return m.OldNetwork(ctx)
+	case tokenoutput.FieldTokenIdentifier:
+		return m.OldTokenIdentifier(ctx)
 	}
 	return nil, fmt.Errorf("unknown TokenOutput field %s", name)
 }
@@ -10295,7 +11630,7 @@ func (m *TokenOutputMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdateTime(v)
 		return nil
 	case tokenoutput.FieldStatus:
-		v, ok := value.(schema.TokenOutputStatus)
+		v, ok := value.(schematype.TokenOutputStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -10386,11 +11721,18 @@ func (m *TokenOutputMutation) SetField(name string, value ent.Value) error {
 		m.SetConfirmedWithdrawBlockHash(v)
 		return nil
 	case tokenoutput.FieldNetwork:
-		v, ok := value.(schema.Network)
+		v, ok := value.(schematype.Network)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetNetwork(v)
+		return nil
+	case tokenoutput.FieldTokenIdentifier:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenIdentifier(v)
 		return nil
 	}
 	return fmt.Errorf("unknown TokenOutput field %s", name)
@@ -10491,6 +11833,9 @@ func (m *TokenOutputMutation) ClearedFields() []string {
 	if m.FieldCleared(tokenoutput.FieldNetwork) {
 		fields = append(fields, tokenoutput.FieldNetwork)
 	}
+	if m.FieldCleared(tokenoutput.FieldTokenIdentifier) {
+		fields = append(fields, tokenoutput.FieldTokenIdentifier)
+	}
 	return fields
 }
 
@@ -10522,6 +11867,9 @@ func (m *TokenOutputMutation) ClearField(name string) error {
 		return nil
 	case tokenoutput.FieldNetwork:
 		m.ClearNetwork()
+		return nil
+	case tokenoutput.FieldTokenIdentifier:
+		m.ClearTokenIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown TokenOutput nullable field %s", name)
@@ -10578,6 +11926,9 @@ func (m *TokenOutputMutation) ResetField(name string) error {
 		return nil
 	case tokenoutput.FieldNetwork:
 		m.ResetNetwork()
+		return nil
+	case tokenoutput.FieldTokenIdentifier:
+		m.ResetTokenIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown TokenOutput field %s", name)
@@ -10704,7 +12055,7 @@ type TokenTransactionMutation struct {
 	partial_token_transaction_hash   *[]byte
 	finalized_token_transaction_hash *[]byte
 	operator_signature               *[]byte
-	status                           *schema.TokenTransactionStatus
+	status                           *schematype.TokenTransactionStatus
 	expiry_time                      *time.Time
 	coordinator_public_key           *[]byte
 	clearedFields                    map[string]struct{}
@@ -10716,6 +12067,8 @@ type TokenTransactionMutation struct {
 	clearedcreated_output            bool
 	mint                             *uuid.UUID
 	clearedmint                      bool
+	create                           *uuid.UUID
+	clearedcreate                    bool
 	done                             bool
 	oldValue                         func(context.Context) (*TokenTransaction, error)
 	predicates                       []predicate.TokenTransaction
@@ -11019,12 +12372,12 @@ func (m *TokenTransactionMutation) ResetOperatorSignature() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TokenTransactionMutation) SetStatus(sts schema.TokenTransactionStatus) {
+func (m *TokenTransactionMutation) SetStatus(sts schematype.TokenTransactionStatus) {
 	m.status = &sts
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TokenTransactionMutation) Status() (r schema.TokenTransactionStatus, exists bool) {
+func (m *TokenTransactionMutation) Status() (r schematype.TokenTransactionStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -11035,7 +12388,7 @@ func (m *TokenTransactionMutation) Status() (r schema.TokenTransactionStatus, ex
 // OldStatus returns the old "status" field's value of the TokenTransaction entity.
 // If the TokenTransaction object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenTransactionMutation) OldStatus(ctx context.Context) (v schema.TokenTransactionStatus, err error) {
+func (m *TokenTransactionMutation) OldStatus(ctx context.Context) (v schematype.TokenTransactionStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -11312,6 +12665,45 @@ func (m *TokenTransactionMutation) ResetMint() {
 	m.clearedmint = false
 }
 
+// SetCreateID sets the "create" edge to the TokenCreate entity by id.
+func (m *TokenTransactionMutation) SetCreateID(id uuid.UUID) {
+	m.create = &id
+}
+
+// ClearCreate clears the "create" edge to the TokenCreate entity.
+func (m *TokenTransactionMutation) ClearCreate() {
+	m.clearedcreate = true
+}
+
+// CreateCleared reports if the "create" edge to the TokenCreate entity was cleared.
+func (m *TokenTransactionMutation) CreateCleared() bool {
+	return m.clearedcreate
+}
+
+// CreateID returns the "create" edge ID in the mutation.
+func (m *TokenTransactionMutation) CreateID() (id uuid.UUID, exists bool) {
+	if m.create != nil {
+		return *m.create, true
+	}
+	return
+}
+
+// CreateIDs returns the "create" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CreateID instead. It exists only for internal usage by the builders.
+func (m *TokenTransactionMutation) CreateIDs() (ids []uuid.UUID) {
+	if id := m.create; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCreate resets all changes to the "create" edge.
+func (m *TokenTransactionMutation) ResetCreate() {
+	m.create = nil
+	m.clearedcreate = false
+}
+
 // Where appends a list predicates to the TokenTransactionMutation builder.
 func (m *TokenTransactionMutation) Where(ps ...predicate.TokenTransaction) {
 	m.predicates = append(m.predicates, ps...)
@@ -11465,7 +12857,7 @@ func (m *TokenTransactionMutation) SetField(name string, value ent.Value) error 
 		m.SetOperatorSignature(v)
 		return nil
 	case tokentransaction.FieldStatus:
-		v, ok := value.(schema.TokenTransactionStatus)
+		v, ok := value.(schematype.TokenTransactionStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -11591,7 +12983,7 @@ func (m *TokenTransactionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TokenTransactionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.spent_output != nil {
 		edges = append(edges, tokentransaction.EdgeSpentOutput)
 	}
@@ -11600,6 +12992,9 @@ func (m *TokenTransactionMutation) AddedEdges() []string {
 	}
 	if m.mint != nil {
 		edges = append(edges, tokentransaction.EdgeMint)
+	}
+	if m.create != nil {
+		edges = append(edges, tokentransaction.EdgeCreate)
 	}
 	return edges
 }
@@ -11624,13 +13019,17 @@ func (m *TokenTransactionMutation) AddedIDs(name string) []ent.Value {
 		if id := m.mint; id != nil {
 			return []ent.Value{*id}
 		}
+	case tokentransaction.EdgeCreate:
+		if id := m.create; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TokenTransactionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedspent_output != nil {
 		edges = append(edges, tokentransaction.EdgeSpentOutput)
 	}
@@ -11662,7 +13061,7 @@ func (m *TokenTransactionMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TokenTransactionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedspent_output {
 		edges = append(edges, tokentransaction.EdgeSpentOutput)
 	}
@@ -11671,6 +13070,9 @@ func (m *TokenTransactionMutation) ClearedEdges() []string {
 	}
 	if m.clearedmint {
 		edges = append(edges, tokentransaction.EdgeMint)
+	}
+	if m.clearedcreate {
+		edges = append(edges, tokentransaction.EdgeCreate)
 	}
 	return edges
 }
@@ -11685,6 +13087,8 @@ func (m *TokenTransactionMutation) EdgeCleared(name string) bool {
 		return m.clearedcreated_output
 	case tokentransaction.EdgeMint:
 		return m.clearedmint
+	case tokentransaction.EdgeCreate:
+		return m.clearedcreate
 	}
 	return false
 }
@@ -11695,6 +13099,9 @@ func (m *TokenTransactionMutation) ClearEdge(name string) error {
 	switch name {
 	case tokentransaction.EdgeMint:
 		m.ClearMint()
+		return nil
+	case tokentransaction.EdgeCreate:
+		m.ClearCreate()
 		return nil
 	}
 	return fmt.Errorf("unknown TokenTransaction unique edge %s", name)
@@ -11713,6 +13120,9 @@ func (m *TokenTransactionMutation) ResetEdge(name string) error {
 	case tokentransaction.EdgeMint:
 		m.ResetMint()
 		return nil
+	case tokentransaction.EdgeCreate:
+		m.ResetCreate()
+		return nil
 	}
 	return fmt.Errorf("unknown TokenTransaction edge %s", name)
 }
@@ -11728,7 +13138,7 @@ type TokenTransactionReceiptMutation struct {
 	partial_token_transaction_hash   *[]byte
 	finalized_token_transaction_hash *[]byte
 	operator_signature               *[]byte
-	status                           *schema.TokenTransactionStatus
+	status                           *schematype.TokenTransactionStatus
 	clearedFields                    map[string]struct{}
 	spent_leaf                       map[uuid.UUID]struct{}
 	removedspent_leaf                map[uuid.UUID]struct{}
@@ -12041,12 +13451,12 @@ func (m *TokenTransactionReceiptMutation) ResetOperatorSignature() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TokenTransactionReceiptMutation) SetStatus(sts schema.TokenTransactionStatus) {
+func (m *TokenTransactionReceiptMutation) SetStatus(sts schematype.TokenTransactionStatus) {
 	m.status = &sts
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TokenTransactionReceiptMutation) Status() (r schema.TokenTransactionStatus, exists bool) {
+func (m *TokenTransactionReceiptMutation) Status() (r schematype.TokenTransactionStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -12057,7 +13467,7 @@ func (m *TokenTransactionReceiptMutation) Status() (r schema.TokenTransactionSta
 // OldStatus returns the old "status" field's value of the TokenTransactionReceipt entity.
 // If the TokenTransactionReceipt object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TokenTransactionReceiptMutation) OldStatus(ctx context.Context) (v schema.TokenTransactionStatus, err error) {
+func (m *TokenTransactionReceiptMutation) OldStatus(ctx context.Context) (v schematype.TokenTransactionStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -12375,7 +13785,7 @@ func (m *TokenTransactionReceiptMutation) SetField(name string, value ent.Value)
 		m.SetOperatorSignature(v)
 		return nil
 	case tokentransactionreceipt.FieldStatus:
-		v, ok := value.(schema.TokenTransactionStatus)
+		v, ok := value.(schematype.TokenTransactionStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -12607,8 +14017,8 @@ type TransferMutation struct {
 	receiver_identity_pubkey *[]byte
 	total_value              *uint64
 	addtotal_value           *int64
-	status                   *schema.TransferStatus
-	_type                    *schema.TransferType
+	status                   *schematype.TransferStatus
+	_type                    *schematype.TransferType
 	expiry_time              *time.Time
 	completion_time          *time.Time
 	clearedFields            map[string]struct{}
@@ -12925,12 +14335,12 @@ func (m *TransferMutation) ResetTotalValue() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TransferMutation) SetStatus(ss schema.TransferStatus) {
+func (m *TransferMutation) SetStatus(ss schematype.TransferStatus) {
 	m.status = &ss
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TransferMutation) Status() (r schema.TransferStatus, exists bool) {
+func (m *TransferMutation) Status() (r schematype.TransferStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -12941,7 +14351,7 @@ func (m *TransferMutation) Status() (r schema.TransferStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the Transfer entity.
 // If the Transfer object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TransferMutation) OldStatus(ctx context.Context) (v schema.TransferStatus, err error) {
+func (m *TransferMutation) OldStatus(ctx context.Context) (v schematype.TransferStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -12961,12 +14371,12 @@ func (m *TransferMutation) ResetStatus() {
 }
 
 // SetType sets the "type" field.
-func (m *TransferMutation) SetType(st schema.TransferType) {
+func (m *TransferMutation) SetType(st schematype.TransferType) {
 	m._type = &st
 }
 
 // GetType returns the value of the "type" field in the mutation.
-func (m *TransferMutation) GetType() (r schema.TransferType, exists bool) {
+func (m *TransferMutation) GetType() (r schematype.TransferType, exists bool) {
 	v := m._type
 	if v == nil {
 		return
@@ -12977,7 +14387,7 @@ func (m *TransferMutation) GetType() (r schema.TransferType, exists bool) {
 // OldType returns the old "type" field's value of the Transfer entity.
 // If the Transfer object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TransferMutation) OldType(ctx context.Context) (v schema.TransferType, err error) {
+func (m *TransferMutation) OldType(ctx context.Context) (v schematype.TransferType, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldType is only allowed on UpdateOne operations")
 	}
@@ -13295,14 +14705,14 @@ func (m *TransferMutation) SetField(name string, value ent.Value) error {
 		m.SetTotalValue(v)
 		return nil
 	case transfer.FieldStatus:
-		v, ok := value.(schema.TransferStatus)
+		v, ok := value.(schematype.TransferStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
 		return nil
 	case transfer.FieldType:
-		v, ok := value.(schema.TransferType)
+		v, ok := value.(schematype.TransferType)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -14507,8 +15917,8 @@ type TreeMutation struct {
 	create_time           *time.Time
 	update_time           *time.Time
 	owner_identity_pubkey *[]byte
-	status                *schema.TreeStatus
-	network               *schema.Network
+	status                *schematype.TreeStatus
+	network               *schematype.Network
 	base_txid             *[]byte
 	vout                  *int16
 	addvout               *int16
@@ -14736,12 +16146,12 @@ func (m *TreeMutation) ResetOwnerIdentityPubkey() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TreeMutation) SetStatus(ss schema.TreeStatus) {
+func (m *TreeMutation) SetStatus(ss schematype.TreeStatus) {
 	m.status = &ss
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TreeMutation) Status() (r schema.TreeStatus, exists bool) {
+func (m *TreeMutation) Status() (r schematype.TreeStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -14752,7 +16162,7 @@ func (m *TreeMutation) Status() (r schema.TreeStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the Tree entity.
 // If the Tree object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TreeMutation) OldStatus(ctx context.Context) (v schema.TreeStatus, err error) {
+func (m *TreeMutation) OldStatus(ctx context.Context) (v schematype.TreeStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -14772,12 +16182,12 @@ func (m *TreeMutation) ResetStatus() {
 }
 
 // SetNetwork sets the "network" field.
-func (m *TreeMutation) SetNetwork(s schema.Network) {
+func (m *TreeMutation) SetNetwork(s schematype.Network) {
 	m.network = &s
 }
 
 // Network returns the value of the "network" field in the mutation.
-func (m *TreeMutation) Network() (r schema.Network, exists bool) {
+func (m *TreeMutation) Network() (r schematype.Network, exists bool) {
 	v := m.network
 	if v == nil {
 		return
@@ -14788,7 +16198,7 @@ func (m *TreeMutation) Network() (r schema.Network, exists bool) {
 // OldNetwork returns the old "network" field's value of the Tree entity.
 // If the Tree object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TreeMutation) OldNetwork(ctx context.Context) (v schema.Network, err error) {
+func (m *TreeMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
 	}
@@ -15124,14 +16534,14 @@ func (m *TreeMutation) SetField(name string, value ent.Value) error {
 		m.SetOwnerIdentityPubkey(v)
 		return nil
 	case tree.FieldStatus:
-		v, ok := value.(schema.TreeStatus)
+		v, ok := value.(schematype.TreeStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
 		return nil
 	case tree.FieldNetwork:
-		v, ok := value.(schema.Network)
+		v, ok := value.(schematype.Network)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -15352,7 +16762,7 @@ type TreeNodeMutation struct {
 	update_time                   *time.Time
 	value                         *uint64
 	addvalue                      *int64
-	status                        *schema.TreeNodeStatus
+	status                        *schematype.TreeNodeStatus
 	verifying_pubkey              *[]byte
 	owner_identity_pubkey         *[]byte
 	owner_signing_pubkey          *[]byte
@@ -15613,12 +17023,12 @@ func (m *TreeNodeMutation) ResetValue() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TreeNodeMutation) SetStatus(sns schema.TreeNodeStatus) {
+func (m *TreeNodeMutation) SetStatus(sns schematype.TreeNodeStatus) {
 	m.status = &sns
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TreeNodeMutation) Status() (r schema.TreeNodeStatus, exists bool) {
+func (m *TreeNodeMutation) Status() (r schematype.TreeNodeStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -15629,7 +17039,7 @@ func (m *TreeNodeMutation) Status() (r schema.TreeNodeStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the TreeNode entity.
 // If the TreeNode object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TreeNodeMutation) OldStatus(ctx context.Context) (v schema.TreeNodeStatus, err error) {
+func (m *TreeNodeMutation) OldStatus(ctx context.Context) (v schematype.TreeNodeStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -16431,7 +17841,7 @@ func (m *TreeNodeMutation) SetField(name string, value ent.Value) error {
 		m.SetValue(v)
 		return nil
 	case treenode.FieldStatus:
-		v, ok := value.(schema.TreeNodeStatus)
+		v, ok := value.(schematype.TreeNodeStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -17551,7 +18961,7 @@ type UtxoMutation struct {
 	addvout                *int32
 	amount                 *uint64
 	addamount              *int64
-	network                *schema.Network
+	network                *schematype.Network
 	pk_script              *[]byte
 	clearedFields          map[string]struct{}
 	deposit_address        *uuid.UUID
@@ -17942,12 +19352,12 @@ func (m *UtxoMutation) ResetAmount() {
 }
 
 // SetNetwork sets the "network" field.
-func (m *UtxoMutation) SetNetwork(s schema.Network) {
+func (m *UtxoMutation) SetNetwork(s schematype.Network) {
 	m.network = &s
 }
 
 // Network returns the value of the "network" field in the mutation.
-func (m *UtxoMutation) Network() (r schema.Network, exists bool) {
+func (m *UtxoMutation) Network() (r schematype.Network, exists bool) {
 	v := m.network
 	if v == nil {
 		return
@@ -17958,7 +19368,7 @@ func (m *UtxoMutation) Network() (r schema.Network, exists bool) {
 // OldNetwork returns the old "network" field's value of the Utxo entity.
 // If the Utxo object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UtxoMutation) OldNetwork(ctx context.Context) (v schema.Network, err error) {
+func (m *UtxoMutation) OldNetwork(ctx context.Context) (v schematype.Network, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldNetwork is only allowed on UpdateOne operations")
 	}
@@ -18212,7 +19622,7 @@ func (m *UtxoMutation) SetField(name string, value ent.Value) error {
 		m.SetAmount(v)
 		return nil
 	case utxo.FieldNetwork:
-		v, ok := value.(schema.Network)
+		v, ok := value.(schematype.Network)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -18423,8 +19833,8 @@ type UtxoSwapMutation struct {
 	id                              *uuid.UUID
 	create_time                     *time.Time
 	update_time                     *time.Time
-	status                          *schema.UtxoSwapStatus
-	request_type                    *schema.UtxoSwapRequestType
+	status                          *schematype.UtxoSwapStatus
+	request_type                    *schematype.UtxoSwapRequestType
 	credit_amount_sats              *uint64
 	addcredit_amount_sats           *int64
 	max_fee_sats                    *uint64
@@ -18623,12 +20033,12 @@ func (m *UtxoSwapMutation) ResetUpdateTime() {
 }
 
 // SetStatus sets the "status" field.
-func (m *UtxoSwapMutation) SetStatus(sss schema.UtxoSwapStatus) {
+func (m *UtxoSwapMutation) SetStatus(sss schematype.UtxoSwapStatus) {
 	m.status = &sss
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *UtxoSwapMutation) Status() (r schema.UtxoSwapStatus, exists bool) {
+func (m *UtxoSwapMutation) Status() (r schematype.UtxoSwapStatus, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -18639,7 +20049,7 @@ func (m *UtxoSwapMutation) Status() (r schema.UtxoSwapStatus, exists bool) {
 // OldStatus returns the old "status" field's value of the UtxoSwap entity.
 // If the UtxoSwap object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UtxoSwapMutation) OldStatus(ctx context.Context) (v schema.UtxoSwapStatus, err error) {
+func (m *UtxoSwapMutation) OldStatus(ctx context.Context) (v schematype.UtxoSwapStatus, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -18659,12 +20069,12 @@ func (m *UtxoSwapMutation) ResetStatus() {
 }
 
 // SetRequestType sets the "request_type" field.
-func (m *UtxoSwapMutation) SetRequestType(ssrt schema.UtxoSwapRequestType) {
+func (m *UtxoSwapMutation) SetRequestType(ssrt schematype.UtxoSwapRequestType) {
 	m.request_type = &ssrt
 }
 
 // RequestType returns the value of the "request_type" field in the mutation.
-func (m *UtxoSwapMutation) RequestType() (r schema.UtxoSwapRequestType, exists bool) {
+func (m *UtxoSwapMutation) RequestType() (r schematype.UtxoSwapRequestType, exists bool) {
 	v := m.request_type
 	if v == nil {
 		return
@@ -18675,7 +20085,7 @@ func (m *UtxoSwapMutation) RequestType() (r schema.UtxoSwapRequestType, exists b
 // OldRequestType returns the old "request_type" field's value of the UtxoSwap entity.
 // If the UtxoSwap object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UtxoSwapMutation) OldRequestType(ctx context.Context) (v schema.UtxoSwapRequestType, err error) {
+func (m *UtxoSwapMutation) OldRequestType(ctx context.Context) (v schematype.UtxoSwapRequestType, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRequestType is only allowed on UpdateOne operations")
 	}
@@ -19409,14 +20819,14 @@ func (m *UtxoSwapMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdateTime(v)
 		return nil
 	case utxoswap.FieldStatus:
-		v, ok := value.(schema.UtxoSwapStatus)
+		v, ok := value.(schematype.UtxoSwapStatus)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
 		return nil
 	case utxoswap.FieldRequestType:
-		v, ok := value.(schema.UtxoSwapRequestType)
+		v, ok := value.(schematype.UtxoSwapRequestType)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

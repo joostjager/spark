@@ -18,7 +18,7 @@ import (
 	"github.com/lightsparkdev/spark"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/utils"
 	sspapi "github.com/lightsparkdev/spark/wallet/ssp_api"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
@@ -77,7 +77,7 @@ func (w *SingleKeyWallet) ClaimAllTransfers(ctx context.Context) ([]*pb.TreeNode
 		log.Println("Claiming transfer", transfer.Id, transfer.Status)
 		if transfer.Status != pb.TransferStatus_TRANSFER_STATUS_SENDER_KEY_TWEAKED &&
 			transfer.Status != pb.TransferStatus_TRANSFER_STATUS_RECEIVER_KEY_TWEAKED &&
-			transfer.Status != pb.TransferStatus_TRANSFER_STATUSR_RECEIVER_REFUND_SIGNED {
+			transfer.Status != pb.TransferStatus_TRANSFER_STATUS_RECEIVER_REFUND_SIGNED {
 			continue
 		}
 		leavesMap, err := VerifyPendingTransfer(ctx, w.Config, transfer)
@@ -155,10 +155,10 @@ func (w *SingleKeyWallet) PayInvoice(ctx context.Context, invoice string) (strin
 		return "", fmt.Errorf("failed to parse invoice: %w", err)
 	}
 
-	amount := math.Ceil(float64(bolt11.MSatoshi) / 1000.0)
-	nodes, err := w.leafSelection(int64(amount))
+	amount := int64(math.Ceil(float64(bolt11.MSatoshi) / 1000.0))
+	nodes, err := w.leafSelection(amount)
 	if err != nil {
-		_, err = w.RequestLeavesSwap(ctx, int64(amount))
+		_, err = w.RequestLeavesSwap(ctx, amount)
 		if err != nil {
 			return "", fmt.Errorf("failed to select nodes: %w", err)
 		}
@@ -166,7 +166,7 @@ func (w *SingleKeyWallet) PayInvoice(ctx context.Context, invoice string) (strin
 		if err != nil {
 			return "", fmt.Errorf("failed to sync wallet: %w", err)
 		}
-		nodes, err = w.leafSelection(int64(amount))
+		nodes, err = w.leafSelection(amount)
 		if err != nil {
 			return "", fmt.Errorf("failed to select nodes: %w", err)
 		}
@@ -192,7 +192,7 @@ func (w *SingleKeyWallet) PayInvoice(ctx context.Context, invoice string) (strin
 		return "", fmt.Errorf("failed to decode payment hash: %w", err)
 	}
 
-	resp, err := SwapNodesForPreimage(ctx, w.Config, nodeKeyTweaks, w.Config.SparkServiceProviderIdentityPublicKey, paymentHash, &invoice, 0, false)
+	resp, err := SwapNodesForPreimage(ctx, w.Config, nodeKeyTweaks, w.Config.SparkServiceProviderIdentityPublicKey, paymentHash, &invoice, 0, false, uint64(amount))
 	if err != nil {
 		return "", fmt.Errorf("failed to swap nodes for preimage: %w", err)
 	}
@@ -256,7 +256,7 @@ func (w *SingleKeyWallet) SyncWallet(ctx context.Context) error {
 	}
 	ownedNodes := make([]*pb.TreeNode, 0)
 	for _, node := range response.Nodes {
-		if node.Status == string(schema.TreeNodeStatusAvailable) {
+		if node.Status == string(st.TreeNodeStatusAvailable) {
 			ownedNodes = append(ownedNodes, node)
 		}
 	}
@@ -891,7 +891,7 @@ func int64ToUint128Bytes(high, low uint64) []byte {
 }
 
 func getOwnedOutputsFromTokenTransaction(output *pb.TokenTransaction, walletPublicKey []byte) ([]*pb.OutputWithPreviousTransactionData, error) {
-	finalTokenTransactionHash, err := utils.HashTokenTransaction(output, false)
+	finalTokenTransactionHash, err := utils.HashTokenTransactionV0(output, false)
 	if err != nil {
 		return nil, err
 	}

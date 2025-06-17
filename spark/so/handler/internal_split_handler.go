@@ -8,7 +8,7 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -31,7 +31,7 @@ func (h *InternalSplitHandler) PrepareSplitKeyshares(ctx context.Context, req *p
 		logger.Error("Failed to parse node ID", "error", err)
 		return nil, err
 	}
-	err = ent.MarkNodeAsLocked(ctx, nodeID, schema.TreeNodeStatusSplitLocked)
+	err = ent.MarkNodeAsLocked(ctx, nodeID, st.TreeNodeStatusSplitLocked)
 	if err != nil {
 		logger.Error("Failed to mark node as locked", "error", err)
 		return nil, err

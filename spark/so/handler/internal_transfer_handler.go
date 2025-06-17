@@ -9,7 +9,10 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
+	enttransferleaf "github.com/lightsparkdev/spark/so/ent/transferleaf"
+	"github.com/lightsparkdev/spark/so/ent/treenode"
+	"google.golang.org/protobuf/proto"
 )
 
 // InternalTransferHandler is the transfer handler for so internal
@@ -32,10 +35,10 @@ func (h *InternalTransferHandler) FinalizeTransfer(ctx context.Context, req *pbi
 	}
 
 	switch transfer.Status {
-	case schema.TransferStatusReceiverKeyTweaked:
-	case schema.TransferStatusReceiverKeyTweakLocked:
-	case schema.TransferStatusReceiverRefundSigned:
-	case schema.TransferStatusReceiverKeyTweakApplied:
+	case st.TransferStatusReceiverKeyTweaked:
+	case st.TransferStatusReceiverKeyTweakLocked:
+	case st.TransferStatusReceiverRefundSigned:
+	case st.TransferStatusReceiverKeyTweakApplied:
 		// do nothing
 	default:
 		return fmt.Errorf("transfer is not in receiver key tweaked status. transfer id: %s. status: %s", req.TransferId, transfer.Status)
@@ -73,14 +76,14 @@ func (h *InternalTransferHandler) FinalizeTransfer(ctx context.Context, req *pbi
 		_, err = dbNode.Update().
 			SetRawTx(node.RawTx).
 			SetRawRefundTx(node.RawRefundTx).
-			SetStatus(schema.TreeNodeStatusAvailable).
+			SetStatus(st.TreeNodeStatusAvailable).
 			Save(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to update dbNode. transfer id: %s. with status: %s. node id: %s with uuid: %s and error: %w", req.TransferId, transfer.Status, node.Id, nodeID, err)
 		}
 	}
 
-	_, err = transfer.Update().SetStatus(schema.TransferStatusCompleted).SetCompletionTime(req.Timestamp.AsTime()).Save(ctx)
+	_, err = transfer.Update().SetStatus(st.TransferStatusCompleted).SetCompletionTime(req.Timestamp.AsTime()).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update transfer status to completed for transfer id: %s. with status: %s and error: %w", req.TransferId, transfer.Status, err)
 	}
@@ -137,6 +140,55 @@ func (h *InternalTransferHandler) InitiateTransfer(ctx context.Context, req *pbi
 	return nil
 }
 
+func (h *InternalTransferHandler) DeliverSenderKeyTweak(ctx context.Context, req *pbinternal.DeliverSenderKeyTweakRequest) error {
+	leafRefundMap := make(map[string][]byte)
+	for _, leaf := range req.TransferPackage.LeavesToSend {
+		leafRefundMap[leaf.LeafId] = leaf.RawTx
+	}
+
+	keyTweakMap, err := h.validateTransferPackage(ctx, req.TransferId, req.TransferPackage, req.SenderIdentityPublicKey)
+	if err != nil {
+		return err
+	}
+
+	db := ent.GetDbFromContext(ctx)
+	leaves, err := loadLeavesWithLock(ctx, db, leafRefundMap)
+	if err != nil {
+		return fmt.Errorf("unable to load leaves: %w", err)
+	}
+	transfer, err := h.loadTransfer(ctx, req.TransferId)
+	if err != nil {
+		return fmt.Errorf("unable to find transfer %s: %w", req.TransferId, err)
+	}
+	if transfer.Status != st.TransferStatusSenderInitiated {
+		return fmt.Errorf("transfer %s is in state %s; expected sender initiated status", req.TransferId, transfer.Status)
+	}
+	for _, leaf := range leaves {
+		transferLeaf, err := transfer.QueryTransferLeaves().Where(
+			enttransferleaf.HasLeafWith(treenode.IDEQ(leaf.ID))).WithTransfer().Only(ctx)
+		if err != nil {
+			return err
+		}
+		if leafTweak, ok := keyTweakMap[leaf.ID.String()]; ok {
+			leafTweakBinary, err := proto.Marshal(leafTweak)
+			if err != nil {
+				return fmt.Errorf("unable to marshal leaf tweak: %w", err)
+			}
+			_, err = transferLeaf.Update().SetKeyTweak(leafTweakBinary).Save(ctx)
+			if err != nil {
+				return fmt.Errorf("unable to update transfer leaf: %w", err)
+			}
+
+		}
+	}
+	_, err = transfer.Update().SetStatus(st.TransferStatusSenderKeyTweakPending).Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to update status for transfer %s", req.TransferId)
+	}
+
+	return nil
+}
+
 func applySignatures(ctx context.Context, leafRefundMap map[string][]byte, refundSignatures map[string][]byte) (map[string][]byte, error) {
 	db := ent.GetDbFromContext(ctx)
 	resultMap := make(map[string][]byte)
@@ -182,7 +234,7 @@ func (h *InternalTransferHandler) InitiateCooperativeExit(ctx context.Context, r
 	transfer, _, err := h.createTransfer(
 		ctx,
 		transferReq.TransferId,
-		schema.TransferTypeCooperativeExit,
+		st.TransferTypeCooperativeExit,
 		transferReq.ExpiryTime.AsTime(),
 		transferReq.SenderIdentityPublicKey,
 		transferReq.ReceiverIdentityPublicKey,
@@ -220,7 +272,7 @@ func (h *InternalTransferHandler) SettleSenderKeyTweak(ctx context.Context, req 
 		if err != nil {
 			return fmt.Errorf("unable to load transfer %s: %w", req.TransferId, err)
 		}
-		_, err = h.commitSenderKeyTweaks(ctx, transfer)
+		_, err = h.commitSenderKeyTweaks(ctx, transfer, false)
 		return err
 	case pbinternal.SettleKeyTweakAction_ROLLBACK:
 		transfer, err := h.loadTransfer(ctx, req.TransferId)

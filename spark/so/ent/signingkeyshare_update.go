@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 )
 
@@ -36,13 +36,13 @@ func (sku *SigningKeyshareUpdate) SetUpdateTime(t time.Time) *SigningKeyshareUpd
 }
 
 // SetStatus sets the "status" field.
-func (sku *SigningKeyshareUpdate) SetStatus(sks schema.SigningKeyshareStatus) *SigningKeyshareUpdate {
+func (sku *SigningKeyshareUpdate) SetStatus(sks schematype.SigningKeyshareStatus) *SigningKeyshareUpdate {
 	sku.mutation.SetStatus(sks)
 	return sku
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (sku *SigningKeyshareUpdate) SetNillableStatus(sks *schema.SigningKeyshareStatus) *SigningKeyshareUpdate {
+func (sku *SigningKeyshareUpdate) SetNillableStatus(sks *schematype.SigningKeyshareStatus) *SigningKeyshareUpdate {
 	if sks != nil {
 		sku.SetStatus(*sks)
 	}
@@ -226,13 +226,13 @@ func (skuo *SigningKeyshareUpdateOne) SetUpdateTime(t time.Time) *SigningKeyshar
 }
 
 // SetStatus sets the "status" field.
-func (skuo *SigningKeyshareUpdateOne) SetStatus(sks schema.SigningKeyshareStatus) *SigningKeyshareUpdateOne {
+func (skuo *SigningKeyshareUpdateOne) SetStatus(sks schematype.SigningKeyshareStatus) *SigningKeyshareUpdateOne {
 	skuo.mutation.SetStatus(sks)
 	return skuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (skuo *SigningKeyshareUpdateOne) SetNillableStatus(sks *schema.SigningKeyshareStatus) *SigningKeyshareUpdateOne {
+func (skuo *SigningKeyshareUpdateOne) SetNillableStatus(sks *schematype.SigningKeyshareStatus) *SigningKeyshareUpdateOne {
 	if sks != nil {
 		skuo.SetStatus(*sks)
 	}

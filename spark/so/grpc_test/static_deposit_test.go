@@ -18,7 +18,7 @@ import (
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 	"github.com/lightsparkdev/spark/so/handler"
@@ -286,10 +286,10 @@ func TestStaticDepositSSP(t *testing.T) {
 
 	utxoSwap, err := db.UtxoSwap.Query().Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).Only(aliceCtx)
 	require.NoError(t, err)
-	assert.Equal(t, utxoSwap.Status, schema.UtxoSwapStatusCompleted)
+	assert.Equal(t, utxoSwap.Status, st.UtxoSwapStatusCompleted)
 	dbTransferSspToAlice, err := utxoSwap.QueryTransfer().Only(aliceCtx)
 	require.NoError(t, err)
-	assert.Equal(t, dbTransferSspToAlice.Status, schema.TransferStatusSenderKeyTweaked)
+	assert.Equal(t, dbTransferSspToAlice.Status, st.TransferStatusSenderKeyTweaked)
 
 	_, err = common.SerializeTx(signedSpendTx)
 	testutil.OnErrFatal(t, err)

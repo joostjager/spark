@@ -6,8 +6,13 @@ if (typeof globalThis.Buffer === 'undefined') {
   globalThis.Buffer = Buffer;
 }
 
-if (typeof global === 'undefined') {
-  window.global = window.globalThis;
+if (typeof window !== "undefined") {
+  if (typeof window.global === 'undefined') {
+    window.global = window;
+  }
+  if (typeof window.globalThis === 'undefined') {
+    window.globalThis = window;
+  }
 }
 
 export { Buffer };

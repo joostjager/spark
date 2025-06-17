@@ -3,12 +3,15 @@ syntax = "proto3";
 package spark_ssp;
 
 option go_package = "github.com/lightsparkdev/spark/proto/spark_ssp";
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "spark.proto";
 
 service SparkSspInternalService {
     rpc query_lost_nodes(QueryLostNodesRequest) returns (QueryLostNodesResponse) {}
+    rpc magic_swap(MagicSwapRequest) returns (MagicSwapResponse) {}
+    rpc get_stuck_transfers(GetStuckTransfersRequest) returns (GetStuckTransfersResponse) {}
+    rpc query_transfer(QueryStuckTransferRequest) returns (QueryStuckTransferResponse) {}
+    rpc cancel_stuck_transfer(CancelStuckTransferRequest) returns (CancelStuckTransferResponse) {}
 }
 
 message QueryLostNodesRequest {
@@ -17,4 +20,54 @@ message QueryLostNodesRequest {
 
 message QueryLostNodesResponse {
     repeated spark.TreeNode nodes = 1;
+}
+
+message MagicSwapRequest {
+    string transfer_id = 1;
+    bytes owner_identity_public_key = 2;
+    bytes receiver_identity_public_key = 3;
+    spark.TransferPackage transfer_package = 4;
+    repeated string swap_leaf_ids = 5;
+}
+
+message MagicSwapResponse {
+    spark.Transfer swap_transfer = 1;
+    spark.Transfer counter_swap_transfer = 2;
+}
+
+message GetStuckTransfersRequest {
+    google.protobuf.Timestamp before = 1;
+    int64 limit = 2;
+    int64 offset = 3;
+}
+
+message GetStuckTransfersResponse {
+    repeated StuckTransfer transfers = 1;
+    int64 offset = 2;
+}
+
+message QueryStuckTransferRequest {
+    string id = 1;
+}
+
+message QueryStuckTransferResponse {
+    StuckTransfer transfer = 1;
+}
+
+message CancelStuckTransferRequest {
+    string id = 1;
+    bytes owner_identity_public_key = 2;
+}
+
+message CancelStuckTransferResponse {
+    spark.Transfer transfer = 1;
+}
+
+message StuckTransfer {
+    spark.Transfer transfer = 1;
+    map<string, SigningKeysharePublicShares> signing_keyshare_public_shares = 2;
+}
+
+message SigningKeysharePublicShares {
+    map<string, bytes> public_shares = 1;
 }

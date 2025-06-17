@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
 )
@@ -31,7 +31,7 @@ type TokenTransactionReceipt struct {
 	// OperatorSignature holds the value of the "operator_signature" field.
 	OperatorSignature []byte `json:"operator_signature,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TokenTransactionStatus `json:"status,omitempty"`
+	Status schematype.TokenTransactionStatus `json:"status,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TokenTransactionReceiptQuery when eager-loading is set.
 	Edges                          TokenTransactionReceiptEdges `json:"edges"`
@@ -151,7 +151,7 @@ func (ttr *TokenTransactionReceipt) assignValues(columns []string, values []any)
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				ttr.Status = schema.TokenTransactionStatus(value.String)
+				ttr.Status = schematype.TokenTransactionStatus(value.String)
 			}
 		case tokentransactionreceipt.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {

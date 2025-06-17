@@ -14,7 +14,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	enttransfer "github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/transferleaf"
@@ -66,7 +66,7 @@ func (o *FinalizeSignatureHandler) FinalizeNodeSignatures(ctx context.Context, r
 		return nil, fmt.Errorf("failed to get network for request %s: %w", logging.FormatProto("finalize_node_signatures_request", req), err)
 	}
 
-	if tree.Status != schema.TreeStatusAvailable {
+	if tree.Status != st.TreeStatusAvailable {
 		for _, nodeSignatures := range req.NodeSignatures {
 			nodeID, err := uuid.Parse(nodeSignatures.NodeId)
 			if err != nil {
@@ -85,7 +85,7 @@ func (o *FinalizeSignatureHandler) FinalizeNodeSignatures(ctx context.Context, r
 				return nil, fmt.Errorf("failed to get deposit address: %w", err)
 			}
 			if address.ConfirmationHeight != 0 {
-				_, err = tree.Update().SetStatus(schema.TreeStatusAvailable).Save(ctx)
+				_, err = tree.Update().SetStatus(st.TreeStatusAvailable).Save(ctx)
 				if err != nil {
 					return nil, fmt.Errorf("failed to update tree: %w", err)
 				}
@@ -164,7 +164,7 @@ func (o *FinalizeSignatureHandler) verifyAndUpdateTransfer(ctx context.Context, 
 		}
 		leafTransfer, err := db.Transfer.Query().
 			Where(
-				enttransfer.StatusEQ(schema.TransferStatusReceiverRefundSigned),
+				enttransfer.StatusEQ(st.TransferStatusReceiverRefundSigned),
 				enttransfer.HasTransferLeavesWith(
 					transferleaf.HasLeafWith(
 						treenode.IDEQ(leafID),
@@ -189,7 +189,7 @@ func (o *FinalizeSignatureHandler) verifyAndUpdateTransfer(ctx context.Context, 
 		return nil, fmt.Errorf("missing signatures for transfer %s", transfer.ID.String())
 	}
 
-	transfer, err = transfer.Update().SetStatus(schema.TransferStatusCompleted).SetCompletionTime(time.Now()).Save(ctx)
+	transfer, err = transfer.Update().SetStatus(st.TransferStatusCompleted).SetCompletionTime(time.Now()).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update transfer %s: %w", transfer.ID.String(), err)
 	}
@@ -276,11 +276,11 @@ func (o *FinalizeSignatureHandler) updateNode(ctx context.Context, nodeSignature
 	nodeMutator := node.Update().
 		SetRawTx(nodeTxBytes).
 		SetRawRefundTx(refundTxBytes)
-	if tree.Status == schema.TreeStatusAvailable {
+	if tree.Status == st.TreeStatusAvailable {
 		if len(node.RawRefundTx) > 0 {
-			nodeMutator.SetStatus(schema.TreeNodeStatusAvailable)
+			nodeMutator.SetStatus(st.TreeNodeStatusAvailable)
 		} else {
-			nodeMutator.SetStatus(schema.TreeNodeStatusSplitted)
+			nodeMutator.SetStatus(st.TreeNodeStatusSplitted)
 		}
 	}
 	node, err = nodeMutator.Save(ctx)

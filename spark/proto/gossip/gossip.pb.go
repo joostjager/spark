@@ -7,6 +7,7 @@
 package gossip
 
 import (
+	spark "github.com/lightsparkdev/spark/proto/spark"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -27,6 +28,9 @@ type GossipMessage struct {
 	// Types that are valid to be assigned to Message:
 	//
 	//	*GossipMessage_CancelTransfer
+	//	*GossipMessage_MagicSwap
+	//	*GossipMessage_SettleSenderKeyTweak
+	//	*GossipMessage_RollbackTransfer
 	Message       isGossipMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -85,6 +89,33 @@ func (x *GossipMessage) GetCancelTransfer() *GossipMessageCancelTransfer {
 	return nil
 }
 
+func (x *GossipMessage) GetMagicSwap() *GossipMessageMagicSwap {
+	if x != nil {
+		if x, ok := x.Message.(*GossipMessage_MagicSwap); ok {
+			return x.MagicSwap
+		}
+	}
+	return nil
+}
+
+func (x *GossipMessage) GetSettleSenderKeyTweak() *GossipMessageSettleSenderKeyTweak {
+	if x != nil {
+		if x, ok := x.Message.(*GossipMessage_SettleSenderKeyTweak); ok {
+			return x.SettleSenderKeyTweak
+		}
+	}
+	return nil
+}
+
+func (x *GossipMessage) GetRollbackTransfer() *GossipMessageRollbackTransfer {
+	if x != nil {
+		if x, ok := x.Message.(*GossipMessage_RollbackTransfer); ok {
+			return x.RollbackTransfer
+		}
+	}
+	return nil
+}
+
 type isGossipMessage_Message interface {
 	isGossipMessage_Message()
 }
@@ -93,7 +124,25 @@ type GossipMessage_CancelTransfer struct {
 	CancelTransfer *GossipMessageCancelTransfer `protobuf:"bytes,2,opt,name=cancel_transfer,json=cancelTransfer,proto3,oneof"`
 }
 
+type GossipMessage_MagicSwap struct {
+	MagicSwap *GossipMessageMagicSwap `protobuf:"bytes,3,opt,name=magic_swap,json=magicSwap,proto3,oneof"`
+}
+
+type GossipMessage_SettleSenderKeyTweak struct {
+	SettleSenderKeyTweak *GossipMessageSettleSenderKeyTweak `protobuf:"bytes,4,opt,name=settle_sender_key_tweak,json=settleSenderKeyTweak,proto3,oneof"`
+}
+
+type GossipMessage_RollbackTransfer struct {
+	RollbackTransfer *GossipMessageRollbackTransfer `protobuf:"bytes,5,opt,name=rollback_transfer,json=rollbackTransfer,proto3,oneof"`
+}
+
 func (*GossipMessage_CancelTransfer) isGossipMessage_Message() {}
+
+func (*GossipMessage_MagicSwap) isGossipMessage_Message() {}
+
+func (*GossipMessage_SettleSenderKeyTweak) isGossipMessage_Message() {}
+
+func (*GossipMessage_RollbackTransfer) isGossipMessage_Message() {}
 
 type GossipMessageCancelTransfer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -139,19 +188,208 @@ func (x *GossipMessageCancelTransfer) GetTransferId() string {
 	return ""
 }
 
+// Rolling back a transfer reverts it to its initial state. Only transfers that
+// have not been key-tweaked by the sender are eligible for rollback.
+type GossipMessageRollbackTransfer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TransferId    string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GossipMessageRollbackTransfer) Reset() {
+	*x = GossipMessageRollbackTransfer{}
+	mi := &file_gossip_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GossipMessageRollbackTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GossipMessageRollbackTransfer) ProtoMessage() {}
+
+func (x *GossipMessageRollbackTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GossipMessageRollbackTransfer.ProtoReflect.Descriptor instead.
+func (*GossipMessageRollbackTransfer) Descriptor() ([]byte, []int) {
+	return file_gossip_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GossipMessageRollbackTransfer) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+type GossipMessageMagicSwap struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TransferId        string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	SwapLeafIds       []string               `protobuf:"bytes,2,rep,name=swap_leaf_ids,json=swapLeafIds,proto3" json:"swap_leaf_ids,omitempty"`
+	SenderPublicKey   []byte                 `protobuf:"bytes,3,opt,name=sender_public_key,json=senderPublicKey,proto3" json:"sender_public_key,omitempty"`
+	ReceiverPublicKey []byte                 `protobuf:"bytes,4,opt,name=receiver_public_key,json=receiverPublicKey,proto3" json:"receiver_public_key,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GossipMessageMagicSwap) Reset() {
+	*x = GossipMessageMagicSwap{}
+	mi := &file_gossip_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GossipMessageMagicSwap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GossipMessageMagicSwap) ProtoMessage() {}
+
+func (x *GossipMessageMagicSwap) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GossipMessageMagicSwap.ProtoReflect.Descriptor instead.
+func (*GossipMessageMagicSwap) Descriptor() ([]byte, []int) {
+	return file_gossip_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GossipMessageMagicSwap) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *GossipMessageMagicSwap) GetSwapLeafIds() []string {
+	if x != nil {
+		return x.SwapLeafIds
+	}
+	return nil
+}
+
+func (x *GossipMessageMagicSwap) GetSenderPublicKey() []byte {
+	if x != nil {
+		return x.SenderPublicKey
+	}
+	return nil
+}
+
+func (x *GossipMessageMagicSwap) GetReceiverPublicKey() []byte {
+	if x != nil {
+		return x.ReceiverPublicKey
+	}
+	return nil
+}
+
+type GossipMessageSettleSenderKeyTweak struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	TransferId string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	// The key tweak proofs for the leaves that this message is to commit.
+	// This is a safe guard to ensure that we can detect mismatch key tweaks, but if the proofs
+	// don't match, there's no way to recover at this point.
+	SenderKeyTweakProofs map[string]*spark.SecretProof `protobuf:"bytes,2,rep,name=sender_key_tweak_proofs,json=senderKeyTweakProofs,proto3" json:"sender_key_tweak_proofs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GossipMessageSettleSenderKeyTweak) Reset() {
+	*x = GossipMessageSettleSenderKeyTweak{}
+	mi := &file_gossip_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GossipMessageSettleSenderKeyTweak) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GossipMessageSettleSenderKeyTweak) ProtoMessage() {}
+
+func (x *GossipMessageSettleSenderKeyTweak) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GossipMessageSettleSenderKeyTweak.ProtoReflect.Descriptor instead.
+func (*GossipMessageSettleSenderKeyTweak) Descriptor() ([]byte, []int) {
+	return file_gossip_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GossipMessageSettleSenderKeyTweak) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *GossipMessageSettleSenderKeyTweak) GetSenderKeyTweakProofs() map[string]*spark.SecretProof {
+	if x != nil {
+		return x.SenderKeyTweakProofs
+	}
+	return nil
+}
+
 var File_gossip_proto protoreflect.FileDescriptor
 
 const file_gossip_proto_rawDesc = "" +
 	"\n" +
-	"\fgossip.proto\x12\x06gossip\"\x89\x01\n" +
+	"\fgossip.proto\x12\x06gossip\x1a\vspark.proto\"\x84\x03\n" +
 	"\rGossipMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12N\n" +
-	"\x0fcancel_transfer\x18\x02 \x01(\v2#.gossip.GossipMessageCancelTransferH\x00R\x0ecancelTransferB\t\n" +
+	"\x0fcancel_transfer\x18\x02 \x01(\v2#.gossip.GossipMessageCancelTransferH\x00R\x0ecancelTransfer\x12?\n" +
+	"\n" +
+	"magic_swap\x18\x03 \x01(\v2\x1e.gossip.GossipMessageMagicSwapH\x00R\tmagicSwap\x12b\n" +
+	"\x17settle_sender_key_tweak\x18\x04 \x01(\v2).gossip.GossipMessageSettleSenderKeyTweakH\x00R\x14settleSenderKeyTweak\x12T\n" +
+	"\x11rollback_transfer\x18\x05 \x01(\v2%.gossip.GossipMessageRollbackTransferH\x00R\x10rollbackTransferB\t\n" +
 	"\amessage\">\n" +
 	"\x1bGossipMessageCancelTransfer\x12\x1f\n" +
 	"\vtransfer_id\x18\x01 \x01(\tR\n" +
-	"transferIdB-Z+github.com/lightsparkdev/spark/proto/gossipb\x06proto3"
+	"transferId\"@\n" +
+	"\x1dGossipMessageRollbackTransfer\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\"\xb9\x01\n" +
+	"\x16GossipMessageMagicSwap\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\x12\"\n" +
+	"\rswap_leaf_ids\x18\x02 \x03(\tR\vswapLeafIds\x12*\n" +
+	"\x11sender_public_key\x18\x03 \x01(\fR\x0fsenderPublicKey\x12.\n" +
+	"\x13receiver_public_key\x18\x04 \x01(\fR\x11receiverPublicKey\"\x9d\x02\n" +
+	"!GossipMessageSettleSenderKeyTweak\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\x12z\n" +
+	"\x17sender_key_tweak_proofs\x18\x02 \x03(\v2C.gossip.GossipMessageSettleSenderKeyTweak.SenderKeyTweakProofsEntryR\x14senderKeyTweakProofs\x1a[\n" +
+	"\x19SenderKeyTweakProofsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.spark.SecretProofR\x05value:\x028\x01B-Z+github.com/lightsparkdev/spark/proto/gossipb\x06proto3"
 
 var (
 	file_gossip_proto_rawDescOnce sync.Once
@@ -165,18 +403,28 @@ func file_gossip_proto_rawDescGZIP() []byte {
 	return file_gossip_proto_rawDescData
 }
 
-var file_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_gossip_proto_goTypes = []any{
-	(*GossipMessage)(nil),               // 0: gossip.GossipMessage
-	(*GossipMessageCancelTransfer)(nil), // 1: gossip.GossipMessageCancelTransfer
+	(*GossipMessage)(nil),                     // 0: gossip.GossipMessage
+	(*GossipMessageCancelTransfer)(nil),       // 1: gossip.GossipMessageCancelTransfer
+	(*GossipMessageRollbackTransfer)(nil),     // 2: gossip.GossipMessageRollbackTransfer
+	(*GossipMessageMagicSwap)(nil),            // 3: gossip.GossipMessageMagicSwap
+	(*GossipMessageSettleSenderKeyTweak)(nil), // 4: gossip.GossipMessageSettleSenderKeyTweak
+	nil,                       // 5: gossip.GossipMessageSettleSenderKeyTweak.SenderKeyTweakProofsEntry
+	(*spark.SecretProof)(nil), // 6: spark.SecretProof
 }
 var file_gossip_proto_depIdxs = []int32{
 	1, // 0: gossip.GossipMessage.cancel_transfer:type_name -> gossip.GossipMessageCancelTransfer
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 1: gossip.GossipMessage.magic_swap:type_name -> gossip.GossipMessageMagicSwap
+	4, // 2: gossip.GossipMessage.settle_sender_key_tweak:type_name -> gossip.GossipMessageSettleSenderKeyTweak
+	2, // 3: gossip.GossipMessage.rollback_transfer:type_name -> gossip.GossipMessageRollbackTransfer
+	5, // 4: gossip.GossipMessageSettleSenderKeyTweak.sender_key_tweak_proofs:type_name -> gossip.GossipMessageSettleSenderKeyTweak.SenderKeyTweakProofsEntry
+	6, // 5: gossip.GossipMessageSettleSenderKeyTweak.SenderKeyTweakProofsEntry.value:type_name -> spark.SecretProof
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_gossip_proto_init() }
@@ -186,6 +434,9 @@ func file_gossip_proto_init() {
 	}
 	file_gossip_proto_msgTypes[0].OneofWrappers = []any{
 		(*GossipMessage_CancelTransfer)(nil),
+		(*GossipMessage_MagicSwap)(nil),
+		(*GossipMessage_SettleSenderKeyTweak)(nil),
+		(*GossipMessage_RollbackTransfer)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -193,7 +444,7 @@ func file_gossip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gossip_proto_rawDesc), len(file_gossip_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

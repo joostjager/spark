@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 const commonConfig = {
-  sourcemap: true,
+  sourcemap: false,
   dts: true,
   clean: false,
   inject: ["./buffer.js"],
@@ -20,9 +20,9 @@ export default defineConfig([
       "src/services/token-transactions.ts",
       "src/services/connection.ts",
       "src/services/lrc-connection.ts",
-      "src/tests/test-util.ts",
       "src/utils/index.ts",
       "src/proto/spark.ts",
+      "src/proto/spark_token.ts",
       "src/proto/lrc20.ts",
       "src/graphql/objects/index.ts",
       "src/types/index.ts",

@@ -5,28 +5,8 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
-
-// TreeStatus is the status of a tree node.
-type TreeStatus string
-
-const (
-	// TreeStatusPending is the status of a tree that the base L1 transaction is not confirmed yet.
-	TreeStatusPending TreeStatus = "PENDING"
-	// TreeStatusAvailable is the status of a tree that the base L1 transaction is confirmed.
-	TreeStatusAvailable TreeStatus = "AVAILABLE"
-	// TreeStatusExited is the status of a tree that has exited.
-	TreeStatusExited TreeStatus = "EXITED"
-)
-
-// Values returns the values of the tree node status.
-func (TreeStatus) Values() []string {
-	return []string{
-		string(TreeStatusPending),
-		string(TreeStatusAvailable),
-		string(TreeStatusExited),
-	}
-}
 
 // Tree is the schema for the trees table.
 type Tree struct {
@@ -44,8 +24,8 @@ func (Tree) Mixin() []ent.Mixin {
 func (Tree) Fields() []ent.Field {
 	return []ent.Field{
 		field.Bytes("owner_identity_pubkey").NotEmpty(),
-		field.Enum("status").GoType(TreeStatus("")),
-		field.Enum("network").GoType(Network("")),
+		field.Enum("status").GoType(st.TreeStatus("")),
+		field.Enum("network").GoType(st.Network("")),
 		field.Bytes("base_txid").NotEmpty(),
 		field.Int16("vout").NonNegative(),
 	}

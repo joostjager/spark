@@ -1,5 +1,66 @@
 # @buildonspark/issuer-sdk
 
+## 0.0.71
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/spark-sdk@0.1.40
+
+## 0.0.70
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/spark-sdk@0.1.39
+
+## 0.0.69
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/spark-sdk@0.1.38
+
+## 0.0.68
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/spark-sdk@0.1.37
+
+## 0.0.67
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.57
+  - @buildonspark/spark-sdk@0.1.36
+
+## 0.0.66
+
+### Patch Changes
+
+- Fixes
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.56
+  - @buildonspark/spark-sdk@0.1.35
+
+## 0.0.65
+
+### Patch Changes
+
+- Add signer interface
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.55
+  - @buildonspark/spark-sdk@0.1.34
+
+## 0.0.64
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/spark-sdk@0.1.33
+
 ## 0.0.63
 
 ### Patch Changes

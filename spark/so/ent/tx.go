@@ -28,6 +28,8 @@ type Tx struct {
 	SigningKeyshare *SigningKeyshareClient
 	// SigningNonce is the client for interacting with the SigningNonce builders.
 	SigningNonce *SigningNonceClient
+	// TokenCreate is the client for interacting with the TokenCreate builders.
+	TokenCreate *TokenCreateClient
 	// TokenFreeze is the client for interacting with the TokenFreeze builders.
 	TokenFreeze *TokenFreezeClient
 	// TokenLeaf is the client for interacting with the TokenLeaf builders.
@@ -193,6 +195,7 @@ func (tx *Tx) init() {
 	tx.PreimageShare = NewPreimageShareClient(tx.config)
 	tx.SigningKeyshare = NewSigningKeyshareClient(tx.config)
 	tx.SigningNonce = NewSigningNonceClient(tx.config)
+	tx.TokenCreate = NewTokenCreateClient(tx.config)
 	tx.TokenFreeze = NewTokenFreezeClient(tx.config)
 	tx.TokenLeaf = NewTokenLeafClient(tx.config)
 	tx.TokenMint = NewTokenMintClient(tx.config)

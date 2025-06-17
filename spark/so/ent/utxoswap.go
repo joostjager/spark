@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
@@ -26,9 +26,9 @@ type UtxoSwap struct {
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.UtxoSwapStatus `json:"status,omitempty"`
+	Status schematype.UtxoSwapStatus `json:"status,omitempty"`
 	// RequestType holds the value of the "request_type" field.
-	RequestType schema.UtxoSwapRequestType `json:"request_type,omitempty"`
+	RequestType schematype.UtxoSwapRequestType `json:"request_type,omitempty"`
 	// CreditAmountSats holds the value of the "credit_amount_sats" field.
 	CreditAmountSats uint64 `json:"credit_amount_sats,omitempty"`
 	// MaxFeeSats holds the value of the "max_fee_sats" field.
@@ -147,13 +147,13 @@ func (us *UtxoSwap) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				us.Status = schema.UtxoSwapStatus(value.String)
+				us.Status = schematype.UtxoSwapStatus(value.String)
 			}
 		case utxoswap.FieldRequestType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field request_type", values[i])
 			} else if value.Valid {
-				us.RequestType = schema.UtxoSwapRequestType(value.String)
+				us.RequestType = schematype.UtxoSwapRequestType(value.String)
 			}
 		case utxoswap.FieldCreditAmountSats:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

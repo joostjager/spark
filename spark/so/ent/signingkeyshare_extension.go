@@ -14,7 +14,7 @@ import (
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 	"github.com/lightsparkdev/spark/so"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 )
 
@@ -78,7 +78,7 @@ func GetUnusedSigningKeyshares(ctx context.Context, dbClient *Client, config *so
 	}
 
 	signingKeyshares, err := tx.SigningKeyshare.Query().Where(
-		signingkeyshare.StatusEQ(schema.KeyshareStatusAvailable),
+		signingkeyshare.StatusEQ(st.KeyshareStatusAvailable),
 		signingkeyshare.CoordinatorIndexEQ(config.Index),
 		signingkeyshare.IDGT(uuid.MustParse("01954639-8d50-7e47-b3f0-ddb307fab7c2")),
 	).
@@ -103,7 +103,7 @@ func GetUnusedSigningKeyshares(ctx context.Context, dbClient *Client, config *so
 
 	for _, keyshare := range signingKeyshares {
 		_, err := keyshare.Update().
-			SetStatus(schema.KeyshareStatusInUse).
+			SetStatus(st.KeyshareStatusInUse).
 			Save(ctx)
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
@@ -144,7 +144,7 @@ func MarkSigningKeysharesAsUsed(ctx context.Context, _ *so.Config, ids []uuid.UU
 	count, err := db.SigningKeyshare.
 		Update().
 		Where(signingkeyshare.IDIn(ids...)).
-		SetStatus(schema.KeyshareStatusInUse).
+		SetStatus(st.KeyshareStatusInUse).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update keyshares to in use: %w", err)
@@ -338,7 +338,7 @@ func CalculateAndStoreLastKey(ctx context.Context, _ *so.Config, target *Signing
 		SetSecretShare(lastSecretShare).
 		SetPublicShares(publicShares).
 		SetPublicKey(verifyingKey).
-		SetStatus(schema.KeyshareStatusInUse).
+		SetStatus(st.KeyshareStatusInUse).
 		SetCoordinatorIndex(0).
 		SetMinSigners(target.MinSigners).
 		Save(ctx)
@@ -380,7 +380,7 @@ func RunDKGIfNeeded(ctx context.Context, config *so.Config) error {
 	db := GetDbFromContext(ctx)
 
 	count, err := db.SigningKeyshare.Query().Where(
-		signingkeyshare.StatusEQ(schema.KeyshareStatusAvailable),
+		signingkeyshare.StatusEQ(st.KeyshareStatusAvailable),
 		signingkeyshare.CoordinatorIndexEQ(config.Index),
 		signingkeyshare.IDGT(uuid.MustParse("01954639-8d50-7e47-b3f0-ddb307fab7c2")),
 	).Count(ctx)

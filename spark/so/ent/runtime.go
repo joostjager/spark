@@ -15,6 +15,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/schema"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/signingnonce"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
@@ -226,6 +227,49 @@ func init() {
 	signingnonceDescID := signingnonceMixinFields0[0].Descriptor()
 	// signingnonce.DefaultID holds the default value on creation for the id field.
 	signingnonce.DefaultID = signingnonceDescID.Default.(func() uuid.UUID)
+	tokencreateMixin := schema.TokenCreate{}.Mixin()
+	tokencreateMixinFields0 := tokencreateMixin[0].Fields()
+	_ = tokencreateMixinFields0
+	tokencreateFields := schema.TokenCreate{}.Fields()
+	_ = tokencreateFields
+	// tokencreateDescCreateTime is the schema descriptor for create_time field.
+	tokencreateDescCreateTime := tokencreateMixinFields0[1].Descriptor()
+	// tokencreate.DefaultCreateTime holds the default value on creation for the create_time field.
+	tokencreate.DefaultCreateTime = tokencreateDescCreateTime.Default.(func() time.Time)
+	// tokencreateDescUpdateTime is the schema descriptor for update_time field.
+	tokencreateDescUpdateTime := tokencreateMixinFields0[2].Descriptor()
+	// tokencreate.DefaultUpdateTime holds the default value on creation for the update_time field.
+	tokencreate.DefaultUpdateTime = tokencreateDescUpdateTime.Default.(func() time.Time)
+	// tokencreate.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	tokencreate.UpdateDefaultUpdateTime = tokencreateDescUpdateTime.UpdateDefault.(func() time.Time)
+	// tokencreateDescIssuerPublicKey is the schema descriptor for issuer_public_key field.
+	tokencreateDescIssuerPublicKey := tokencreateFields[0].Descriptor()
+	// tokencreate.IssuerPublicKeyValidator is a validator for the "issuer_public_key" field. It is called by the builders before save.
+	tokencreate.IssuerPublicKeyValidator = tokencreateDescIssuerPublicKey.Validators[0].(func([]byte) error)
+	// tokencreateDescIssuerSignature is the schema descriptor for issuer_signature field.
+	tokencreateDescIssuerSignature := tokencreateFields[2].Descriptor()
+	// tokencreate.IssuerSignatureValidator is a validator for the "issuer_signature" field. It is called by the builders before save.
+	tokencreate.IssuerSignatureValidator = tokencreateDescIssuerSignature.Validators[0].(func([]byte) error)
+	// tokencreateDescCreationEntityPublicKey is the schema descriptor for creation_entity_public_key field.
+	tokencreateDescCreationEntityPublicKey := tokencreateFields[4].Descriptor()
+	// tokencreate.CreationEntityPublicKeyValidator is a validator for the "creation_entity_public_key" field. It is called by the builders before save.
+	tokencreate.CreationEntityPublicKeyValidator = tokencreateDescCreationEntityPublicKey.Validators[0].(func([]byte) error)
+	// tokencreateDescTokenName is the schema descriptor for token_name field.
+	tokencreateDescTokenName := tokencreateFields[5].Descriptor()
+	// tokencreate.TokenNameValidator is a validator for the "token_name" field. It is called by the builders before save.
+	tokencreate.TokenNameValidator = tokencreateDescTokenName.Validators[0].(func(string) error)
+	// tokencreateDescTokenTicker is the schema descriptor for token_ticker field.
+	tokencreateDescTokenTicker := tokencreateFields[6].Descriptor()
+	// tokencreate.TokenTickerValidator is a validator for the "token_ticker" field. It is called by the builders before save.
+	tokencreate.TokenTickerValidator = tokencreateDescTokenTicker.Validators[0].(func(string) error)
+	// tokencreateDescMaxSupply is the schema descriptor for max_supply field.
+	tokencreateDescMaxSupply := tokencreateFields[8].Descriptor()
+	// tokencreate.MaxSupplyValidator is a validator for the "max_supply" field. It is called by the builders before save.
+	tokencreate.MaxSupplyValidator = tokencreateDescMaxSupply.Validators[0].(func([]byte) error)
+	// tokencreateDescID is the schema descriptor for id field.
+	tokencreateDescID := tokencreateMixinFields0[0].Descriptor()
+	// tokencreate.DefaultID holds the default value on creation for the id field.
+	tokencreate.DefaultID = tokencreateDescID.Default.(func() uuid.UUID)
 	tokenfreezeMixin := schema.TokenFreeze{}.Mixin()
 	tokenfreezeMixinFields0 := tokenfreezeMixin[0].Fields()
 	_ = tokenfreezeMixinFields0

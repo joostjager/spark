@@ -78,3 +78,18 @@ export function getNetworkFromAddress(address: string) {
   }
   return null;
 }
+
+/**
+ * Utility function to get the network enum value from a string.
+ *
+ * @param {string} network - The Bitcoin network to turn into an enum value
+ * @returns {Network} The enum value matching the string
+ */
+export function getNetworkFromString(network?: string) {
+  const net = (network ?? "REGTEST").toUpperCase();
+  if (net === "MAINNET") return Network.MAINNET;
+  if (net === "TESTNET") return Network.TESTNET;
+  if (net === "SIGNET") return Network.SIGNET;
+  if (net === "LOCAL") return Network.LOCAL;
+  return Network.REGTEST; // default
+}

@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokentransactionreceipt"
@@ -53,7 +53,7 @@ func (tlc *TokenLeafCreate) SetNillableUpdateTime(t *time.Time) *TokenLeafCreate
 }
 
 // SetStatus sets the "status" field.
-func (tlc *TokenLeafCreate) SetStatus(sls schema.TokenLeafStatus) *TokenLeafCreate {
+func (tlc *TokenLeafCreate) SetStatus(sls schematype.TokenLeafStatus) *TokenLeafCreate {
 	tlc.mutation.SetStatus(sls)
 	return tlc
 }
@@ -139,13 +139,13 @@ func (tlc *TokenLeafCreate) SetConfirmedWithdrawBlockHash(b []byte) *TokenLeafCr
 }
 
 // SetNetwork sets the "network" field.
-func (tlc *TokenLeafCreate) SetNetwork(s schema.Network) *TokenLeafCreate {
+func (tlc *TokenLeafCreate) SetNetwork(s schematype.Network) *TokenLeafCreate {
 	tlc.mutation.SetNetwork(s)
 	return tlc
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (tlc *TokenLeafCreate) SetNillableNetwork(s *schema.Network) *TokenLeafCreate {
+func (tlc *TokenLeafCreate) SetNillableNetwork(s *schematype.Network) *TokenLeafCreate {
 	if s != nil {
 		tlc.SetNetwork(*s)
 	}

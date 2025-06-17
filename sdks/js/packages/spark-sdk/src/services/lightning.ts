@@ -1,7 +1,10 @@
-import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/abstract/utils";
+import {
+  bytesToNumberBE,
+  hexToBytes,
+  numberToBytesBE,
+} from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
-import { decode } from "light-bolt11-decoder";
 import { uuidv7 } from "uuidv7";
 import { NetworkError, ValidationError } from "../errors/types.js";
 import LightningReceiveRequest from "../graphql/objects/LightningReceiveRequest.js";
@@ -20,6 +23,7 @@ import { WalletConfigService } from "./config.js";
 import { ConnectionManager } from "./connection.js";
 import { SigningService } from "./signing.js";
 import type { LeafKeyTweak } from "./transfer.js";
+import { decodeInvoice } from "./bolt11-spark.js";
 
 const crypto = getCrypto();
 
@@ -28,9 +32,13 @@ export type CreateLightningInvoiceParams = {
     amountSats: number,
     paymentHash: Uint8Array,
     memo?: string,
+    receiverIdentityPubkey?: string,
+    descriptionHash?: string,
   ) => Promise<LightningReceiveRequest | null>;
   amountSats: number;
   memo?: string;
+  receiverIdentityPubkey?: string;
+  descriptionHash?: string;
 };
 
 export type CreateLightningInvoiceWithPreimageParams = {
@@ -64,6 +72,8 @@ export class LightningService {
     invoiceCreator,
     amountSats,
     memo,
+    receiverIdentityPubkey,
+    descriptionHash,
   }: CreateLightningInvoiceParams): Promise<LightningReceiveRequest> {
     const randBytes = crypto.getRandomValues(new Uint8Array(32));
     const preimage = numberToBytesBE(
@@ -75,6 +85,8 @@ export class LightningService {
       amountSats,
       memo,
       preimage,
+      receiverIdentityPubkey,
+      descriptionHash,
     });
   }
 
@@ -83,9 +95,17 @@ export class LightningService {
     amountSats,
     memo,
     preimage,
+    receiverIdentityPubkey,
+    descriptionHash,
   }: CreateLightningInvoiceWithPreimageParams): Promise<LightningReceiveRequest> {
     const paymentHash = sha256(preimage);
-    const invoice = await invoiceCreator(amountSats, paymentHash, memo);
+    const invoice = await invoiceCreator(
+      amountSats,
+      paymentHash,
+      memo,
+      receiverIdentityPubkey,
+      descriptionHash,
+    );
     if (!invoice) {
       throw new ValidationError("Failed to create lightning invoice", {
         field: "invoice",
@@ -117,6 +137,10 @@ export class LightningService {
           operator.address,
         );
 
+        const userIdentityPublicKey = receiverIdentityPubkey
+          ? hexToBytes(receiverIdentityPubkey)
+          : await this.config.signer.getIdentityPublicKey();
+
         try {
           await sparkClient.store_preimage_share({
             paymentHash,
@@ -126,8 +150,7 @@ export class LightningService {
             },
             threshold: this.config.getThreshold(),
             invoiceString: invoice.invoice.encodedInvoice,
-            userIdentityPublicKey:
-              await this.config.signer.getIdentityPublicKey(),
+            userIdentityPublicKey,
           });
         } catch (e: any) {
           errors.push(e);
@@ -191,13 +214,10 @@ export class LightningService {
     let bolt11String = "";
     let amountSats: number = 0;
     if (invoiceString) {
-      const decodedInvoice = decode(invoiceString);
+      const decodedInvoice = decodeInvoice(invoiceString);
       let amountMsats = 0;
       try {
-        amountMsats = Number(
-          decodedInvoice.sections.find((section) => section.name === "amount")
-            ?.value,
-        );
+        amountMsats = Number(decodedInvoice.amountMSats);
       } catch (error) {
         console.error("Error decoding invoice", error);
       }

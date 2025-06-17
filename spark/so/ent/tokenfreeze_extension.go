@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common/logging"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 )
 
@@ -17,7 +17,7 @@ func GetActiveFreezes(ctx context.Context, ownerPublicKeys [][]byte, tokenPublic
 			// Order matters here to leverage the index.
 			tokenfreeze.OwnerPublicKeyIn(ownerPublicKeys...),
 			tokenfreeze.TokenPublicKeyEQ(tokenPublicKey),
-			tokenfreeze.StatusEQ(schema.TokenFreezeStatusFrozen),
+			tokenfreeze.StatusEQ(st.TokenFreezeStatusFrozen),
 		).All(ctx)
 	if err != nil {
 		logger.Error("Failed to fetch active freezes", "error", err)
@@ -33,7 +33,7 @@ func ThawActiveFreeze(ctx context.Context, activeFreezeID uuid.UUID, timestamp u
 		Where(
 			tokenfreeze.IDEQ(activeFreezeID),
 		).
-		SetStatus(schema.TokenFreezeStatusThawed).
+		SetStatus(st.TokenFreezeStatusThawed).
 		SetWalletProvidedThawTimestamp(timestamp).
 		Save(ctx)
 	if err != nil {
@@ -47,7 +47,7 @@ func ActivateFreeze(ctx context.Context, ownerPublicKey []byte, tokenPublicKey [
 	logger := logging.GetLoggerFromContext(ctx)
 
 	_, err := GetDbFromContext(ctx).TokenFreeze.Create().
-		SetStatus(schema.TokenFreezeStatusFrozen).
+		SetStatus(st.TokenFreezeStatusFrozen).
 		SetOwnerPublicKey(ownerPublicKey).
 		SetTokenPublicKey(tokenPublicKey).
 		SetWalletProvidedFreezeTimestamp(timestamp).

@@ -12,7 +12,7 @@ import (
 	pbmock "github.com/lightsparkdev/spark/proto/mock"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/ent/usersignedtransaction"
 	"google.golang.org/grpc/codes"
@@ -90,7 +90,7 @@ func (o *MockServer) UpdateNodesStatus(ctx context.Context, req *pbmock.UpdateNo
 		nodeUUIDs = append(nodeUUIDs, nodeUUID)
 	}
 
-	_, err := db.TreeNode.Update().SetStatus(schema.TreeNodeStatus(req.Status)).Where(treenode.IDIn(nodeUUIDs...)).Save(ctx)
+	_, err := db.TreeNode.Update().SetStatus(st.TreeNodeStatus(req.Status)).Where(treenode.IDIn(nodeUUIDs...)).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update nodes: %v", err)
 	}

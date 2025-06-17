@@ -6,6 +6,10 @@
 *.so
 *.dylib
 
+# Keep generated .so files in SDK for use in native modules 
+!sdks/js/packages/spark-sdk/**/*.so
+
+
 # Test binary, built with `go test -c`
 *.test
 

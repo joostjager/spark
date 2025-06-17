@@ -14,7 +14,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -88,13 +88,13 @@ func (h *AggregateHandler) prepareSigningJob(_ context.Context, parentNode *ent.
 
 func (h *AggregateHandler) markNodesAggregatedStatus(ctx context.Context, parentNode *ent.TreeNode, nodes []*ent.TreeNode) error {
 	for _, node := range nodes {
-		_, err := node.Update().SetStatus(schema.TreeNodeStatusAggregated).Save(ctx)
+		_, err := node.Update().SetStatus(st.TreeNodeStatusAggregated).Save(ctx)
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err := parentNode.Update().SetStatus(schema.TreeNodeStatusAggregateLock).Save(ctx)
+	_, err := parentNode.Update().SetStatus(st.TreeNodeStatusAggregateLock).Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (h *AggregateHandler) InternalFinalizeNodesAggregation(ctx context.Context,
 		_, err = dbNode.Update().
 			SetRawTx(node.RawTx).
 			SetRawRefundTx(node.RawRefundTx).
-			SetStatus(schema.TreeNodeStatusAvailable).
+			SetStatus(st.TreeNodeStatusAvailable).
 			Save(ctx)
 		if err != nil {
 			logger.Error("Failed to update node", "error", err)

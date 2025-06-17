@@ -1,6 +1,6 @@
 {
   "name": "@buildonspark/lrc20-sdk",
-  "version": "0.0.54",
+  "version": "0.0.57",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "pre-commit-config": "npx husky install",
@@ -60,13 +61,15 @@
   },
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.1.1",
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.1",
     "@sapphire/utilities": "^3.17.0",
+    "@scure/bip32": "^1.6.2",
+    "@scure/bip39": "^1.5.4",
     "bignumber.js": "^9.1.2",
     "bitcoinjs-lib": "^6.1.5",
     "buffer": "^6.0.3",
     "class-transformer": "^0.5.1",
-    "ecpair": "^2.1.0",
-    "stream": "^0.0.3",
     "ts-proto": "^2.6.1",
     "varuint-bitcoin": "^1.1.2"
   },

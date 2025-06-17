@@ -1,5 +1,23 @@
 # @buildonspark/lrc20-sdk
 
+## 0.0.57
+
+### Patch Changes
+
+- - Remove stream and ecpair as dependencies
+
+## 0.0.56
+
+### Patch Changes
+
+- Fixes
+
+## 0.0.55
+
+### Patch Changes
+
+- Add signer interface
+
 ## 0.0.54
 
 ### Patch Changes

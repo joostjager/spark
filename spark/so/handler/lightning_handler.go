@@ -16,6 +16,7 @@ import (
 	secretsharing "github.com/lightsparkdev/spark/common/secret_sharing"
 	pbcommon "github.com/lightsparkdev/spark/proto/common"
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
+	pbgossip "github.com/lightsparkdev/spark/proto/gossip"
 	pb "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
@@ -24,7 +25,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
@@ -198,7 +199,7 @@ func (h *LightningHandler) validateGetPreimageRequest(
 	preimageRequests, err := db.PreimageRequest.Query().Where(
 		preimagerequest.PaymentHashEQ(paymentHash),
 		preimagerequest.ReceiverIdentityPubkeyEQ(destinationPubkey),
-		preimagerequest.StatusNEQ(schema.PreimageRequestStatusReturned),
+		preimagerequest.StatusNEQ(st.PreimageRequestStatusReturned),
 	).All(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get preimage request: %w", err)
@@ -234,7 +235,7 @@ func (h *LightningHandler) validateGetPreimageRequest(
 		if err != nil {
 			return fmt.Errorf("unable to get node: %w", err)
 		}
-		if node.Status != schema.TreeNodeStatusAvailable {
+		if node.Status != st.TreeNodeStatusAvailable {
 			return fmt.Errorf("node %v is not available: %v", node.ID, node.Status)
 		}
 		keyshare, err := node.QuerySigningKeyshare().First(ctx)
@@ -324,7 +325,7 @@ func (h *LightningHandler) storeUserSignedTransactions(
 	preimageShare *ent.PreimageShare,
 	transactions []*pb.UserSignedTxSigningJob,
 	transfer *ent.Transfer,
-	status schema.PreimageRequestStatus,
+	status st.PreimageRequestStatus,
 	receiverIdentityPubkey []byte,
 ) (*ent.PreimageRequest, error) {
 	db := ent.GetDbFromContext(ctx)
@@ -370,7 +371,7 @@ func (h *LightningHandler) storeUserSignedTransactions(
 		if err != nil {
 			return nil, fmt.Errorf("unable to get node: %w", err)
 		}
-		_, err = db.TreeNode.UpdateOne(node).SetStatus(schema.TreeNodeStatusTransferLocked).Save(ctx)
+		_, err = db.TreeNode.UpdateOne(node).SetStatus(st.TreeNodeStatusTransferLocked).Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to update node status: %w", err)
 		}
@@ -433,7 +434,7 @@ func (h *LightningHandler) GetPreimageShare(ctx context.Context, req *pb.Initiat
 	transfer, _, err := transferHandler.createTransfer(
 		ctx,
 		req.Transfer.TransferId,
-		schema.TransferTypePreimageSwap,
+		st.TransferTypePreimageSwap,
 		req.Transfer.ExpiryTime.AsTime(),
 		req.Transfer.OwnerIdentityPublicKey,
 		req.Transfer.ReceiverIdentityPublicKey,
@@ -445,11 +446,11 @@ func (h *LightningHandler) GetPreimageShare(ctx context.Context, req *pb.Initiat
 		return nil, fmt.Errorf("unable to create transfer: %w", err)
 	}
 
-	var status schema.PreimageRequestStatus
+	var status st.PreimageRequestStatus
 	if req.Reason == pb.InitiatePreimageSwapRequest_REASON_RECEIVE {
-		status = schema.PreimageRequestStatusPreimageShared
+		status = st.PreimageRequestStatusPreimageShared
 	} else {
-		status = schema.PreimageRequestStatusWaitingForPreimage
+		status = st.PreimageRequestStatusWaitingForPreimage
 	}
 	_, err = h.storeUserSignedTransactions(ctx, req.PaymentHash, preimageShare, req.Transfer.LeavesToSend, transfer, status, req.ReceiverIdentityPublicKey)
 	if err != nil {
@@ -506,11 +507,13 @@ func (h *LightningHandler) InitiatePreimageSwap(ctx context.Context, req *pb.Ini
 		if err != nil {
 			return nil, fmt.Errorf("unable to decode invoice: %w", err)
 		}
-		invoiceAmount = &pb.InvoiceAmount{
-			ValueSats: uint64(bolt11.MSatoshi / 1000),
-			InvoiceAmountProof: &pb.InvoiceAmountProof{
-				Bolt11Invoice: preimageShare.InvoiceString,
-			},
+		if bolt11.MSatoshi > 0 {
+			invoiceAmount = &pb.InvoiceAmount{
+				ValueSats: uint64(bolt11.MSatoshi / 1000),
+				InvoiceAmountProof: &pb.InvoiceAmountProof{
+					Bolt11Invoice: preimageShare.InvoiceString,
+				},
+			}
 		}
 	}
 
@@ -536,7 +539,7 @@ func (h *LightningHandler) InitiatePreimageSwap(ctx context.Context, req *pb.Ini
 	transfer, _, err := transferHandler.createTransfer(
 		ctx,
 		req.Transfer.TransferId,
-		schema.TransferTypePreimageSwap,
+		st.TransferTypePreimageSwap,
 		req.Transfer.ExpiryTime.AsTime(),
 		req.Transfer.OwnerIdentityPublicKey,
 		req.Transfer.ReceiverIdentityPublicKey,
@@ -548,11 +551,11 @@ func (h *LightningHandler) InitiatePreimageSwap(ctx context.Context, req *pb.Ini
 		return nil, fmt.Errorf("unable to create transfer: %w", err)
 	}
 
-	var status schema.PreimageRequestStatus
+	var status st.PreimageRequestStatus
 	if req.Reason == pb.InitiatePreimageSwapRequest_REASON_RECEIVE {
-		status = schema.PreimageRequestStatusPreimageShared
+		status = st.PreimageRequestStatusPreimageShared
 	} else {
-		status = schema.PreimageRequestStatusWaitingForPreimage
+		status = st.PreimageRequestStatusWaitingForPreimage
 	}
 	preimageRequest, err := h.storeUserSignedTransactions(ctx, req.PaymentHash, preimageShare, req.Transfer.LeavesToSend, transfer, status, req.ReceiverIdentityPublicKey)
 	if err != nil {
@@ -575,6 +578,12 @@ func (h *LightningHandler) InitiatePreimageSwap(ctx context.Context, req *pb.Ini
 		return response.PreimageShare, nil
 	})
 	if err != nil {
+		// At least one operator failed to initiate preimage swap, cancel the transfer.
+		baseHandler := NewBaseTransferHandler(h.config)
+		err := baseHandler.CreateCancelTransferGossipMessage(ctx, transfer.ID.String())
+		if err != nil {
+			logger.Error("InitiatePreimageSwap: unable to cancel own send transfer", "error", err)
+		}
 		return nil, fmt.Errorf("unable to execute task with all operators: %w", err)
 	}
 
@@ -618,40 +627,14 @@ func (h *LightningHandler) InitiatePreimageSwap(ctx context.Context, req *pb.Ini
 	hash := sha256.Sum256(secretBytes)
 	if !bytes.Equal(hash[:], req.PaymentHash) {
 		baseHandler := NewBaseTransferHandler(h.config)
-		_, err := baseHandler.CancelTransfer(ctx, &pb.CancelTransferRequest{
-			TransferId:              transfer.ID.String(),
-			SenderIdentityPublicKey: transfer.SenderIdentityPubkey,
-		}, CancelTransferIntentTask)
+		err := baseHandler.CreateCancelTransferGossipMessage(ctx, transfer.ID.String())
 		if err != nil {
 			logger.Error("InitiatePreimageSwap: unable to cancel own send transfer", "error", err)
 		}
-
-		selection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionExcludeSelf}
-		_, err = helper.ExecuteTaskWithAllOperators(ctx, h.config, &selection, func(ctx context.Context, operator *so.SigningOperator) ([]byte, error) {
-			conn, err := operator.NewGRPCConnection()
-			if err != nil {
-				return nil, err
-			}
-			defer conn.Close()
-
-			client := pbinternal.NewSparkInternalServiceClient(conn)
-			_, err = client.CancelTransfer(ctx, &pb.CancelTransferRequest{
-				TransferId:              req.Transfer.TransferId,
-				SenderIdentityPublicKey: req.Transfer.OwnerIdentityPublicKey,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("unable to cancel other operator's send transfer: %w", err)
-			}
-			return nil, nil
-		})
-		if err != nil {
-			logger.Error("InitiatePreimageSwap: unable to cancel transfer", "error", err)
-		}
-
 		return nil, fmt.Errorf("recovered preimage did not match payment hash: %w", ent.ErrNoRollback)
 	}
 
-	err = preimageRequest.Update().SetStatus(schema.PreimageRequestStatusPreimageShared).Exec(ctx)
+	err = preimageRequest.Update().SetStatus(st.PreimageRequestStatusPreimageShared).Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update preimage request status: %w", err)
 	}
@@ -669,7 +652,7 @@ func (h *LightningHandler) UpdatePreimageRequest(ctx context.Context, req *pbint
 		preimagerequest.And(
 			preimagerequest.PaymentHashEQ(paymentHash[:]),
 			preimagerequest.ReceiverIdentityPubkeyEQ(req.IdentityPublicKey),
-			preimagerequest.StatusEQ(schema.PreimageRequestStatusWaitingForPreimage),
+			preimagerequest.StatusEQ(st.PreimageRequestStatusWaitingForPreimage),
 		),
 	).First(ctx)
 	if err != nil {
@@ -677,7 +660,7 @@ func (h *LightningHandler) UpdatePreimageRequest(ctx context.Context, req *pbint
 		return fmt.Errorf("UpdatePreimageRequest:unable to get preimage request: %w", err)
 	}
 
-	err = preimageRequest.Update().SetStatus(schema.PreimageRequestStatusPreimageShared).Exec(ctx)
+	err = preimageRequest.Update().SetStatus(st.PreimageRequestStatusPreimageShared).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to update preimage request status: %w", err)
 	}
@@ -693,7 +676,7 @@ func (h *LightningHandler) QueryUserSignedRefunds(ctx context.Context, req *pb.Q
 		preimagerequest.And(
 			preimagerequest.PaymentHashEQ(req.PaymentHash),
 			preimagerequest.ReceiverIdentityPubkeyEQ(req.IdentityPublicKey),
-			preimagerequest.StatusEQ(schema.PreimageRequestStatusWaitingForPreimage),
+			preimagerequest.StatusEQ(st.PreimageRequestStatusWaitingForPreimage),
 		),
 	).First(ctx)
 	if err != nil {
@@ -706,7 +689,7 @@ func (h *LightningHandler) QueryUserSignedRefunds(ctx context.Context, req *pb.Q
 		return nil, fmt.Errorf("unable to get transfer: %w", err)
 	}
 
-	if transfer.Status != schema.TransferStatusSenderKeyTweakPending {
+	if transfer.Status != st.TransferStatusSenderKeyTweakPending {
 		return nil, fmt.Errorf("transfer is not in the sender key tweak pending status, status: %s", transfer.Status)
 	}
 
@@ -748,7 +731,7 @@ func (h *LightningHandler) QueryUserSignedRefunds(ctx context.Context, req *pb.Q
 	return &pb.QueryUserSignedRefundsResponse{UserSignedRefunds: protos}, nil
 }
 
-func (h *LightningHandler) ProvidePreimageInternal(ctx context.Context, req *pb.ProvidePreimageRequest) (*ent.Transfer, error) {
+func (h *LightningHandler) ValidatePreimage(ctx context.Context, req *pb.ProvidePreimageRequest) (*ent.Transfer, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	db := ent.GetDbFromContext(ctx)
 
@@ -756,85 +739,80 @@ func (h *LightningHandler) ProvidePreimageInternal(ctx context.Context, req *pb.
 	if !bytes.Equal(calculatedPaymentHash[:], req.PaymentHash) {
 		return nil, fmt.Errorf("invalid preimage")
 	}
-	logger.Debug("ProvidePreimage: hash calculated")
 
 	preimageRequest, err := db.PreimageRequest.Query().Where(
 		preimagerequest.And(
 			preimagerequest.PaymentHashEQ(req.PaymentHash),
 			preimagerequest.ReceiverIdentityPubkeyEQ(req.IdentityPublicKey),
-			preimagerequest.StatusEQ(schema.PreimageRequestStatusWaitingForPreimage),
+			preimagerequest.StatusEQ(st.PreimageRequestStatusWaitingForPreimage),
 		),
 	).First(ctx)
 	if err != nil {
 		logger.Error("ProvidePreimage: unable to get preimage request", "error", err, "paymentHash", hex.EncodeToString(req.PaymentHash), "identityPublicKey", hex.EncodeToString(req.IdentityPublicKey))
 		return nil, fmt.Errorf("ProvidePreimage: unable to get preimage request: %w", err)
 	}
-	logger.Debug("ProvidePreimage: preimage request found")
 
 	preimageRequest, err = preimageRequest.Update().
-		SetStatus(schema.PreimageRequestStatusPreimageShared).
+		SetStatus(st.PreimageRequestStatusPreimageShared).
 		SetPreimage(req.Preimage).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update preimage request status: %w", err)
 	}
-	logger.Debug("ProvidePreimage: preimage request status updated")
 
 	transfer, err := preimageRequest.QueryTransfers().Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get transfer: %w", err)
 	}
-	logger.Debug("ProvidePreimage: transfer loaded")
+	return transfer, nil
+}
 
-	// apply key tweaks for all transfer_leaves
-	transferLeaves, err := transfer.QueryTransferLeaves().All(ctx)
+func (h *LightningHandler) ValidatePreimageInternal(ctx context.Context, req *pbinternal.ProvidePreimageRequest) (*ent.Transfer, error) {
+	providePreimageRequest := &pb.ProvidePreimageRequest{
+		PaymentHash:       req.PaymentHash,
+		Preimage:          req.Preimage,
+		IdentityPublicKey: req.IdentityPublicKey,
+	}
+	transfer, err := h.ValidatePreimage(ctx, providePreimageRequest)
+	if err != nil {
+		return nil, fmt.Errorf("unable to validate preimage: %w", err)
+	}
+
+	transferHandler := NewBaseTransferHandler(h.config)
+	err = transferHandler.validateKeyTweakProofs(ctx, transfer, req.KeyTweakProofs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get transfer leaves: %w", err)
 	}
-
-	for _, leaf := range transferLeaves {
-		keyTweak := &pb.SendLeafKeyTweak{}
-		err := proto.Unmarshal(leaf.KeyTweak, keyTweak)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshal key tweak: %w", err)
-		}
-		treeNode, err := leaf.QueryLeaf().Only(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get tree node: %w", err)
-		}
-		err = helper.TweakLeafKey(ctx, treeNode, keyTweak, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to tweak leaf key: %w", err)
-		}
-		_, err = leaf.Update().SetKeyTweak(nil).Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("unable to update leaf key tweak: %w", err)
-		}
-	}
-
-	transfer, err = transfer.Update().SetStatus(schema.TransferStatusSenderKeyTweaked).Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("unable to update transfer status: %w", err)
-	}
-
 	return transfer, nil
 }
 
 func (h *LightningHandler) ProvidePreimage(ctx context.Context, req *pb.ProvidePreimageRequest) (*pb.ProvidePreimageResponse, error) {
-	logger := logging.GetLoggerFromContext(ctx)
-
-	logger.Debug("ProvidePreimage: request received")
-	transfer, err := h.ProvidePreimageInternal(ctx, req)
+	transfer, err := h.ValidatePreimage(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("unable to provide preimage: %w", err)
 	}
-	logger.Debug("ProvidePreimage: provided preimage internal completed")
 
-	transferProto, err := transfer.MarshalProto(ctx)
+	transferLeaves, err := transfer.QueryTransferLeaves().All(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal transfer: %w", err)
+		return nil, fmt.Errorf("unable to get transfer leaves: %w", err)
 	}
-	logger.Debug("ProvidePreimage: transfer marshalled")
+	internalReq := &pbinternal.ProvidePreimageRequest{
+		PaymentHash:       req.PaymentHash,
+		Preimage:          req.Preimage,
+		IdentityPublicKey: req.IdentityPublicKey,
+	}
+	keyTweakProofMap := make(map[string]*pb.SecretProof)
+	for _, leaf := range transferLeaves {
+		keyTweakProto := &pb.SendLeafKeyTweak{}
+		err := proto.Unmarshal(leaf.KeyTweak, keyTweakProto)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshal key tweak: %w", err)
+		}
+		keyTweakProofMap[keyTweakProto.LeafId] = &pb.SecretProof{
+			Proofs: keyTweakProto.SecretShareTweak.Proofs,
+		}
+	}
+	internalReq.KeyTweakProofs = keyTweakProofMap
 
 	operatorSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionExcludeSelf}
 	_, err = helper.ExecuteTaskWithAllOperators(ctx, h.config, &operatorSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
@@ -845,7 +823,7 @@ func (h *LightningHandler) ProvidePreimage(ctx context.Context, req *pb.ProvideP
 		defer conn.Close()
 
 		client := pbinternal.NewSparkInternalServiceClient(conn)
-		_, err = client.ProvidePreimage(ctx, req)
+		_, err = client.ProvidePreimage(ctx, internalReq)
 		if err != nil {
 			return nil, fmt.Errorf("unable to provide preimage: %w", err)
 		}
@@ -854,7 +832,34 @@ func (h *LightningHandler) ProvidePreimage(ctx context.Context, req *pb.ProvideP
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute task with all operators: %w", err)
 	}
-	logger.Debug("ProvidePreimage: SO synced")
+
+	participants, err := operatorSelection.OperatorIdentifierList(h.config)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get operator list: %w", err)
+	}
+	sendGossipHandler := NewSendGossipHandler(h.config)
+	_, err = sendGossipHandler.CreateAndSendGossipMessage(ctx, &pbgossip.GossipMessage{
+		Message: &pbgossip.GossipMessage_SettleSenderKeyTweak{
+			SettleSenderKeyTweak: &pbgossip.GossipMessageSettleSenderKeyTweak{
+				TransferId:           transfer.ID.String(),
+				SenderKeyTweakProofs: keyTweakProofMap,
+			},
+		},
+	}, participants)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create and send gossip message to settle sender key tweak: %w", err)
+	}
+
+	db := ent.GetDbFromContext(ctx)
+	transfer, err = db.Transfer.Get(ctx, transfer.ID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get transfer: %w", err)
+	}
+
+	transferProto, err := transfer.MarshalProto(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal transfer: %w", err)
+	}
 
 	return &pb.ProvidePreimageResponse{Transfer: transferProto}, nil
 }
@@ -873,7 +878,7 @@ func (h *LightningHandler) ReturnLightningPayment(ctx context.Context, req *pb.R
 		preimagerequest.And(
 			preimagerequest.PaymentHashEQ(req.PaymentHash),
 			preimagerequest.ReceiverIdentityPubkeyEQ(req.UserIdentityPublicKey),
-			preimagerequest.StatusEQ(schema.PreimageRequestStatusWaitingForPreimage),
+			preimagerequest.StatusEQ(st.PreimageRequestStatusWaitingForPreimage),
 		),
 	).First(ctx)
 	if err != nil {
@@ -881,11 +886,11 @@ func (h *LightningHandler) ReturnLightningPayment(ctx context.Context, req *pb.R
 		return nil, fmt.Errorf("ReturnLightningPayment: unable to get preimage request: %w", err)
 	}
 
-	if preimageRequest.Status != schema.PreimageRequestStatusWaitingForPreimage {
+	if preimageRequest.Status != st.PreimageRequestStatusWaitingForPreimage {
 		return nil, fmt.Errorf("preimage request is not in the waiting for preimage status")
 	}
 
-	err = preimageRequest.Update().SetStatus(schema.PreimageRequestStatusReturned).Exec(ctx)
+	err = preimageRequest.Update().SetStatus(st.PreimageRequestStatusReturned).Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update preimage request status: %w", err)
 	}
@@ -899,7 +904,7 @@ func (h *LightningHandler) ReturnLightningPayment(ctx context.Context, req *pb.R
 		return nil, fmt.Errorf("transfer receiver identity public key mismatch")
 	}
 
-	transfer, err = transfer.Update().SetStatus(schema.TransferStatusReturned).Save(ctx)
+	transfer, err = transfer.Update().SetStatus(st.TransferStatusReturned).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update transfer status: %w", err)
 	}
@@ -914,7 +919,7 @@ func (h *LightningHandler) ReturnLightningPayment(ctx context.Context, req *pb.R
 		if err != nil {
 			return nil, fmt.Errorf("unable to get tree node: %w", err)
 		}
-		_, err = treenode.Update().SetStatus(schema.TreeNodeStatusAvailable).Save(ctx)
+		_, err = treenode.Update().SetStatus(st.TreeNodeStatusAvailable).Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to update tree node status: %w", err)
 		}

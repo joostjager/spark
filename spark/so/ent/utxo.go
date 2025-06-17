@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 )
 
@@ -33,7 +33,7 @@ type Utxo struct {
 	// Amount holds the value of the "amount" field.
 	Amount uint64 `json:"amount,omitempty"`
 	// Network holds the value of the "network" field.
-	Network schema.Network `json:"network,omitempty"`
+	Network schematype.Network `json:"network,omitempty"`
 	// PkScript holds the value of the "pk_script" field.
 	PkScript []byte `json:"pk_script,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -141,7 +141,7 @@ func (u *Utxo) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field network", values[i])
 			} else if value.Valid {
-				u.Network = schema.Network(value.String)
+				u.Network = schematype.Network(value.String)
 			}
 		case utxo.FieldPkScript:
 			if value, ok := values[i].(*[]byte); !ok {

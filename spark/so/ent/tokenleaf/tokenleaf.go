@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -142,7 +142,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.TokenLeafStatus) error {
+func StatusValidator(s schematype.TokenLeafStatus) error {
 	switch s {
 	case "CREATED_STARTED", "CREATED_SIGNED", "CREATED_SIGNED_CANCELLED", "CREATED_FINALIZED", "SPENT_STARTED", "SPENT_SIGNED", "SPENT_FINALIZED":
 		return nil
@@ -152,7 +152,7 @@ func StatusValidator(s schema.TokenLeafStatus) error {
 }
 
 // NetworkValidator is a validator for the "network" field enum values. It is called by the builders before save.
-func NetworkValidator(n schema.Network) error {
+func NetworkValidator(n schematype.Network) error {
 	switch n {
 	case "UNSPECIFIED", "MAINNET", "REGTEST", "TESTNET", "SIGNET":
 		return nil

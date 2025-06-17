@@ -27,6 +27,8 @@ const (
 	FieldIssuerSignature = "issuer_signature"
 	// FieldOperatorSpecificIssuerSignature holds the string denoting the operator_specific_issuer_signature field in the database.
 	FieldOperatorSpecificIssuerSignature = "operator_specific_issuer_signature"
+	// FieldTokenIdentifier holds the string denoting the token_identifier field in the database.
+	FieldTokenIdentifier = "token_identifier"
 	// EdgeTokenTransactionReceipt holds the string denoting the token_transaction_receipt edge name in mutations.
 	EdgeTokenTransactionReceipt = "token_transaction_receipt"
 	// EdgeTokenTransaction holds the string denoting the token_transaction edge name in mutations.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldWalletProvidedTimestamp,
 	FieldIssuerSignature,
 	FieldOperatorSpecificIssuerSignature,
+	FieldTokenIdentifier,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

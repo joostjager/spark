@@ -3,27 +3,19 @@ import {
   bytesToNumberBE,
   numberToBytesBE,
 } from "@noble/curves/abstract/utils";
-import { secp256k1 } from "@noble/curves/secp256k1";
 import {
   OutputWithPreviousTransactionData,
   OperatorSpecificTokenTransactionSignablePayload,
-  OperatorSpecificOwnerSignature,
-  TokenTransaction,
-  StartTokenTransactionResponse,
   SignTokenTransactionResponse,
-  SignatureWithIndex,
+  OperatorSpecificOwnerSignature,
   RevocationSecretWithIndex,
 } from "../proto/spark.js";
+import { secp256k1 } from "@noble/curves/secp256k1";
 import { SparkCallOptions } from "../types/grpc.js";
-import { collectResponses } from "../utils/response-validation.js";
 import {
   hashOperatorSpecificTokenTransactionSignablePayload,
   hashTokenTransaction,
 } from "../utils/token-hashing.js";
-import {
-  KeyshareWithOperatorIndex,
-  recoverRevocationSecretFromKeyshares,
-} from "../utils/token-keyshares.js";
 import {
   calculateAvailableTokenAmount,
   checkIfSelectedOutputsAreAvailable,
@@ -39,8 +31,19 @@ import {
 import { SigningOperator } from "./wallet-config.js";
 import { hexToBytes } from "@noble/hashes/utils";
 import { decodeSparkAddress } from "../address/index.js";
+import {
+  TokenTransaction,
+  SignatureWithIndex,
+  InputTtxoSignaturesPerOperator,
+} from "../proto/spark_token.js";
+import { TokenTransaction as TokenTransactionV0 } from "../proto/spark.js";
+import { collectResponses } from "../utils/response-validation.js";
+import {
+  KeyshareWithOperatorIndex,
+  recoverRevocationSecretFromKeyshares,
+} from "../utils/token-keyshares.js";
 
-const MAX_TOKEN_OUTPUTS = 100;
+const MAX_TOKEN_OUTPUTS = 500;
 
 export class TokenTransactionService {
   protected readonly config: WalletConfigService;
@@ -61,6 +64,7 @@ export class TokenTransactionService {
       tokenAmount: bigint;
       receiverSparkAddress: string;
     }[],
+    outputSelectionStrategy: "SMALL_FIRST" | "LARGE_FIRST" = "SMALL_FIRST",
     selectedOutputs?: OutputWithPreviousTransactionData[],
   ): Promise<string> {
     if (receiverOutputs.length === 0) {
@@ -101,16 +105,29 @@ export class TokenTransactionService {
       outputsToUse = this.selectTokenOutputs(
         tokenOutputs.get(receiverOutputs[0]!!.tokenPublicKey)!!,
         totalTokenAmount,
+        outputSelectionStrategy,
       );
     }
 
     if (outputsToUse.length > MAX_TOKEN_OUTPUTS) {
+      const availableOutputs = tokenOutputs.get(
+        receiverOutputs[0]!!.tokenPublicKey,
+      )!!;
+
+      // Sort outputs by the same strategy as in selectTokenOutputs
+      const sortedOutputs = [...availableOutputs];
+      this.sortTokenOutputsByStrategy(sortedOutputs, outputSelectionStrategy);
+
+      // Take only the first MAX_TOKEN_OUTPUTS and calculate their total
+      const maxOutputsToUse = sortedOutputs.slice(0, MAX_TOKEN_OUTPUTS);
+      const maxAmount = calculateAvailableTokenAmount(maxOutputsToUse);
+
       throw new ValidationError(
-        `Cannot transfer more than ${MAX_TOKEN_OUTPUTS} TTXOs in a single transaction (${outputsToUse.length} selected)`,
+        `Cannot transfer more than ${MAX_TOKEN_OUTPUTS} TTXOs in a single transaction (${outputsToUse.length} selected). Maximum transferable amount is: ${maxAmount}`,
         {
           field: "outputsToUse",
           value: outputsToUse.length,
-          expected: `Less than or equal to ${MAX_TOKEN_OUTPUTS}`,
+          expected: `Less than or equal to ${MAX_TOKEN_OUTPUTS}, with maximum transferable amount of ${maxAmount}`,
         },
       );
     }
@@ -121,16 +138,25 @@ export class TokenTransactionService {
         this.config.getNetworkType(),
       );
       return {
-        receiverSparkAddress: hexToBytes(receiverAddress),
+        receiverSparkAddress: hexToBytes(receiverAddress.identityPublicKey),
         tokenPublicKey: hexToBytes(transfer.tokenPublicKey),
         tokenAmount: transfer.tokenAmount,
       };
     });
 
-    const tokenTransaction = await this.constructTransferTokenTransaction(
-      outputsToUse,
-      tokenOutputData,
-    );
+    let tokenTransaction: TokenTransactionV0 | TokenTransaction;
+
+    if (this.config.getTokenTransactionVersion() === "V0") {
+      tokenTransaction = await this.constructTransferTokenTransactionV0(
+        outputsToUse,
+        tokenOutputData,
+      );
+    } else {
+      tokenTransaction = await this.constructTransferTokenTransaction(
+        outputsToUse,
+        tokenOutputData,
+      );
+    }
 
     const txId = await this.broadcastTokenTransaction(
       tokenTransaction,
@@ -141,14 +167,14 @@ export class TokenTransactionService {
     return txId;
   }
 
-  public async constructTransferTokenTransaction(
+  public async constructTransferTokenTransactionV0(
     selectedOutputs: OutputWithPreviousTransactionData[],
     tokenOutputData: Array<{
       receiverSparkAddress: Uint8Array;
       tokenPublicKey: Uint8Array;
       tokenAmount: bigint;
     }>,
-  ): Promise<TokenTransaction> {
+  ): Promise<TokenTransactionV0> {
     const availableTokenAmount = calculateAvailableTokenAmount(selectedOutputs);
     const totalRequestedAmount = tokenOutputData.reduce(
       (sum, output) => sum + output.tokenAmount,
@@ -188,6 +214,55 @@ export class TokenTransactionService {
     };
   }
 
+  public async constructTransferTokenTransaction(
+    selectedOutputs: OutputWithPreviousTransactionData[],
+    tokenOutputData: Array<{
+      receiverSparkAddress: Uint8Array;
+      tokenPublicKey: Uint8Array;
+      tokenAmount: bigint;
+    }>,
+  ): Promise<TokenTransaction> {
+    const availableTokenAmount = calculateAvailableTokenAmount(selectedOutputs);
+    const totalRequestedAmount = tokenOutputData.reduce(
+      (sum, output) => sum + output.tokenAmount,
+      0n,
+    );
+
+    const tokenOutputs = tokenOutputData.map((output) => ({
+      ownerPublicKey: output.receiverSparkAddress,
+      tokenPublicKey: output.tokenPublicKey,
+      tokenAmount: numberToBytesBE(output.tokenAmount, 16),
+    }));
+
+    if (availableTokenAmount > totalRequestedAmount) {
+      const changeAmount = availableTokenAmount - totalRequestedAmount;
+      const firstTokenPublicKey = tokenOutputData[0]!!.tokenPublicKey;
+
+      tokenOutputs.push({
+        ownerPublicKey: await this.config.signer.getIdentityPublicKey(),
+        tokenPublicKey: firstTokenPublicKey,
+        tokenAmount: numberToBytesBE(changeAmount, 16),
+      });
+    }
+
+    return {
+      version: 1,
+      network: this.config.getNetworkProto(),
+      tokenInputs: {
+        $case: "transferInput",
+        transferInput: {
+          outputsToSpend: selectedOutputs.map((output) => ({
+            prevTokenTransactionHash: output.previousTransactionHash,
+            prevTokenTransactionVout: output.previousTransactionVout,
+          })),
+        },
+      },
+      tokenOutputs,
+      sparkOperatorIdentityPublicKeys: this.collectOperatorIdentityPublicKeys(),
+      expiryTime: undefined,
+    };
+  }
+
   public collectOperatorIdentityPublicKeys(): Uint8Array[] {
     const operatorKeys: Uint8Array[] = [];
     for (const [_, operator] of Object.entries(
@@ -200,21 +275,43 @@ export class TokenTransactionService {
   }
 
   public async broadcastTokenTransaction(
-    tokenTransaction: TokenTransaction,
+    tokenTransaction: TokenTransactionV0 | TokenTransaction,
     outputsToSpendSigningPublicKeys?: Uint8Array[],
     outputsToSpendCommitments?: Uint8Array[],
   ): Promise<string> {
     const signingOperators = this.config.getSigningOperators();
+    if (!isTokenTransaction(tokenTransaction)) {
+      return this.broadcastTokenTransactionV0(
+        tokenTransaction,
+        signingOperators,
+        outputsToSpendSigningPublicKeys,
+        outputsToSpendCommitments,
+      );
+    } else {
+      return this.broadcastTokenTransactionV1(
+        tokenTransaction as TokenTransaction,
+        signingOperators,
+        outputsToSpendSigningPublicKeys,
+        outputsToSpendCommitments,
+      );
+    }
+  }
 
+  private async broadcastTokenTransactionV0(
+    tokenTransaction: TokenTransactionV0,
+    signingOperators: Record<string, SigningOperator>,
+    outputsToSpendSigningPublicKeys?: Uint8Array[],
+    outputsToSpendCommitments?: Uint8Array[],
+  ): Promise<string> {
     const { finalTokenTransaction, finalTokenTransactionHash, threshold } =
-      await this.startTokenTransaction(
+      await this.startTokenTransactionV0(
         tokenTransaction,
         signingOperators,
         outputsToSpendSigningPublicKeys,
         outputsToSpendCommitments,
       );
 
-    const { successfulSignatures } = await this.signTokenTransaction(
+    const { successfulSignatures } = await this.signTokenTransactionV0(
       finalTokenTransaction,
       finalTokenTransactionHash,
       signingOperators,
@@ -322,13 +419,36 @@ export class TokenTransactionService {
     return bytesToHex(finalTokenTransactionHash);
   }
 
-  private async startTokenTransaction(
+  private async broadcastTokenTransactionV1(
     tokenTransaction: TokenTransaction,
     signingOperators: Record<string, SigningOperator>,
     outputsToSpendSigningPublicKeys?: Uint8Array[],
     outputsToSpendCommitments?: Uint8Array[],
+  ): Promise<string> {
+    const { finalTokenTransaction, finalTokenTransactionHash, threshold } =
+      await this.startTokenTransaction(
+        tokenTransaction,
+        signingOperators,
+        outputsToSpendSigningPublicKeys,
+        outputsToSpendCommitments,
+      );
+
+    await this.signTokenTransaction(
+      finalTokenTransaction,
+      finalTokenTransactionHash,
+      signingOperators,
+    );
+
+    return bytesToHex(finalTokenTransactionHash);
+  }
+
+  private async startTokenTransactionV0(
+    tokenTransaction: TokenTransactionV0,
+    signingOperators: Record<string, SigningOperator>,
+    outputsToSpendSigningPublicKeys?: Uint8Array[],
+    outputsToSpendCommitments?: Uint8Array[],
   ): Promise<{
-    finalTokenTransaction: TokenTransaction;
+    finalTokenTransaction: TokenTransactionV0;
     finalTokenTransactionHash: Uint8Array;
     threshold: number;
   }> {
@@ -393,7 +513,7 @@ export class TokenTransactionService {
         });
       }
     }
-    // Start the token transaction
+
     const startResponse = await sparkClient.start_token_transaction(
       {
         identityPublicKey: await this.config.signer.getIdentityPublicKey(),
@@ -439,8 +559,122 @@ export class TokenTransactionService {
     };
   }
 
-  private async signTokenTransaction(
-    finalTokenTransaction: TokenTransaction,
+  private async startTokenTransaction(
+    tokenTransaction: TokenTransaction,
+    signingOperators: Record<string, SigningOperator>,
+    outputsToSpendSigningPublicKeys?: Uint8Array[],
+    outputsToSpendCommitments?: Uint8Array[],
+  ): Promise<{
+    finalTokenTransaction: TokenTransaction;
+    finalTokenTransactionHash: Uint8Array;
+    threshold: number;
+  }> {
+    const sparkClient = await this.connectionManager.createSparkTokenClient(
+      this.config.getCoordinatorAddress(),
+    );
+
+    const partialTokenTransactionHash = hashTokenTransaction(
+      tokenTransaction,
+      true,
+    );
+
+    const ownerSignaturesWithIndex: SignatureWithIndex[] = [];
+    if (tokenTransaction.tokenInputs!.$case === "mintInput") {
+      const issuerPublicKey =
+        tokenTransaction.tokenInputs!.mintInput.issuerPublicKey;
+      if (!issuerPublicKey) {
+        throw new ValidationError("Invalid mint input", {
+          field: "issuerPublicKey",
+          value: null,
+          expected: "Non-null issuer public key",
+        });
+      }
+
+      const ownerSignature = await this.signMessageWithKey(
+        partialTokenTransactionHash,
+        issuerPublicKey,
+      );
+
+      ownerSignaturesWithIndex.push({
+        signature: ownerSignature,
+        inputIndex: 0,
+      });
+    } else if (tokenTransaction.tokenInputs!.$case === "transferInput") {
+      if (!outputsToSpendSigningPublicKeys || !outputsToSpendCommitments) {
+        throw new ValidationError("Invalid transfer input", {
+          field: "outputsToSpend",
+          value: {
+            signingPublicKeys: outputsToSpendSigningPublicKeys,
+            revocationPublicKeys: outputsToSpendCommitments,
+          },
+          expected: "Non-null signing and revocation public keys",
+        });
+      }
+
+      for (const [i, key] of outputsToSpendSigningPublicKeys.entries()) {
+        if (!key) {
+          throw new ValidationError("Invalid signing key", {
+            field: "outputsToSpendSigningPublicKeys",
+            value: i,
+            expected: "Non-null signing key",
+          });
+        }
+        const ownerSignature = await this.signMessageWithKey(
+          partialTokenTransactionHash,
+          key,
+        );
+
+        ownerSignaturesWithIndex.push({
+          signature: ownerSignature,
+          inputIndex: i,
+        });
+      }
+    }
+
+    const startResponse = await sparkClient.start_transaction(
+      {
+        identityPublicKey: await this.config.signer.getIdentityPublicKey(),
+        partialTokenTransaction: tokenTransaction,
+      },
+      {
+        retry: true,
+        retryableStatuses: ["UNKNOWN", "UNAVAILABLE", "CANCELLED", "INTERNAL"],
+        retryMaxAttempts: 3,
+      } as SparkCallOptions,
+    );
+
+    if (!startResponse.finalTokenTransaction) {
+      throw new Error("Final token transaction missing in start response");
+    }
+    if (!startResponse.keyshareInfo) {
+      throw new Error("Keyshare info missing in start response");
+    }
+
+    validateTokenTransaction(
+      startResponse.finalTokenTransaction,
+      tokenTransaction,
+      signingOperators,
+      startResponse.keyshareInfo,
+      this.config.getExpectedWithdrawBondSats(),
+      this.config.getExpectedWithdrawRelativeBlockLocktime(),
+      this.config.getThreshold(),
+    );
+
+    const finalTokenTransaction = startResponse.finalTokenTransaction;
+    const finalTokenTransactionHash = hashTokenTransaction(
+      finalTokenTransaction,
+      false,
+    );
+
+    return {
+      finalTokenTransaction,
+      finalTokenTransactionHash,
+      threshold: startResponse.keyshareInfo!.threshold,
+    };
+  }
+
+  private async signTokenTransactionV0(
+    finalTokenTransaction: TokenTransactionV0,
     finalTokenTransactionHash: Uint8Array,
     signingOperators: Record<string, SigningOperator>,
   ): Promise<{
@@ -499,7 +733,7 @@ export class TokenTransactionService {
               finalTokenTransaction.tokenInputs!.transferInput;
             for (let i = 0; i < transferInput.outputsToSpend.length; i++) {
               let ownerSignature: Uint8Array;
-              if (this.config.shouldSignTokenTransactionsWithSchnorr()) {
+              if (this.config.getTokenSignatures() === "SCHNORR") {
                 ownerSignature =
                   await this.config.signer.signSchnorrWithIdentityKey(
                     payloadHash,
@@ -567,60 +801,53 @@ export class TokenTransactionService {
     };
   }
 
-  public async finalizeTokenTransaction(
+  private async signTokenTransaction(
     finalTokenTransaction: TokenTransaction,
-    revocationSecrets: RevocationSecretWithIndex[],
-    threshold: number,
-  ): Promise<TokenTransaction> {
-    const signingOperators = this.config.getSigningOperators();
-    // Submit finalize_token_transaction to all SOs in parallel
-    const soResponses = await Promise.allSettled(
-      Object.entries(signingOperators).map(async ([identifier, operator]) => {
-        const internalSparkClient =
-          await this.connectionManager.createSparkClient(operator.address);
-        const identityPublicKey =
-          await this.config.signer.getIdentityPublicKey();
+    finalTokenTransactionHash: Uint8Array,
+    signingOperators: Record<string, SigningOperator>,
+  ) {
+    const coordinatorClient =
+      await this.connectionManager.createSparkTokenClient(
+        this.config.getCoordinatorAddress(),
+      );
 
-        try {
-          const response = await internalSparkClient.finalize_token_transaction(
-            {
-              finalTokenTransaction,
-              revocationSecrets,
-              identityPublicKey,
-            },
-            {
-              retry: true,
-              retryableStatuses: [
-                "UNKNOWN",
-                "UNAVAILABLE",
-                "CANCELLED",
-                "INTERNAL",
-              ],
-              retryMaxAttempts: 3,
-            } as SparkCallOptions,
-          );
+    const inputTtxoSignaturesPerOperator =
+      await this.createSignaturesForOperators(
+        finalTokenTransaction,
+        finalTokenTransactionHash,
+        signingOperators,
+      );
 
-          return {
-            identifier,
-            response,
-          };
-        } catch (error) {
-          throw new NetworkError(
-            "Failed to finalize token transaction",
-            {
-              operation: "finalize_token_transaction",
-              errorCount: 1,
-              errors: error instanceof Error ? error.message : String(error),
-            },
-            error as Error,
-          );
-        }
-      }),
-    );
-
-    collectResponses(soResponses);
-
-    return finalTokenTransaction;
+    try {
+      await coordinatorClient.commit_transaction(
+        {
+          finalTokenTransaction,
+          inputTtxoSignaturesPerOperator,
+          ownerIdentityPublicKey:
+            await this.config.signer.getIdentityPublicKey(),
+        },
+        {
+          retry: true,
+          retryableStatuses: [
+            "UNKNOWN",
+            "UNAVAILABLE",
+            "CANCELLED",
+            "INTERNAL",
+          ],
+          retryMaxAttempts: 3,
+        } as SparkCallOptions,
+      );
+    } catch (error) {
+      throw new NetworkError(
+        "Failed to sign token transaction",
+        {
+          operation: "sign_token_transaction",
+          errorCount: 1,
+          errors: error instanceof Error ? error.message : String(error),
+        },
+        error as Error,
+      );
+    }
   }
 
   public async fetchOwnedTokenOutputs(
@@ -673,6 +900,7 @@ export class TokenTransactionService {
   public selectTokenOutputs(
     tokenOutputs: OutputWithPreviousTransactionData[],
     tokenAmount: bigint,
+    strategy: "SMALL_FIRST" | "LARGE_FIRST",
   ): OutputWithPreviousTransactionData[] {
     if (calculateAvailableTokenAmount(tokenOutputs) < tokenAmount) {
       throw new ValidationError("Insufficient token amount", {
@@ -692,15 +920,8 @@ export class TokenTransactionService {
       return [exactMatch];
     }
 
-    // Sort by amount ascending for optimal selection.
-    // It's in user's interest to hold as little token outputs as possible,
-    // so that in the event of a unilateral exit the fees are as low as possible
-    tokenOutputs.sort((a, b) =>
-      Number(
-        bytesToNumberBE(a.output!.tokenAmount!) -
-          bytesToNumberBE(b.output!.tokenAmount!),
-      ),
-    );
+    // Sort based on configured strategy
+    this.sortTokenOutputsByStrategy(tokenOutputs, strategy);
 
     let remainingAmount = tokenAmount;
     const selectedOutputs: typeof tokenOutputs = [];
@@ -725,24 +946,44 @@ export class TokenTransactionService {
     return selectedOutputs;
   }
 
+  private sortTokenOutputsByStrategy(
+    tokenOutputs: OutputWithPreviousTransactionData[],
+    strategy: "SMALL_FIRST" | "LARGE_FIRST",
+  ): void {
+    if (strategy === "SMALL_FIRST") {
+      tokenOutputs.sort((a, b) => {
+        return Number(
+          bytesToNumberBE(a.output!.tokenAmount!) -
+            bytesToNumberBE(b.output!.tokenAmount!),
+        );
+      });
+    } else {
+      tokenOutputs.sort((a, b) => {
+        return Number(
+          bytesToNumberBE(b.output!.tokenAmount!) -
+            bytesToNumberBE(a.output!.tokenAmount!),
+        );
+      });
+    }
+  }
+
   // Helper function for deciding if the signer public key is the identity public key
   private async signMessageWithKey(
     message: Uint8Array,
     publicKey: Uint8Array,
   ): Promise<Uint8Array> {
-    const signWithSchnorr =
-      this.config.shouldSignTokenTransactionsWithSchnorr();
+    const tokenSignatures = this.config.getTokenSignatures();
     if (
       bytesToHex(publicKey) ===
       bytesToHex(await this.config.signer.getIdentityPublicKey())
     ) {
-      if (signWithSchnorr) {
+      if (tokenSignatures === "SCHNORR") {
         return await this.config.signer.signSchnorrWithIdentityKey(message);
       } else {
         return await this.config.signer.signMessageWithIdentityKey(message);
       }
     } else {
-      if (signWithSchnorr) {
+      if (tokenSignatures === "SCHNORR") {
         return await this.config.signer.signSchnorr(message, publicKey);
       } else {
         return await this.config.signer.signMessageWithPublicKey(
@@ -752,4 +993,142 @@ export class TokenTransactionService {
       }
     }
   }
+
+  private async finalizeTokenTransaction(
+    finalTokenTransaction: TokenTransactionV0,
+    revocationSecrets: RevocationSecretWithIndex[],
+    threshold: number,
+  ): Promise<TokenTransactionV0> {
+    const signingOperators = this.config.getSigningOperators();
+    // Submit finalize_token_transaction to all SOs in parallel
+    const soResponses = await Promise.allSettled(
+      Object.entries(signingOperators).map(async ([identifier, operator]) => {
+        const internalSparkClient =
+          await this.connectionManager.createSparkClient(operator.address);
+        const identityPublicKey =
+          await this.config.signer.getIdentityPublicKey();
+
+        try {
+          const response = await internalSparkClient.finalize_token_transaction(
+            {
+              finalTokenTransaction,
+              revocationSecrets,
+              identityPublicKey,
+            },
+            {
+              retry: true,
+              retryableStatuses: [
+                "UNKNOWN",
+                "UNAVAILABLE",
+                "CANCELLED",
+                "INTERNAL",
+              ],
+              retryMaxAttempts: 3,
+            } as SparkCallOptions,
+          );
+
+          return {
+            identifier,
+            response,
+          };
+        } catch (error) {
+          throw new NetworkError(
+            "Failed to finalize token transaction",
+            {
+              operation: "finalize_token_transaction",
+              errorCount: 1,
+              errors: error instanceof Error ? error.message : String(error),
+            },
+            error as Error,
+          );
+        }
+      }),
+    );
+
+    collectResponses(soResponses);
+
+    return finalTokenTransaction;
+  }
+
+  private async createSignaturesForOperators(
+    finalTokenTransaction: TokenTransaction,
+    finalTokenTransactionHash: Uint8Array,
+    signingOperators: Record<string, SigningOperator>,
+  ) {
+    const inputTtxoSignaturesPerOperator: InputTtxoSignaturesPerOperator[] = [];
+
+    for (const [_, operator] of Object.entries(signingOperators)) {
+      let ttxoSignatures: SignatureWithIndex[] = [];
+
+      if (finalTokenTransaction.tokenInputs!.$case === "mintInput") {
+        const issuerPublicKey =
+          finalTokenTransaction.tokenInputs!.mintInput.issuerPublicKey;
+        if (!issuerPublicKey) {
+          throw new ValidationError("Invalid mint input", {
+            field: "issuerPublicKey",
+            value: null,
+            expected: "Non-null issuer public key",
+          });
+        }
+
+        const payload: OperatorSpecificTokenTransactionSignablePayload = {
+          finalTokenTransactionHash: finalTokenTransactionHash,
+          operatorIdentityPublicKey: hexToBytes(operator.identityPublicKey),
+        };
+
+        const payloadHash =
+          await hashOperatorSpecificTokenTransactionSignablePayload(payload);
+
+        const ownerSignature = await this.signMessageWithKey(
+          payloadHash,
+          issuerPublicKey,
+        );
+
+        ttxoSignatures.push({
+          signature: ownerSignature,
+          inputIndex: 0,
+        });
+      } else if (finalTokenTransaction.tokenInputs!.$case === "transferInput") {
+        const transferInput = finalTokenTransaction.tokenInputs!.transferInput;
+
+        // Create signatures for each input
+        for (let i = 0; i < transferInput.outputsToSpend.length; i++) {
+          const payload: OperatorSpecificTokenTransactionSignablePayload = {
+            finalTokenTransactionHash: finalTokenTransactionHash,
+            operatorIdentityPublicKey: hexToBytes(operator.identityPublicKey),
+          };
+
+          const payloadHash =
+            await hashOperatorSpecificTokenTransactionSignablePayload(payload);
+
+          let ownerSignature: Uint8Array;
+          if (this.config.getTokenSignatures() === "SCHNORR") {
+            ownerSignature =
+              await this.config.signer.signSchnorrWithIdentityKey(payloadHash);
+          } else {
+            ownerSignature =
+              await this.config.signer.signMessageWithIdentityKey(payloadHash);
+          }
+
+          ttxoSignatures.push({
+            signature: ownerSignature,
+            inputIndex: i,
+          });
+        }
+      }
+
+      inputTtxoSignaturesPerOperator.push({
+        ttxoSignatures: ttxoSignatures,
+        operatorIdentityPublicKey: hexToBytes(operator.identityPublicKey),
+      });
+    }
+
+    return inputTtxoSignaturesPerOperator;
+  }
+}
+
+function isTokenTransaction(
+  tokenTransaction: TokenTransactionV0 | TokenTransaction,
+): tokenTransaction is TokenTransaction {
+  return "version" in tokenTransaction && "expiryTime" in tokenTransaction;
 }

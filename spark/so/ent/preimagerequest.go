@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/preimagerequest"
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 )
 
@@ -28,7 +28,7 @@ type PreimageRequest struct {
 	// PaymentHash holds the value of the "payment_hash" field.
 	PaymentHash []byte `json:"payment_hash,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.PreimageRequestStatus `json:"status,omitempty"`
+	Status schematype.PreimageRequestStatus `json:"status,omitempty"`
 	// ReceiverIdentityPubkey holds the value of the "receiver_identity_pubkey" field.
 	ReceiverIdentityPubkey []byte `json:"receiver_identity_pubkey,omitempty"`
 	// Preimage holds the value of the "preimage" field.
@@ -142,7 +142,7 @@ func (pr *PreimageRequest) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				pr.Status = schema.PreimageRequestStatus(value.String)
+				pr.Status = schematype.PreimageRequestStatus(value.String)
 			}
 		case preimagerequest.FieldReceiverIdentityPubkey:
 			if value, ok := values[i].(*[]byte); !ok {

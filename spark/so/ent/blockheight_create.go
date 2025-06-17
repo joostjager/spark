@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // BlockHeightCreate is the builder for creating a BlockHeight entity.
@@ -57,7 +57,7 @@ func (bhc *BlockHeightCreate) SetHeight(i int64) *BlockHeightCreate {
 }
 
 // SetNetwork sets the "network" field.
-func (bhc *BlockHeightCreate) SetNetwork(s schema.Network) *BlockHeightCreate {
+func (bhc *BlockHeightCreate) SetNetwork(s schematype.Network) *BlockHeightCreate {
 	bhc.mutation.SetNetwork(s)
 	return bhc
 }

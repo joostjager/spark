@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -48,64 +48,64 @@ func (t *Transfer) MarshalProto(ctx context.Context) (*pb.Transfer, error) {
 
 func (t *Transfer) getProtoStatus() (*pb.TransferStatus, error) {
 	switch t.Status {
-	case schema.TransferStatusSenderInitiated:
+	case st.TransferStatusSenderInitiated:
 		return pb.TransferStatus_TRANSFER_STATUS_SENDER_INITIATED.Enum(), nil
-	case schema.TransferStatusSenderKeyTweakPending:
+	case st.TransferStatusSenderKeyTweakPending:
 		return pb.TransferStatus_TRANSFER_STATUS_SENDER_KEY_TWEAK_PENDING.Enum(), nil
-	case schema.TransferStatusSenderKeyTweaked:
+	case st.TransferStatusSenderKeyTweaked:
 		return pb.TransferStatus_TRANSFER_STATUS_SENDER_KEY_TWEAKED.Enum(), nil
-	case schema.TransferStatusReceiverKeyTweaked:
+	case st.TransferStatusReceiverKeyTweaked:
 		return pb.TransferStatus_TRANSFER_STATUS_RECEIVER_KEY_TWEAKED.Enum(), nil
-	case schema.TransferStatusReceiverRefundSigned:
-		return pb.TransferStatus_TRANSFER_STATUSR_RECEIVER_REFUND_SIGNED.Enum().Enum(), nil
-	case schema.TransferStatusCompleted:
+	case st.TransferStatusReceiverRefundSigned:
+		return pb.TransferStatus_TRANSFER_STATUS_RECEIVER_REFUND_SIGNED.Enum().Enum(), nil
+	case st.TransferStatusCompleted:
 		return pb.TransferStatus_TRANSFER_STATUS_COMPLETED.Enum(), nil
-	case schema.TransferStatusExpired:
+	case st.TransferStatusExpired:
 		return pb.TransferStatus_TRANSFER_STATUS_EXPIRED.Enum(), nil
-	case schema.TransferStatusReturned:
+	case st.TransferStatusReturned:
 		return pb.TransferStatus_TRANSFER_STATUS_RETURNED.Enum(), nil
-	case schema.TransferStatusSenderInitiatedCoordinator:
+	case st.TransferStatusSenderInitiatedCoordinator:
 		return pb.TransferStatus_TRANSFER_STATUS_SENDER_INITIATED_COORDINATOR.Enum(), nil
-	case schema.TransferStatusReceiverKeyTweakLocked:
+	case st.TransferStatusReceiverKeyTweakLocked:
 		return pb.TransferStatus_TRANSFER_STATUS_RECEIVER_KEY_TWEAK_LOCKED.Enum(), nil
-	case schema.TransferStatusReceiverKeyTweakApplied:
+	case st.TransferStatusReceiverKeyTweakApplied:
 		return pb.TransferStatus_TRANSFER_STATUS_RECEIVER_KEY_TWEAK_APPLIED.Enum(), nil
 	}
 	return nil, fmt.Errorf("unknown transfer status %s", t.Status)
 }
 
-func TransferTypeProto(transferType schema.TransferType) (*pb.TransferType, error) {
+func TransferTypeProto(transferType st.TransferType) (*pb.TransferType, error) {
 	switch transferType {
-	case schema.TransferTypePreimageSwap:
+	case st.TransferTypePreimageSwap:
 		return pb.TransferType_PREIMAGE_SWAP.Enum(), nil
-	case schema.TransferTypeCooperativeExit:
+	case st.TransferTypeCooperativeExit:
 		return pb.TransferType_COOPERATIVE_EXIT.Enum(), nil
-	case schema.TransferTypeTransfer:
+	case st.TransferTypeTransfer:
 		return pb.TransferType_TRANSFER.Enum(), nil
-	case schema.TransferTypeSwap:
+	case st.TransferTypeSwap:
 		return pb.TransferType_SWAP.Enum(), nil
-	case schema.TransferTypeCounterSwap:
+	case st.TransferTypeCounterSwap:
 		return pb.TransferType_COUNTER_SWAP.Enum(), nil
-	case schema.TransferTypeUtxoSwap:
+	case st.TransferTypeUtxoSwap:
 		return pb.TransferType_UTXO_SWAP.Enum(), nil
 	}
 	return nil, fmt.Errorf("unknown transfer type %s", transferType)
 }
 
-func TransferTypeSchema(transferType pb.TransferType) (schema.TransferType, error) {
+func TransferTypeSchema(transferType pb.TransferType) (st.TransferType, error) {
 	switch transferType {
 	case pb.TransferType_PREIMAGE_SWAP:
-		return schema.TransferTypePreimageSwap, nil
+		return st.TransferTypePreimageSwap, nil
 	case pb.TransferType_COOPERATIVE_EXIT:
-		return schema.TransferTypeCooperativeExit, nil
+		return st.TransferTypeCooperativeExit, nil
 	case pb.TransferType_TRANSFER:
-		return schema.TransferTypeTransfer, nil
+		return st.TransferTypeTransfer, nil
 	case pb.TransferType_SWAP:
-		return schema.TransferTypeSwap, nil
+		return st.TransferTypeSwap, nil
 	case pb.TransferType_COUNTER_SWAP:
-		return schema.TransferTypeCounterSwap, nil
+		return st.TransferTypeCounterSwap, nil
 	case pb.TransferType_UTXO_SWAP:
-		return schema.TransferTypeUtxoSwap, nil
+		return st.TransferTypeUtxoSwap, nil
 	}
 	return "", fmt.Errorf("unknown transfer type %s", transferType)
 }

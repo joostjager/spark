@@ -1,9 +1,12 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { bech32m } from "@scure/base";
-import { SparkAddress } from "../proto/spark.js";
+import { PaymentIntentFields, SparkAddress } from "../proto/spark.js";
 import { NetworkType } from "../utils/network.js";
 import { ValidationError } from "../errors/index.js";
+
+import { UUID, uuidv7 } from "uuidv7";
+import { bytesToNumberBE } from "@noble/curves/abstract/utils";
 
 const AddressNetwork: Record<NetworkType, string> = {
   MAINNET: "sp",
@@ -19,6 +22,18 @@ export type SparkAddressFormat =
 export interface SparkAddressData {
   identityPublicKey: string;
   network: NetworkType;
+  paymentIntentFields?: PaymentIntentFields;
+}
+
+export interface DecodedSparkAddressData {
+  identityPublicKey: string;
+  network: NetworkType;
+  paymentIntentFields?: {
+    id: string;
+    assetIdentifier?: string;
+    assetAmount: bigint;
+    memo?: string;
+  };
 }
 
 export function encodeSparkAddress(
@@ -27,8 +42,14 @@ export function encodeSparkAddress(
   try {
     isValidPublicKey(payload.identityPublicKey);
 
+    let paymentIntentFields: PaymentIntentFields | undefined;
+    if (payload.paymentIntentFields) {
+      paymentIntentFields = payload.paymentIntentFields;
+    }
+
     const sparkAddressProto = SparkAddress.create({
       identityPublicKey: hexToBytes(payload.identityPublicKey),
+      paymentIntentFields,
     });
 
     const serializedPayload = SparkAddress.encode(sparkAddressProto).finish();
@@ -37,7 +58,7 @@ export function encodeSparkAddress(
     return bech32m.encode(
       AddressNetwork[payload.network],
       words,
-      200,
+      500,
     ) as SparkAddressFormat;
   } catch (error) {
     throw new ValidationError(
@@ -54,9 +75,10 @@ export function encodeSparkAddress(
 export function decodeSparkAddress(
   address: string,
   network: NetworkType,
-): string {
+): DecodedSparkAddressData {
   try {
-    const decoded = bech32m.decode(address as SparkAddressFormat, 200);
+    const decoded = bech32m.decode(address as SparkAddressFormat, 500);
+
     if (decoded.prefix !== AddressNetwork[network]) {
       throw new ValidationError("Invalid Spark address prefix", {
         field: "address",
@@ -71,7 +93,20 @@ export function decodeSparkAddress(
 
     isValidPublicKey(publicKey);
 
-    return publicKey;
+    const paymentIntentFields = payload.paymentIntentFields;
+
+    return {
+      identityPublicKey: publicKey,
+      network,
+      paymentIntentFields: paymentIntentFields && {
+        id: UUID.ofInner(paymentIntentFields.id).toString(),
+        assetIdentifier: paymentIntentFields.assetIdentifier
+          ? bytesToHex(paymentIntentFields.assetIdentifier)
+          : undefined,
+        assetAmount: bytesToNumberBE(paymentIntentFields.assetAmount),
+        memo: paymentIntentFields.memo,
+      },
+    };
   } catch (error) {
     if (error instanceof ValidationError) {
       throw error;
@@ -118,7 +153,7 @@ export function isValidSparkAddress(address: string) {
   }
 }
 
-function isValidPublicKey(publicKey: string) {
+export function isValidPublicKey(publicKey: string) {
   try {
     const point = secp256k1.ProjectivePoint.fromHex(publicKey);
     point.assertValidity();

@@ -21,46 +21,6 @@ const { wallet: walletStatic, ...rest } = await SparkWallet.initialize({
 describe("Lightning Network provider", () => {
   describe("should create lightning invoice", () => {
     test.concurrent.each([
-      ["REGTEST", "lnbcrt"],
-      ["MAINNET", "lnbc"],
-    ])(
-      `.network(%s)`,
-      async (network, invoicePrefix) => {
-        const options: ConfigOptions = {
-          network: network as NetworkType,
-        };
-        const { wallet, ...rest } = await SparkWallet.initialize({
-          mnemonicOrSeed:
-            "logic ripple layer execute smart disease marine hero monster talent crucial unfair horror shadow maze abuse avoid story loop jaguar sphere trap decrease turn",
-          options,
-        });
-
-        let invoice = await wallet.createLightningInvoice({
-          amountSats: 1000,
-          memo: "test",
-        });
-
-        expect(invoice.invoice.encodedInvoice).toMatch(
-          new RegExp(`^${invoicePrefix}[0-9]*[a-zA-Z0-9]*$`),
-        );
-        expect(invoice.invoice.paymentHash.length).toEqual(64);
-        expect(invoice.invoice.amount.originalValue).toEqual(1000 * 1000);
-        expect(invoice.invoice.amount.originalUnit).toEqual(
-          CurrencyUnit.MILLISATOSHI,
-        );
-        expect(invoice.status).toEqual(
-          LightningReceiveRequestStatus.INVOICE_CREATED,
-        );
-        expect(invoice.transfer).toBeUndefined();
-        expect(invoice.invoice.bitcoinNetwork).toEqual(
-          network as BitcoinNetwork,
-        );
-        expect(invoice.network).toEqual(network as BitcoinNetwork);
-      },
-      30000,
-    );
-
-    test.concurrent.each([
       [0],
       [1],
       [10],

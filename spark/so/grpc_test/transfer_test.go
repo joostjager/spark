@@ -463,9 +463,12 @@ func TestCancelTransfer(t *testing.T) {
 	_, err = wallet.CancelTransfer(context.Background(), senderConfig, senderTransfer)
 	require.NoError(t, err, "failed to cancel transfer")
 
-	transfers, _, err := wallet.QueryAllTransfers(context.Background(), senderConfig, 1, 0)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(transfers))
+	for operator := range senderConfig.SigningOperators {
+		senderConfig.CoodinatorIdentifier = operator
+		transfers, _, err := wallet.QueryAllTransfers(context.Background(), senderConfig, 1, 0)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(transfers))
+	}
 
 	senderTransfer, err = wallet.SendTransfer(
 		context.Background(),

@@ -38,11 +38,11 @@ const (
 	SparkInternalService_UpdatePreimageRequest_FullMethodName          = "/spark_internal.SparkInternalService/update_preimage_request"
 	SparkInternalService_PrepareTreeAddress_FullMethodName             = "/spark_internal.SparkInternalService/prepare_tree_address"
 	SparkInternalService_InitiateTransfer_FullMethodName               = "/spark_internal.SparkInternalService/initiate_transfer"
+	SparkInternalService_DeliverSenderKeyTweak_FullMethodName          = "/spark_internal.SparkInternalService/deliver_sender_key_tweak"
 	SparkInternalService_InitiateCooperativeExit_FullMethodName        = "/spark_internal.SparkInternalService/initiate_cooperative_exit"
 	SparkInternalService_ReturnLightningPayment_FullMethodName         = "/spark_internal.SparkInternalService/return_lightning_payment"
 	SparkInternalService_StartTokenTransactionInternal_FullMethodName  = "/spark_internal.SparkInternalService/start_token_transaction_internal"
 	SparkInternalService_QueryTokenOutputsInternal_FullMethodName      = "/spark_internal.SparkInternalService/query_token_outputs_internal"
-	SparkInternalService_CancelTransfer_FullMethodName                 = "/spark_internal.SparkInternalService/cancel_transfer"
 	SparkInternalService_InitiateSettleReceiverKeyTweak_FullMethodName = "/spark_internal.SparkInternalService/initiate_settle_receiver_key_tweak"
 	SparkInternalService_SettleReceiverKeyTweak_FullMethodName         = "/spark_internal.SparkInternalService/settle_receiver_key_tweak"
 	SparkInternalService_SettleSenderKeyTweak_FullMethodName           = "/spark_internal.SparkInternalService/settle_sender_key_tweak"
@@ -70,15 +70,15 @@ type SparkInternalServiceClient interface {
 	FinalizeRefreshTimelock(ctx context.Context, in *FinalizeRefreshTimelockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	FinalizeExtendLeaf(ctx context.Context, in *FinalizeExtendLeafRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	InitiatePreimageSwap(ctx context.Context, in *spark.InitiatePreimageSwapRequest, opts ...grpc.CallOption) (*InitiatePreimageSwapResponse, error)
-	ProvidePreimage(ctx context.Context, in *spark.ProvidePreimageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	ProvidePreimage(ctx context.Context, in *ProvidePreimageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	UpdatePreimageRequest(ctx context.Context, in *UpdatePreimageRequestRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	PrepareTreeAddress(ctx context.Context, in *PrepareTreeAddressRequest, opts ...grpc.CallOption) (*PrepareTreeAddressResponse, error)
 	InitiateTransfer(ctx context.Context, in *InitiateTransferRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeliverSenderKeyTweak(ctx context.Context, in *DeliverSenderKeyTweakRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	InitiateCooperativeExit(ctx context.Context, in *InitiateCooperativeExitRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ReturnLightningPayment(ctx context.Context, in *spark.ReturnLightningPaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	StartTokenTransactionInternal(ctx context.Context, in *StartTokenTransactionInternalRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	QueryTokenOutputsInternal(ctx context.Context, in *spark.QueryTokenOutputsRequest, opts ...grpc.CallOption) (*spark.QueryTokenOutputsResponse, error)
-	CancelTransfer(ctx context.Context, in *spark.CancelTransferRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	InitiateSettleReceiverKeyTweak(ctx context.Context, in *InitiateSettleReceiverKeyTweakRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SettleReceiverKeyTweak(ctx context.Context, in *SettleReceiverKeyTweakRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SettleSenderKeyTweak(ctx context.Context, in *SettleSenderKeyTweakRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -221,7 +221,7 @@ func (c *sparkInternalServiceClient) InitiatePreimageSwap(ctx context.Context, i
 	return out, nil
 }
 
-func (c *sparkInternalServiceClient) ProvidePreimage(ctx context.Context, in *spark.ProvidePreimageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *sparkInternalServiceClient) ProvidePreimage(ctx context.Context, in *ProvidePreimageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, SparkInternalService_ProvidePreimage_FullMethodName, in, out, cOpts...)
@@ -255,6 +255,16 @@ func (c *sparkInternalServiceClient) InitiateTransfer(ctx context.Context, in *I
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, SparkInternalService_InitiateTransfer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sparkInternalServiceClient) DeliverSenderKeyTweak(ctx context.Context, in *DeliverSenderKeyTweakRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, SparkInternalService_DeliverSenderKeyTweak_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -295,16 +305,6 @@ func (c *sparkInternalServiceClient) QueryTokenOutputsInternal(ctx context.Conte
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(spark.QueryTokenOutputsResponse)
 	err := c.cc.Invoke(ctx, SparkInternalService_QueryTokenOutputsInternal_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *sparkInternalServiceClient) CancelTransfer(ctx context.Context, in *spark.CancelTransferRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, SparkInternalService_CancelTransfer_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -417,15 +417,15 @@ type SparkInternalServiceServer interface {
 	FinalizeRefreshTimelock(context.Context, *FinalizeRefreshTimelockRequest) (*emptypb.Empty, error)
 	FinalizeExtendLeaf(context.Context, *FinalizeExtendLeafRequest) (*emptypb.Empty, error)
 	InitiatePreimageSwap(context.Context, *spark.InitiatePreimageSwapRequest) (*InitiatePreimageSwapResponse, error)
-	ProvidePreimage(context.Context, *spark.ProvidePreimageRequest) (*emptypb.Empty, error)
+	ProvidePreimage(context.Context, *ProvidePreimageRequest) (*emptypb.Empty, error)
 	UpdatePreimageRequest(context.Context, *UpdatePreimageRequestRequest) (*emptypb.Empty, error)
 	PrepareTreeAddress(context.Context, *PrepareTreeAddressRequest) (*PrepareTreeAddressResponse, error)
 	InitiateTransfer(context.Context, *InitiateTransferRequest) (*emptypb.Empty, error)
+	DeliverSenderKeyTweak(context.Context, *DeliverSenderKeyTweakRequest) (*emptypb.Empty, error)
 	InitiateCooperativeExit(context.Context, *InitiateCooperativeExitRequest) (*emptypb.Empty, error)
 	ReturnLightningPayment(context.Context, *spark.ReturnLightningPaymentRequest) (*emptypb.Empty, error)
 	StartTokenTransactionInternal(context.Context, *StartTokenTransactionInternalRequest) (*emptypb.Empty, error)
 	QueryTokenOutputsInternal(context.Context, *spark.QueryTokenOutputsRequest) (*spark.QueryTokenOutputsResponse, error)
-	CancelTransfer(context.Context, *spark.CancelTransferRequest) (*emptypb.Empty, error)
 	InitiateSettleReceiverKeyTweak(context.Context, *InitiateSettleReceiverKeyTweakRequest) (*emptypb.Empty, error)
 	SettleReceiverKeyTweak(context.Context, *SettleReceiverKeyTweakRequest) (*emptypb.Empty, error)
 	SettleSenderKeyTweak(context.Context, *SettleSenderKeyTweakRequest) (*emptypb.Empty, error)
@@ -484,7 +484,7 @@ func (UnimplementedSparkInternalServiceServer) FinalizeExtendLeaf(context.Contex
 func (UnimplementedSparkInternalServiceServer) InitiatePreimageSwap(context.Context, *spark.InitiatePreimageSwapRequest) (*InitiatePreimageSwapResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiatePreimageSwap not implemented")
 }
-func (UnimplementedSparkInternalServiceServer) ProvidePreimage(context.Context, *spark.ProvidePreimageRequest) (*emptypb.Empty, error) {
+func (UnimplementedSparkInternalServiceServer) ProvidePreimage(context.Context, *ProvidePreimageRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProvidePreimage not implemented")
 }
 func (UnimplementedSparkInternalServiceServer) UpdatePreimageRequest(context.Context, *UpdatePreimageRequestRequest) (*emptypb.Empty, error) {
@@ -495,6 +495,9 @@ func (UnimplementedSparkInternalServiceServer) PrepareTreeAddress(context.Contex
 }
 func (UnimplementedSparkInternalServiceServer) InitiateTransfer(context.Context, *InitiateTransferRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiateTransfer not implemented")
+}
+func (UnimplementedSparkInternalServiceServer) DeliverSenderKeyTweak(context.Context, *DeliverSenderKeyTweakRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeliverSenderKeyTweak not implemented")
 }
 func (UnimplementedSparkInternalServiceServer) InitiateCooperativeExit(context.Context, *InitiateCooperativeExitRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiateCooperativeExit not implemented")
@@ -507,9 +510,6 @@ func (UnimplementedSparkInternalServiceServer) StartTokenTransactionInternal(con
 }
 func (UnimplementedSparkInternalServiceServer) QueryTokenOutputsInternal(context.Context, *spark.QueryTokenOutputsRequest) (*spark.QueryTokenOutputsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryTokenOutputsInternal not implemented")
-}
-func (UnimplementedSparkInternalServiceServer) CancelTransfer(context.Context, *spark.CancelTransferRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CancelTransfer not implemented")
 }
 func (UnimplementedSparkInternalServiceServer) InitiateSettleReceiverKeyTweak(context.Context, *InitiateSettleReceiverKeyTweakRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiateSettleReceiverKeyTweak not implemented")
@@ -776,7 +776,7 @@ func _SparkInternalService_InitiatePreimageSwap_Handler(srv interface{}, ctx con
 }
 
 func _SparkInternalService_ProvidePreimage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(spark.ProvidePreimageRequest)
+	in := new(ProvidePreimageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -788,7 +788,7 @@ func _SparkInternalService_ProvidePreimage_Handler(srv interface{}, ctx context.
 		FullMethod: SparkInternalService_ProvidePreimage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SparkInternalServiceServer).ProvidePreimage(ctx, req.(*spark.ProvidePreimageRequest))
+		return srv.(SparkInternalServiceServer).ProvidePreimage(ctx, req.(*ProvidePreimageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -843,6 +843,24 @@ func _SparkInternalService_InitiateTransfer_Handler(srv interface{}, ctx context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SparkInternalServiceServer).InitiateTransfer(ctx, req.(*InitiateTransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SparkInternalService_DeliverSenderKeyTweak_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeliverSenderKeyTweakRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkInternalServiceServer).DeliverSenderKeyTweak(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SparkInternalService_DeliverSenderKeyTweak_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkInternalServiceServer).DeliverSenderKeyTweak(ctx, req.(*DeliverSenderKeyTweakRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -915,24 +933,6 @@ func _SparkInternalService_QueryTokenOutputsInternal_Handler(srv interface{}, ct
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SparkInternalServiceServer).QueryTokenOutputsInternal(ctx, req.(*spark.QueryTokenOutputsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _SparkInternalService_CancelTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(spark.CancelTransferRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SparkInternalServiceServer).CancelTransfer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: SparkInternalService_CancelTransfer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SparkInternalServiceServer).CancelTransfer(ctx, req.(*spark.CancelTransferRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1171,6 +1171,10 @@ var SparkInternalService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SparkInternalService_InitiateTransfer_Handler,
 		},
 		{
+			MethodName: "deliver_sender_key_tweak",
+			Handler:    _SparkInternalService_DeliverSenderKeyTweak_Handler,
+		},
+		{
 			MethodName: "initiate_cooperative_exit",
 			Handler:    _SparkInternalService_InitiateCooperativeExit_Handler,
 		},
@@ -1185,10 +1189,6 @@ var SparkInternalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "query_token_outputs_internal",
 			Handler:    _SparkInternalService_QueryTokenOutputsInternal_Handler,
-		},
-		{
-			MethodName: "cancel_transfer",
-			Handler:    _SparkInternalService_CancelTransfer_Handler,
 		},
 		{
 			MethodName: "initiate_settle_receiver_key_tweak",

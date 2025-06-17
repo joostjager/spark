@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -16,16 +15,19 @@ import (
 	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/common/logging"
 	pblrc20 "github.com/lightsparkdev/spark/proto/lrc20"
-	pb "github.com/lightsparkdev/spark/proto/spark"
+	sparkpb "github.com/lightsparkdev/spark/proto/spark"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
+	tokenpb "github.com/lightsparkdev/spark/proto/spark_token"
+	tokeninternalpb "github.com/lightsparkdev/spark/proto/spark_token_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/lrc20"
+	"github.com/lightsparkdev/spark/so/protoconverter"
 	"github.com/lightsparkdev/spark/so/utils"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -83,25 +85,29 @@ const (
 	errOperatorPublicKeyMismatch          = "operator identity public key in payload (%x) does not match this SO's identity public key (%x)"
 )
 
+type operatorSignaturesMap map[string][]byte
+
 // The TokenTransactionHandler is responsible for handling token transaction requests to spend and create outputs.
 type TokenTransactionHandler struct {
-	config      authz.Config
+	authzConfig authz.Config
+	soConfig    *so.Config
 	db          *ent.Client
 	lrc20Client *lrc20.Client
 }
 
 // NewTokenTransactionHandler creates a new TokenTransactionHandler.
-func NewTokenTransactionHandler(config authz.Config, db *ent.Client, lrc20Client *lrc20.Client) *TokenTransactionHandler {
+func NewTokenTransactionHandler(authzConfig authz.Config, soConfig *so.Config, db *ent.Client, lrc20Client *lrc20.Client) *TokenTransactionHandler {
 	return &TokenTransactionHandler{
-		config:      config,
+		authzConfig: authzConfig,
+		soConfig:    soConfig,
 		db:          db,
 		lrc20Client: lrc20Client,
 	}
 }
 
 // StartTokenTransaction verifies the token outputs, reserves the keyshares for the token transaction, and returns metadata about the operators that possess the keyshares.
-func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, config *so.Config, req *pb.StartTokenTransactionRequest) (*pb.StartTokenTransactionResponse, error) {
-	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.config, req.IdentityPublicKey); err != nil {
+func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, config *so.Config, req *sparkpb.StartTokenTransactionRequest) (*sparkpb.StartTokenTransactionResponse, error) {
+	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.authzConfig, req.IdentityPublicKey); err != nil {
 		return nil, formatErrorWithTransactionProto(errIdentityPublicKeyAuthFailed, req.PartialTokenTransaction, err)
 	}
 
@@ -109,7 +115,7 @@ func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, conf
 		return nil, formatErrorWithTransactionProto(errInvalidPartialTokenTransaction, req.PartialTokenTransaction, err)
 	}
 
-	partialTokenTransactionHash, err := utils.HashTokenTransaction(req.PartialTokenTransaction, true)
+	partialTokenTransactionHash, err := utils.HashTokenTransactionV0(req.PartialTokenTransaction, true)
 	if err != nil {
 		return nil, formatErrorWithTransactionProto(errFailedToHashPartialTransaction, req.PartialTokenTransaction, err)
 	}
@@ -123,7 +129,7 @@ func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, conf
 	// Also, check that this SO was the coordinator for the transaction. This is necessary because only the coordinator
 	// receives direct evidence from each SO individually that a threshold of SOs have validated and saved the transaction.
 	if previouslyCreatedTokenTransaction != nil &&
-		previouslyCreatedTokenTransaction.Status == schema.TokenTransactionStatusStarted &&
+		previouslyCreatedTokenTransaction.Status == st.TokenTransactionStatusStarted &&
 		bytes.Equal(previouslyCreatedTokenTransaction.CoordinatorPublicKey, config.IdentityPublicKey()) {
 		logWithTransactionEnt(ctx, "Found existing token transaction in started state with matching coordinator",
 			previouslyCreatedTokenTransaction, slog.LevelInfo)
@@ -193,7 +199,7 @@ func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, conf
 		return nil, formatErrorWithTransactionProto(errFailedToGetKeyshareInfo, req.PartialTokenTransaction, err)
 	}
 
-	return &pb.StartTokenTransactionResponse{
+	return &sparkpb.StartTokenTransactionResponse{
 		FinalTokenTransaction: finalTokenTransaction,
 		KeyshareInfo:          keyshareInfo,
 	}, nil
@@ -201,7 +207,7 @@ func (o TokenTransactionHandler) StartTokenTransaction(ctx context.Context, conf
 
 // callStartTokenTransactionInternal handles calling the StartTokenTransactionInternal RPC on an operator
 func callStartTokenTransactionInternal(ctx context.Context, operator *so.SigningOperator,
-	finalTokenTransaction *pb.TokenTransaction, tokenTransactionSignatures *pb.TokenTransactionSignatures,
+	finalTokenTransaction *sparkpb.TokenTransaction, tokenTransactionSignatures *sparkpb.TokenTransactionSignatures,
 	keyshareIDStrings []string, coordinatorPublicKey []byte,
 ) (*emptypb.Empty, error) {
 	conn, err := operator.NewGRPCConnection()
@@ -223,7 +229,7 @@ func callStartTokenTransactionInternal(ctx context.Context, operator *so.Signing
 	return internalResp, err
 }
 
-func getStartTokenTransactionKeyshareInfo(config *so.Config) (*pb.SigningKeyshare, error) {
+func getStartTokenTransactionKeyshareInfo(config *so.Config) (*sparkpb.SigningKeyshare, error) {
 	allOperators := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
 	operatorList, err := allOperators.OperatorList(config)
 	if err != nil {
@@ -233,183 +239,11 @@ func getStartTokenTransactionKeyshareInfo(config *so.Config) (*pb.SigningKeyshar
 	for i, operator := range operatorList {
 		operatorIdentifiers[i] = operator.Identifier
 	}
-	return &pb.SigningKeyshare{
+	return &sparkpb.SigningKeyshare{
 		OwnerIdentifiers: operatorIdentifiers,
 		// TODO: Unify threshold type (uint32 vs uint64) at all callsites between protos and config.
 		Threshold: uint32(config.Threshold),
 	}, nil
-}
-
-// validateOutputs checks if all created outputs have the expected status
-func validateOutputs(outputs []*ent.TokenOutput, expectedStatus schema.TokenOutputStatus) []string {
-	var invalidOutputs []string
-	for i, output := range outputs {
-		if output.Status != expectedStatus {
-			invalidOutputs = append(invalidOutputs, fmt.Sprintf("output %d has invalid status %s, expected %s",
-				i, output.Status, expectedStatus))
-		}
-	}
-	return invalidOutputs
-}
-
-// validateInputs checks if all spent outputs have the expected status and aren't withdrawn
-func validateInputs(outputs []*ent.TokenOutput, expectedStatus schema.TokenOutputStatus) []string {
-	var invalidOutputs []string
-	for _, output := range outputs {
-		if output.Status != expectedStatus {
-			invalidOutputs = append(invalidOutputs, fmt.Sprintf("input %x has invalid status %s, expected %s",
-				output.ID, output.Status, expectedStatus))
-		}
-		if output.ConfirmedWithdrawBlockHash != nil {
-			invalidOutputs = append(invalidOutputs, fmt.Sprintf("input %x is already withdrawn",
-				output.ID))
-		}
-	}
-	return invalidOutputs
-}
-
-// validateTransferOperatorSpecificSignatures validates signatures for transfer transactions
-func validateTransferOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
-	if len(operatorSpecificSignatures) != len(tokenTransaction.Edges.SpentOutput) {
-		return formatErrorWithTransactionEnt(
-			fmt.Sprintf("expected %d signatures for transfer (one per input), but got %d",
-				len(tokenTransaction.Edges.SpentOutput), len(operatorSpecificSignatures)),
-			tokenTransaction, nil)
-	}
-	numInputs := len(tokenTransaction.Edges.SpentOutput)
-	signaturesByIndex := make([]*pb.OperatorSpecificOwnerSignature, numInputs)
-
-	// Sort signatures according to index position
-	for _, sig := range operatorSpecificSignatures {
-		index := int(sig.OwnerSignature.InputIndex)
-		if index < 0 || index >= numInputs {
-			return formatErrorWithTransactionEnt(
-				fmt.Sprintf(errInputIndexOutOfRange, index, numInputs-1),
-				tokenTransaction, nil)
-		}
-
-		if signaturesByIndex[index] != nil {
-			return formatErrorWithTransactionEnt(
-				fmt.Sprintf("duplicate signature for input index %d", index),
-				tokenTransaction, nil)
-		}
-
-		signaturesByIndex[index] = sig
-	}
-
-	for i := 0; i < numInputs; i++ {
-		if signaturesByIndex[i] == nil {
-			return formatErrorWithTransactionEnt(
-				fmt.Sprintf("missing signature for input index %d", i),
-				tokenTransaction, nil)
-		}
-	}
-
-	// Sort spent outputs by their index
-	spentOutputs := make([]*ent.TokenOutput, numInputs)
-	copy(spentOutputs, tokenTransaction.Edges.SpentOutput)
-	sort.Slice(spentOutputs, func(i, j int) bool {
-		return spentOutputs[i].SpentTransactionInputVout < spentOutputs[j].SpentTransactionInputVout
-	})
-
-	// Validate each signature against its corresponding output
-	for i, sig := range signaturesByIndex {
-		payloadHash, err := utils.HashOperatorSpecificTokenTransactionSignablePayload(sig.Payload)
-		if err != nil {
-			return fmt.Errorf("%s: %w", errFailedToHashRevocationKeyshares, err)
-		}
-
-		if !bytes.Equal(sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash) {
-			return fmt.Errorf(errTransactionHashMismatch,
-				sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash)
-		}
-
-		if !bytes.Equal(sig.Payload.OperatorIdentityPublicKey, identityPublicKey) {
-			return fmt.Errorf(errOperatorPublicKeyMismatch,
-				sig.Payload.OperatorIdentityPublicKey, identityPublicKey)
-		}
-
-		output := spentOutputs[i]
-		if err := utils.ValidateOwnershipSignature(
-			sig.OwnerSignature.Signature,
-			payloadHash,
-			output.OwnerPublicKey,
-		); err != nil {
-			return formatErrorWithTransactionEnt(errInvalidOwnerSignature, tokenTransaction, err)
-		}
-	}
-
-	return nil
-}
-
-// validateMintOperatorSpecificSignatures validates signatures for mint transactions
-func validateMintOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
-	if len(operatorSpecificSignatures) != 1 {
-		return formatErrorWithTransactionEnt(
-			fmt.Sprintf("expected exactly 1 signature for mint, but got %d",
-				len(operatorSpecificSignatures)),
-			tokenTransaction, nil)
-	}
-
-	if tokenTransaction.Edges.Mint == nil {
-		return formatErrorWithTransactionEnt(
-			"mint record not found in db, but expected a mint for this transaction",
-			tokenTransaction, nil)
-	}
-
-	sig := operatorSpecificSignatures[0]
-
-	// Validate the signature payload
-	payloadHash, err := utils.HashOperatorSpecificTokenTransactionSignablePayload(sig.Payload)
-	if err != nil {
-		return fmt.Errorf("%s: %w", errFailedToHashRevocationKeyshares, err)
-	}
-
-	if !bytes.Equal(sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash) {
-		return fmt.Errorf(errTransactionHashMismatch,
-			sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash)
-	}
-
-	if len(sig.Payload.OperatorIdentityPublicKey) > 0 {
-		if !bytes.Equal(sig.Payload.OperatorIdentityPublicKey, identityPublicKey) {
-			return fmt.Errorf(errOperatorPublicKeyMismatch,
-				sig.Payload.OperatorIdentityPublicKey, identityPublicKey)
-		}
-	}
-
-	// Validate the signature using the issuer public key from the database
-	if err := utils.ValidateOwnershipSignature(
-		sig.OwnerSignature.Signature,
-		payloadHash,
-		tokenTransaction.Edges.Mint.IssuerPublicKey,
-	); err != nil {
-		return formatErrorWithTransactionEnt(errInvalidIssuerSignature, tokenTransaction, err)
-	}
-
-	return nil
-}
-
-func validateTokenTransactionForSigning(tokenTransactionProto *pb.TokenTransaction, tokenTransactionEnt *ent.TokenTransaction) error {
-	if tokenTransactionEnt.Status != schema.TokenTransactionStatusStarted &&
-		tokenTransactionEnt.Status != schema.TokenTransactionStatusSigned {
-		return fmt.Errorf("signing failed because transaction is not in correct state, expected %s or %s, current status: %s", schema.TokenTransactionStatusStarted, schema.TokenTransactionStatusSigned, tokenTransactionEnt.Status)
-	}
-	if len(tokenTransactionProto.GetTransferInput().GetOutputsToSpend()) != len(tokenTransactionEnt.Edges.SpentOutput) {
-		return fmt.Errorf("signing failed because transaction is no longer mapped to spent TTXOs. Expected %d TTXOs, found %d. TTXOs were likely remapped to a more recent started transaction", len(tokenTransactionProto.GetTransferInput().GetOutputsToSpend()), len(tokenTransactionEnt.Edges.SpentOutput))
-	}
-	if !tokenTransactionEnt.ExpiryTime.IsZero() && time.Now().After(tokenTransactionEnt.ExpiryTime) {
-		return fmt.Errorf("signing failed because token transaction %s has expired at %s", tokenTransactionEnt.ID, tokenTransactionEnt.ExpiryTime.Format(time.RFC3339))
-	}
-	return nil
-}
-
-// validateOperatorSpecificSignatures validates the signatures in the request against the transaction hash
-// and verifies that the number of signatures matches the expected count based on transaction type
-func validateOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
-	if len(tokenTransaction.Edges.SpentOutput) > 0 {
-		return validateTransferOperatorSpecificSignatures(identityPublicKey, operatorSpecificSignatures, tokenTransaction)
-	}
-	return validateMintOperatorSpecificSignatures(identityPublicKey, operatorSpecificSignatures, tokenTransaction)
 }
 
 // SignTokenTransaction signs the token transaction with the operators private key.
@@ -418,96 +252,53 @@ func validateOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecif
 func (o TokenTransactionHandler) SignTokenTransaction(
 	ctx context.Context,
 	config *so.Config,
-	req *pb.SignTokenTransactionRequest,
-) (*pb.SignTokenTransactionResponse, error) {
+	req *sparkpb.SignTokenTransactionRequest,
+) (*sparkpb.SignTokenTransactionResponse, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
-	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.config, req.IdentityPublicKey); err != nil {
+	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.authzConfig, req.IdentityPublicKey); err != nil {
 		return nil, err
 	}
 
-	finalTokenTransactionHash, err := utils.HashTokenTransaction(req.FinalTokenTransaction, false)
+	tokenProtoTokenTransaction, err := protoconverter.TokenProtoFromSparkTokenTransaction(req.FinalTokenTransaction)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert token transaction to spark token transaction: %w", err)
+	}
+
+	finalTokenTransactionHash, err := utils.HashTokenTransaction(tokenProtoTokenTransaction, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", errFailedToHashFinalTransaction, err)
 	}
 
-	tokenTransaction, err := ent.FetchAndLockTokenTransactionData(ctx, req.FinalTokenTransaction)
+	tokenTransaction, err := ent.FetchAndLockTokenTransactionData(ctx, tokenProtoTokenTransaction)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", errFailedToFetchTransaction, logging.FormatProto("final_token_transaction", req.FinalTokenTransaction), err)
 	}
-	if err := validateTokenTransactionForSigning(req.FinalTokenTransaction, tokenTransaction); err != nil {
-		return nil, formatErrorWithTransactionEnt(err.Error(), tokenTransaction, err)
-	}
 
-	if err := validateOperatorSpecificSignatures(config.IdentityPublicKey(), req.OperatorSpecificSignatures, tokenTransaction); err != nil {
+	internalHandler := NewInternalTokenTransactionHandler(config, o.lrc20Client)
+	operatorSignature, err := internalHandler.SignAndPersistTokenTransaction(ctx, config, tokenTransaction, finalTokenTransactionHash, req.OperatorSpecificSignatures)
+	if err != nil {
 		return nil, err
 	}
 
-	if tokenTransaction.Status == schema.TokenTransactionStatusSigned {
-		return o.regenerateSigningResponseForDuplicateRequest(ctx, config, tokenTransaction, finalTokenTransactionHash)
-	}
-
-	invalidOutputs := validateOutputs(tokenTransaction.Edges.CreatedOutput, schema.TokenOutputStatusCreatedStarted)
-	if len(invalidOutputs) > 0 {
-		return nil, formatErrorWithTransactionEnt(fmt.Sprintf("%s: %s", errInvalidOutputs, strings.Join(invalidOutputs, "; ")), tokenTransaction, nil)
-	}
-
-	// If token outputs are being spent, verify the expected status of inputs and check for active freezes.
-	// For mints this is not necessary and will be skipped because it does not spend outputs.
-	if len(tokenTransaction.Edges.SpentOutput) > 0 {
-		invalidOutputs := validateInputs(tokenTransaction.Edges.SpentOutput, schema.TokenOutputStatusSpentStarted)
-		if len(invalidOutputs) > 0 {
-			return nil, formatErrorWithTransactionEnt(fmt.Sprintf("%s: %s", errInvalidInputs, strings.Join(invalidOutputs, "; ")), tokenTransaction, nil)
-		}
-
-		// Collect owner public keys for freeze check.
-		ownerPublicKeys := make([][]byte, len(tokenTransaction.Edges.SpentOutput))
-		// Assumes that all token public keys are the same as the first output. This is asserted when validating
-		// in the StartTokenTransaction() step.
-		tokenPublicKey := tokenTransaction.Edges.SpentOutput[0].TokenPublicKey
-		for i, output := range tokenTransaction.Edges.SpentOutput {
-			ownerPublicKeys[i] = output.OwnerPublicKey
-		}
-
-		// Bulk query all input ids to ensure none of them are frozen.
-		activeFreezes, err := ent.GetActiveFreezes(ctx, ownerPublicKeys, tokenPublicKey)
+	if tokenTransaction.Status == st.TokenTransactionStatusSigned {
+		revocationKeyshares, err := o.getRevocationKeysharesForTokenTransaction(ctx, tokenTransaction)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", errFailedToQueryTokenFreezeStatus, err)
+			return nil, formatErrorWithTransactionEnt(errFailedToGetRevocationKeyshares, tokenTransaction, err)
 		}
-
-		if len(activeFreezes) > 0 {
-			for _, freeze := range activeFreezes {
-				logger.Info("Found active freeze", "owner", freeze.OwnerPublicKey, "token", freeze.TokenPublicKey, "freeze_timestamp", freeze.WalletProvidedFreezeTimestamp)
-			}
-			return nil, fmt.Errorf("at least one input is frozen. Cannot proceed with transaction")
-		}
-	}
-
-	identityPrivateKey := secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey)
-	operatorSignature := ecdsa.Sign(identityPrivateKey, finalTokenTransactionHash)
-
-	// Order the signatures according to their index before updating the DB.
-	operatorSpecificSignatureMap := make(map[int][]byte, len(req.OperatorSpecificSignatures))
-	for _, sig := range req.OperatorSpecificSignatures {
-		inputIndex := int(sig.OwnerSignature.InputIndex)
-		operatorSpecificSignatureMap[inputIndex] = sig.OwnerSignature.Signature
-	}
-	operatorSpecificSignatures := make([][]byte, len(operatorSpecificSignatureMap))
-	for i := 0; i < len(operatorSpecificSignatureMap); i++ {
-		operatorSpecificSignatures[i] = operatorSpecificSignatureMap[i]
-	}
-	err = ent.UpdateSignedTransaction(ctx, tokenTransaction, operatorSpecificSignatures, operatorSignature.Serialize())
-	if err != nil {
-		return nil, formatErrorWithTransactionEnt(fmt.Sprintf(errFailedToUpdateOutputs, "signing"), tokenTransaction, err)
+		return &sparkpb.SignTokenTransactionResponse{
+			SparkOperatorSignature: operatorSignature,
+			RevocationKeyshares:    revocationKeyshares,
+		}, nil
 	}
 
 	operatorSignatureData := &pblrc20.SparkOperatorSignatureData{
-		SparkOperatorSignature:    operatorSignature.Serialize(),
-		OperatorIdentityPublicKey: identityPrivateKey.PubKey().SerializeCompressed(),
+		SparkOperatorSignature:    operatorSignature,
+		OperatorIdentityPublicKey: secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey).PubKey().SerializeCompressed(),
 	}
 
 	keyshares := make([]*ent.SigningKeyshare, len(tokenTransaction.Edges.SpentOutput))
-	revocationKeyshares := make([]*pb.KeyshareWithIndex, len(tokenTransaction.Edges.SpentOutput))
+	revocationKeyshares := make([]*sparkpb.KeyshareWithIndex, len(tokenTransaction.Edges.SpentOutput))
 	for _, output := range tokenTransaction.Edges.SpentOutput {
 		keyshare, err := output.QueryRevocationKeyshare().Only(ctx)
 		if err != nil {
@@ -516,7 +307,7 @@ func (o TokenTransactionHandler) SignTokenTransaction(
 		}
 		index := output.SpentTransactionInputVout
 		keyshares[index] = keyshare
-		revocationKeyshares[index] = &pb.KeyshareWithIndex{
+		revocationKeyshares[index] = &sparkpb.KeyshareWithIndex{
 			InputIndex: uint32(index),
 			Keyshare:   keyshare.SecretShare,
 		}
@@ -536,16 +327,162 @@ func (o TokenTransactionHandler) SignTokenTransaction(
 		OperatorSpecificSignatures: req.OperatorSpecificSignatures,
 		OperatorSignatureData:      operatorSignatureData,
 	}
-
 	err = o.lrc20Client.SendSparkSignature(ctx, sparkSigReq)
 	if err != nil {
 		logger.Error("Failed to send transaction to LRC20 node", "error", err)
 		return nil, err
 	}
 
-	return &pb.SignTokenTransactionResponse{
-		SparkOperatorSignature: operatorSignature.Serialize(),
+	return &sparkpb.SignTokenTransactionResponse{
+		SparkOperatorSignature: operatorSignature,
 		RevocationKeyshares:    revocationKeyshares,
+	}, nil
+}
+
+func (o TokenTransactionHandler) CommitTransaction(ctx context.Context, req *tokenpb.CommitTransactionRequest) (*tokenpb.CommitTransactionResponse, error) {
+	if req.FinalTokenTransaction.Network == sparkpb.Network_MAINNET {
+		return nil, fmt.Errorf("mainnet transactions are not supported")
+	}
+
+	logger := logging.GetLoggerFromContext(ctx)
+
+	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.authzConfig, req.OwnerIdentityPublicKey); err != nil {
+		return nil, fmt.Errorf("identity public key authentication failed: %w", err)
+	}
+
+	calculatedHash, err := utils.HashTokenTransaction(req.FinalTokenTransaction, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash final token transaction: %w", err)
+	}
+	if !bytes.Equal(calculatedHash, req.FinalTokenTransactionHash) {
+		return nil, fmt.Errorf("transaction hash mismatch: expected %x, got %x", calculatedHash, req.FinalTokenTransactionHash)
+	}
+
+	tokenTransaction, err := ent.FetchAndLockTokenTransactionData(ctx, req.FinalTokenTransaction)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
+	}
+
+	if err := validateTokenTransactionForSigning(tokenTransaction); err != nil {
+		return nil, formatErrorWithTransactionEnt(err.Error(), tokenTransaction, err)
+	}
+
+	allOperators := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
+	internalSignatures, err := helper.ExecuteTaskWithAllOperators(ctx, o.soConfig, &allOperators,
+		func(ctx context.Context, operator *so.SigningOperator) (*tokeninternalpb.SignTokenTransactionFromCoordinationResponse, error) {
+			var foundOperatorSignatures *tokenpb.InputTtxoSignaturesPerOperator
+			for _, operatorSignatures := range req.InputTtxoSignaturesPerOperator {
+				if bytes.Equal(operatorSignatures.OperatorIdentityPublicKey, operator.IdentityPublicKey) {
+					foundOperatorSignatures = operatorSignatures
+					break
+				}
+			}
+			if foundOperatorSignatures == nil {
+				return nil, fmt.Errorf("no signatures found for operator %s", operator.Identifier)
+			}
+
+			if operator.Identifier == o.soConfig.Identifier {
+				return o.localSignAndCommitTransaction(ctx, foundOperatorSignatures, req.FinalTokenTransactionHash, tokenTransaction)
+			}
+
+			conn, err := operator.NewGRPCConnection()
+			if err != nil {
+				return nil, fmt.Errorf("failed to connect to operator %s: %w", operator.Identifier, err)
+			}
+			defer conn.Close()
+			client := tokeninternalpb.NewSparkTokenInternalServiceClient(conn)
+			return client.SignTokenTransactionFromCoordination(ctx, &tokeninternalpb.SignTokenTransactionFromCoordinationRequest{
+				FinalTokenTransaction:          req.FinalTokenTransaction,
+				FinalTokenTransactionHash:      req.FinalTokenTransactionHash,
+				InputTtxoSignaturesPerOperator: foundOperatorSignatures,
+				OwnerIdentityPublicKey:         req.OwnerIdentityPublicKey,
+			})
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get signatures from operators: %w", err)
+	}
+
+	signatures := make(operatorSignaturesMap)
+	for operatorID, sig := range internalSignatures {
+		signatures[operatorID] = sig.SparkOperatorSignature
+	}
+
+	if err := o.sendSignaturesToLRC20Node(ctx, signatures[o.soConfig.Identifier], req); err != nil {
+		return nil, fmt.Errorf("failed to send signatures to LRC20 node: %w", err)
+	}
+
+	if err := verifyOperatorSignatures(signatures, o.soConfig.SigningOperatorMap, req.FinalTokenTransactionHash); err != nil {
+		return nil, fmt.Errorf("failed to verify operator signatures: %w", err)
+	}
+
+	logger.Info("Successfully signed and committed token transaction",
+		"transaction_hash", req.FinalTokenTransactionHash)
+
+	return &tokenpb.CommitTransactionResponse{}, nil
+}
+
+func (o TokenTransactionHandler) sendSignaturesToLRC20Node(ctx context.Context, operatorSignature []byte, req *tokenpb.CommitTransactionRequest) error {
+	identityPrivateKey := secp256k1.PrivKeyFromBytes(o.soConfig.IdentityPrivateKey)
+	identityPublicKey := o.soConfig.IdentityPublicKey()
+	operatorSignatureData := &pblrc20.SparkOperatorSignatureData{
+		SparkOperatorSignature:    operatorSignature,
+		OperatorIdentityPublicKey: identityPublicKey,
+	}
+
+	sparkTokenTransaction, err := protoconverter.SparkTokenTransactionFromTokenProto(req.FinalTokenTransaction)
+	if err != nil {
+		return fmt.Errorf("failed to convert token transaction to spark token transaction: %w", err)
+	}
+
+	var thisOperatorSignatures *tokenpb.InputTtxoSignaturesPerOperator
+	for _, operatorSignatures := range req.InputTtxoSignaturesPerOperator {
+		if bytes.Equal(operatorSignatures.OperatorIdentityPublicKey, identityPublicKey) {
+			thisOperatorSignatures = operatorSignatures
+			break
+		}
+	}
+	thisOperatorSpecificSignatures := convertTokenProtoSignaturesToOperatorSpecific(
+		thisOperatorSignatures.TtxoSignatures,
+		req.FinalTokenTransactionHash,
+		identityPrivateKey.PubKey().SerializeCompressed(),
+	)
+	sparkSigReq := &pblrc20.SendSparkSignatureRequest{
+		FinalTokenTransaction:      sparkTokenTransaction,
+		OperatorSpecificSignatures: thisOperatorSpecificSignatures,
+		OperatorSignatureData:      operatorSignatureData,
+	}
+
+	err = o.lrc20Client.SendSparkSignature(ctx, sparkSigReq)
+	if err != nil {
+		logging.GetLoggerFromContext(ctx).Error("Failed to send transaction to LRC20 node", "error", err)
+		return fmt.Errorf("failed to send transaction to LRC20 node: %w", err)
+	}
+	return nil
+}
+
+func (o *TokenTransactionHandler) localSignAndCommitTransaction(
+	ctx context.Context,
+	foundOperatorSignatures *tokenpb.InputTtxoSignaturesPerOperator,
+	finalTokenTransactionHash []byte,
+	tokenTransaction *ent.TokenTransaction,
+) (*tokeninternalpb.SignTokenTransactionFromCoordinationResponse, error) {
+	operatorSpecificSignatures := convertTokenProtoSignaturesToOperatorSpecific(
+		foundOperatorSignatures.TtxoSignatures,
+		finalTokenTransactionHash,
+		o.soConfig.IdentityPublicKey(),
+	)
+	h := NewInternalTokenTransactionHandler(o.soConfig, nil)
+	sigBytes, err := h.SignAndPersistTokenTransaction(ctx, o.soConfig, tokenTransaction, finalTokenTransactionHash, operatorSpecificSignatures)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: CNT-330 should only finalize after receiving all revocation keyshares
+	if err := FinalizeTransferTransaction(ctx, tokenTransaction); err != nil {
+		return nil, fmt.Errorf("failed to finalize transaction: %w", err)
+	}
+	return &tokeninternalpb.SignTokenTransactionFromCoordinationResponse{
+		SparkOperatorSignature: sigBytes,
 	}, nil
 }
 
@@ -560,15 +497,15 @@ func (o TokenTransactionHandler) regenerateStartResponseForDuplicateRequest(
 	ctx context.Context,
 	config *so.Config,
 	tokenTransaction *ent.TokenTransaction,
-) (*pb.StartTokenTransactionResponse, error) {
+) (*sparkpb.StartTokenTransactionResponse, error) {
 	logWithTransactionEnt(ctx, "Regenerating response for a duplicate StartTokenTransaction() Call", tokenTransaction, slog.LevelDebug)
 
 	var invalidOutputs []string
-	expectedCreatedOutputStatus := schema.TokenOutputStatusCreatedStarted
+	expectedCreatedOutputStatus := st.TokenOutputStatusCreatedStarted
 
 	invalidOutputs = validateOutputs(tokenTransaction.Edges.CreatedOutput, expectedCreatedOutputStatus)
 	if len(tokenTransaction.Edges.SpentOutput) > 0 {
-		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, schema.TokenOutputStatusSpentStarted)...)
+		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, st.TokenOutputStatusSpentStarted)...)
 	}
 	if len(invalidOutputs) > 0 {
 		return nil, formatErrorWithTransactionEnt(
@@ -591,58 +528,9 @@ func (o TokenTransactionHandler) regenerateStartResponseForDuplicateRequest(
 
 	logWithTransactionEnt(ctx, "Returning stored final token transaction in response to repeat start call",
 		tokenTransaction, slog.LevelDebug)
-	return &pb.StartTokenTransactionResponse{
+	return &sparkpb.StartTokenTransactionResponse{
 		FinalTokenTransaction: transaction,
 		KeyshareInfo:          keyshareInfo,
-	}, nil
-}
-
-// regenerateSigningResponseForDuplicateRequest handles the case where a transaction has already been signed.
-// This allows for simpler wallet SDK logic such that if a Sign() call to one of the SOs failed,
-// the wallet SDK can retry with all SOs and get successful responses.
-func (o TokenTransactionHandler) regenerateSigningResponseForDuplicateRequest(
-	ctx context.Context,
-	config *so.Config,
-	tokenTransaction *ent.TokenTransaction,
-	finalTokenTransactionHash []byte,
-) (*pb.SignTokenTransactionResponse, error) {
-	logWithTransactionEnt(ctx, "Regenerating response for a duplicate SignTokenTransaction() Call", tokenTransaction, slog.LevelDebug)
-
-	var invalidOutputs []string
-	isMint := tokenTransaction.Edges.Mint != nil
-	expectedCreatedOutputStatus := schema.TokenOutputStatusCreatedSigned
-	if isMint {
-		expectedCreatedOutputStatus = schema.TokenOutputStatusCreatedFinalized
-	}
-
-	invalidOutputs = validateOutputs(tokenTransaction.Edges.CreatedOutput, expectedCreatedOutputStatus)
-	if len(tokenTransaction.Edges.SpentOutput) > 0 {
-		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, schema.TokenOutputStatusSpentSigned)...)
-	}
-	if len(invalidOutputs) > 0 {
-		return nil, formatErrorWithTransactionEnt(
-			fmt.Sprintf("%s: %s",
-				errInvalidOutputs,
-				strings.Join(invalidOutputs, "; ")),
-			tokenTransaction, nil)
-	}
-
-	if err := utils.ValidateOwnershipSignature(
-		tokenTransaction.OperatorSignature,
-		finalTokenTransactionHash,
-		config.IdentityPublicKey(),
-	); err != nil {
-		return nil, formatErrorWithTransactionEnt(errStoredOperatorSignatureInvalid, tokenTransaction, err)
-	}
-
-	revocationKeyshares, err := o.getRevocationKeysharesForTokenTransaction(ctx, tokenTransaction)
-	if err != nil {
-		return nil, formatErrorWithTransactionEnt(errFailedToGetRevocationKeyshares, tokenTransaction, err)
-	}
-	logWithTransactionEnt(ctx, "Returning stored signature in response to repeat Sign() call", tokenTransaction, slog.LevelDebug)
-	return &pb.SignTokenTransactionResponse{
-		SparkOperatorSignature: tokenTransaction.OperatorSignature,
-		RevocationKeyshares:    revocationKeyshares,
 	}, nil
 }
 
@@ -650,9 +538,9 @@ func (o TokenTransactionHandler) regenerateSigningResponseForDuplicateRequest(
 func (o TokenTransactionHandler) FinalizeTokenTransaction(
 	ctx context.Context,
 	config *so.Config,
-	req *pb.FinalizeTokenTransactionRequest,
+	req *sparkpb.FinalizeTokenTransactionRequest,
 ) (*emptypb.Empty, error) {
-	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.config, req.IdentityPublicKey); err != nil {
+	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, o.authzConfig, req.IdentityPublicKey); err != nil {
 		return nil, fmt.Errorf("%s: %w", errIdentityPublicKeyAuthFailed, err)
 	}
 
@@ -663,8 +551,8 @@ func (o TokenTransactionHandler) FinalizeTokenTransaction(
 // FreezeTokens freezes or unfreezes tokens on the LRC20 node.
 func (o TokenTransactionHandler) FreezeTokens(
 	ctx context.Context,
-	req *pb.FreezeTokensRequest,
-) (*pb.FreezeTokensResponse, error) {
+	req *sparkpb.FreezeTokensRequest,
+) (*sparkpb.FreezeTokensResponse, error) {
 	hardcodedMainnet := common.Mainnet
 	freezePayloadHash, err := utils.HashFreezeTokensPayload(req.FreezeTokensPayload)
 	if err != nil {
@@ -721,7 +609,7 @@ func (o TokenTransactionHandler) FreezeTokens(
 		return nil, fmt.Errorf("%s: %w", errFailedToSendToLRC20Node, err)
 	}
 
-	return &pb.FreezeTokensResponse{
+	return &sparkpb.FreezeTokensResponse{
 		ImpactedOutputIds:   outputIDs,
 		ImpactedTokenAmount: totalAmount.Bytes(),
 	}, nil
@@ -730,7 +618,7 @@ func (o TokenTransactionHandler) FreezeTokens(
 // FreezeTokensOnLRC20Node freezes or unfreezes tokens on the LRC20 node.
 func (o TokenTransactionHandler) FreezeTokensOnLRC20Node(
 	ctx context.Context,
-	req *pb.FreezeTokensRequest,
+	req *sparkpb.FreezeTokensRequest,
 ) error {
 	return o.lrc20Client.FreezeTokens(ctx, req)
 }
@@ -740,7 +628,7 @@ func (o TokenTransactionHandler) FreezeTokensOnLRC20Node(
 // a) transactions associated with a particular set of output ids
 // b) transactions associated with a particular set of transaction hashes
 // c) all transactions associated with a particular token public key
-func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, config *so.Config, req *pb.QueryTokenTransactionsRequest) (*pb.QueryTokenTransactionsResponse, error) {
+func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, config *so.Config, req *sparkpb.QueryTokenTransactionsRequest) (*sparkpb.QueryTokenTransactionsResponse, error) {
 	db := ent.GetDbFromContext(ctx)
 
 	// Start with a base query for token transactions
@@ -806,7 +694,7 @@ func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, con
 	}
 
 	// Convert to response protos
-	transactionsWithStatus := make([]*pb.TokenTransactionWithStatus, 0, len(transactions))
+	transactionsWithStatus := make([]*sparkpb.TokenTransactionWithStatus, 0, len(transactions))
 	for _, transaction := range transactions {
 		// Determine transaction status based on output statuses.
 		status := convertTokenTransactionStatus(transaction.Status)
@@ -816,20 +704,20 @@ func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, con
 		if err != nil {
 			return nil, formatErrorWithTransactionEnt(errFailedToMarshalTokenTransaction, transaction, err)
 		}
-		transactionWithStatus := &pb.TokenTransactionWithStatus{
+		transactionWithStatus := &sparkpb.TokenTransactionWithStatus{
 			TokenTransaction: transactionProto,
 			Status:           status,
 		}
-		if status == pb.TokenTransactionStatus_TOKEN_TRANSACTION_FINALIZED {
-			spentTokenOutputsMetadata := make([]*pb.SpentTokenOutputMetadata, 0, len(transaction.Edges.SpentOutput))
+		if status == sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_FINALIZED {
+			spentTokenOutputsMetadata := make([]*sparkpb.SpentTokenOutputMetadata, 0, len(transaction.Edges.SpentOutput))
 
 			for _, spentOutput := range transaction.Edges.SpentOutput {
-				spentTokenOutputsMetadata = append(spentTokenOutputsMetadata, &pb.SpentTokenOutputMetadata{
+				spentTokenOutputsMetadata = append(spentTokenOutputsMetadata, &sparkpb.SpentTokenOutputMetadata{
 					OutputId:         spentOutput.ID.String(),
 					RevocationSecret: spentOutput.SpentRevocationSecret,
 				})
 			}
-			transactionWithStatus.ConfirmationMetadata = &pb.TokenTransactionConfirmationMetadata{
+			transactionWithStatus.ConfirmationMetadata = &sparkpb.TokenTransactionConfirmationMetadata{
 				SpentTokenOutputsMetadata: spentTokenOutputsMetadata,
 			}
 		}
@@ -844,7 +732,7 @@ func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, con
 		nextOffset = -1
 	}
 
-	return &pb.QueryTokenTransactionsResponse{
+	return &sparkpb.QueryTokenTransactionsResponse{
 		TokenTransactionsWithStatus: transactionsWithStatus,
 		Offset:                      nextOffset,
 	}, nil
@@ -853,13 +741,13 @@ func (o TokenTransactionHandler) QueryTokenTransactions(ctx context.Context, con
 func (o TokenTransactionHandler) QueryTokenOutputs(
 	ctx context.Context,
 	config *so.Config,
-	req *pb.QueryTokenOutputsRequest,
-) (*pb.QueryTokenOutputsResponse, error) {
+	req *sparkpb.QueryTokenOutputsRequest,
+) (*sparkpb.QueryTokenOutputsResponse, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
 	responses, err := helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection,
-		func(ctx context.Context, operator *so.SigningOperator) (map[string]*pb.OutputWithPreviousTransactionData, error) {
+		func(ctx context.Context, operator *so.SigningOperator) (map[string]*sparkpb.OutputWithPreviousTransactionData, error) {
 			conn, err := operator.NewGRPCConnection()
 			if err != nil {
 				return nil, fmt.Errorf("failed to connect to operator %s: %w", operator.Identifier, err)
@@ -871,7 +759,7 @@ func (o TokenTransactionHandler) QueryTokenOutputs(
 			if err != nil {
 				return nil, fmt.Errorf("failed to query token outputs from operator %s: %w", operator.Identifier, err)
 			}
-			spendableOutputMap := make(map[string]*pb.OutputWithPreviousTransactionData)
+			spendableOutputMap := make(map[string]*sparkpb.OutputWithPreviousTransactionData)
 			for _, output := range availableOutputs.OutputsWithPreviousTransactionData {
 				spendableOutputMap[*output.Output.Id] = output
 			}
@@ -886,7 +774,7 @@ func (o TokenTransactionHandler) QueryTokenOutputs(
 	// Only return token outputs to the wallet that ALL SOs agree are spendable.
 	//
 	// If a TTXO is partially signed, the spending transaction will be cancelled once it expires to return the TTXO to the wallet.
-	spendableOutputs := make([]*pb.OutputWithPreviousTransactionData, 0)
+	spendableOutputs := make([]*sparkpb.OutputWithPreviousTransactionData, 0)
 	countSpendableOperatorsForOutputID := make(map[string]int)
 
 	requiredSpendableOperators := len(config.GetSigningOperatorList())
@@ -908,15 +796,15 @@ func (o TokenTransactionHandler) QueryTokenOutputs(
 		}
 	}
 
-	return &pb.QueryTokenOutputsResponse{
+	return &sparkpb.QueryTokenOutputsResponse{
 		OutputsWithPreviousTransactionData: spendableOutputs,
 	}, nil
 }
 
 // getRevocationKeysharesForTokenTransaction retrieves the revocation keyshares for a token transaction
-func (o TokenTransactionHandler) getRevocationKeysharesForTokenTransaction(ctx context.Context, tokenTransaction *ent.TokenTransaction) ([]*pb.KeyshareWithIndex, error) {
+func (o TokenTransactionHandler) getRevocationKeysharesForTokenTransaction(ctx context.Context, tokenTransaction *ent.TokenTransaction) ([]*sparkpb.KeyshareWithIndex, error) {
 	spentOutputs := tokenTransaction.Edges.SpentOutput
-	revocationKeyshares := make([]*pb.KeyshareWithIndex, len(spentOutputs))
+	revocationKeyshares := make([]*sparkpb.KeyshareWithIndex, len(spentOutputs))
 	for i, output := range spentOutputs {
 		keyshare, err := output.QueryRevocationKeyshare().Only(ctx)
 		if err != nil {
@@ -930,7 +818,7 @@ func (o TokenTransactionHandler) getRevocationKeysharesForTokenTransaction(ctx c
 				tokenTransaction, nil)
 		}
 
-		revocationKeyshares[i] = &pb.KeyshareWithIndex{
+		revocationKeyshares[i] = &sparkpb.KeyshareWithIndex{
 			InputIndex: uint32(output.SpentTransactionInputVout),
 			Keyshare:   keyshare.SecretShare,
 		}
@@ -943,21 +831,21 @@ func (o TokenTransactionHandler) getRevocationKeysharesForTokenTransaction(ctx c
 	return revocationKeyshares, nil
 }
 
-// convertTokenTransactionStatus converts from schema.TokenTransactionStatus to pb.TokenTransactionStatus
-func convertTokenTransactionStatus(status schema.TokenTransactionStatus) pb.TokenTransactionStatus {
+// convertTokenTransactionStatus converts from st.TokenTransactionStatus to pb.TokenTransactionStatus
+func convertTokenTransactionStatus(status st.TokenTransactionStatus) sparkpb.TokenTransactionStatus {
 	switch status {
-	case schema.TokenTransactionStatusStarted:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_STARTED
-	case schema.TokenTransactionStatusStartedCancelled:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_STARTED_CANCELLED
-	case schema.TokenTransactionStatusSigned:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_SIGNED
-	case schema.TokenTransactionStatusSignedCancelled:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_SIGNED_CANCELLED
-	case schema.TokenTransactionStatusFinalized:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_FINALIZED
+	case st.TokenTransactionStatusStarted:
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_STARTED
+	case st.TokenTransactionStatusStartedCancelled:
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_STARTED_CANCELLED
+	case st.TokenTransactionStatusSigned:
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_SIGNED
+	case st.TokenTransactionStatusSignedCancelled:
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_SIGNED_CANCELLED
+	case st.TokenTransactionStatusFinalized:
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_FINALIZED
 	default:
-		return pb.TokenTransactionStatus_TOKEN_TRANSACTION_UNKNOWN
+		return sparkpb.TokenTransactionStatus_TOKEN_TRANSACTION_UNKNOWN
 	}
 }
 
@@ -980,7 +868,7 @@ func formatErrorWithTransactionEnt(msg string, tokenTransaction *ent.TokenTransa
 		err)
 }
 
-func formatErrorWithTransactionProto(msg string, tokenTransaction *pb.TokenTransaction, err error) error {
+func formatErrorWithTransactionProto(msg string, tokenTransaction *sparkpb.TokenTransaction, err error) error {
 	if err != nil {
 		return fmt.Errorf("%s (transaction: %s): %w",
 			msg,
@@ -990,4 +878,66 @@ func formatErrorWithTransactionProto(msg string, tokenTransaction *pb.TokenTrans
 	return fmt.Errorf("%s (transaction: %s)",
 		msg,
 		tokenTransaction.String())
+}
+
+// verifyOperatorSignatures verifies the signatures from each operator for a token transaction.
+func verifyOperatorSignatures(
+	signatures map[string][]byte,
+	operatorMap map[string]*so.SigningOperator,
+	finalTokenTransactionHash []byte,
+) error {
+	validateOperatorSignature := func(operatorID string, sigBytes []byte) error {
+		operator, ok := operatorMap[operatorID]
+		if !ok {
+			return fmt.Errorf("operator %s not found in operator map", operatorID)
+		}
+
+		operatorPubKey, err := secp256k1.ParsePubKey(operator.IdentityPublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse operator public key for operator %s: %w", operatorID, err)
+		}
+
+		operatorSig, err := ecdsa.ParseDERSignature(sigBytes)
+		if err != nil {
+			return fmt.Errorf("failed to parse operator signature for operator %s: %w", operatorID, err)
+		}
+
+		if !operatorSig.Verify(finalTokenTransactionHash, operatorPubKey) {
+			return fmt.Errorf("invalid signature from operator %s", operatorID)
+		}
+
+		return nil
+	}
+
+	var errors []string
+	for operatorID, sigBytes := range signatures {
+		if err := validateOperatorSignature(operatorID, sigBytes); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("signature verification failed: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// convertTokenProtoSignaturesToOperatorSpecific converts token proto signatures to OperatorSpecificOwnerSignature format
+func convertTokenProtoSignaturesToOperatorSpecific(
+	ttxoSignatures []*tokenpb.SignatureWithIndex,
+	finalTokenTransactionHash []byte,
+	operatorIdentityPublicKey []byte,
+) []*sparkpb.OperatorSpecificOwnerSignature {
+	operatorSpecificSignatures := make([]*sparkpb.OperatorSpecificOwnerSignature, 0, len(ttxoSignatures))
+	for _, operatorSignatures := range ttxoSignatures {
+		operatorSpecificSignatures = append(operatorSpecificSignatures, &sparkpb.OperatorSpecificOwnerSignature{
+			OwnerSignature: protoconverter.SparkSignatureWithIndexFromTokenProto(operatorSignatures),
+			Payload: &sparkpb.OperatorSpecificTokenTransactionSignablePayload{
+				FinalTokenTransactionHash: finalTokenTransactionHash,
+				OperatorIdentityPublicKey: operatorIdentityPublicKey,
+			},
+		})
+	}
+	return operatorSpecificSignatures
 }

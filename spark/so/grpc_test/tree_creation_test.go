@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	testutil "github.com/lightsparkdev/spark/test_util"
 	"github.com/lightsparkdev/spark/wallet"
 	"github.com/stretchr/testify/assert"
@@ -184,7 +184,7 @@ func TestTreeCreationWithMultiLevels(t *testing.T) {
 	}
 
 	for _, node := range treeNodes.Nodes {
-		assert.Equal(t, node.Status, string(schema.TreeNodeStatusCreating))
+		assert.Equal(t, node.Status, string(st.TreeNodeStatusCreating))
 	}
 
 	// Sign, broadcast, and mine deposit tx

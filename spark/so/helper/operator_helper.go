@@ -117,6 +117,18 @@ func (o *OperatorSelection) OperatorList(config *so.Config) ([]*so.SigningOperat
 	return *o.operatorList, nil
 }
 
+func (o *OperatorSelection) OperatorIdentifierList(config *so.Config) ([]string, error) {
+	operators, err := o.OperatorList(config)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(operators))
+	for _, operator := range operators {
+		ids = append(ids, operator.Identifier)
+	}
+	return ids, nil
+}
+
 // TaskResult is the result of a task.
 type TaskResult[V any] struct {
 	// OperatorIdentifier is the identifier of the operator that executed the task.

@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/lightsparkdev/spark/so/ent/gossip"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // GossipUpdate is the builder for updating Gossip entities.
@@ -42,13 +42,13 @@ func (gu *GossipUpdate) SetReceipts(b []byte) *GossipUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (gu *GossipUpdate) SetStatus(ss schema.GossipStatus) *GossipUpdate {
+func (gu *GossipUpdate) SetStatus(ss schematype.GossipStatus) *GossipUpdate {
 	gu.mutation.SetStatus(ss)
 	return gu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (gu *GossipUpdate) SetNillableStatus(ss *schema.GossipStatus) *GossipUpdate {
+func (gu *GossipUpdate) SetNillableStatus(ss *schematype.GossipStatus) *GossipUpdate {
 	if ss != nil {
 		gu.SetStatus(*ss)
 	}
@@ -160,13 +160,13 @@ func (guo *GossipUpdateOne) SetReceipts(b []byte) *GossipUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (guo *GossipUpdateOne) SetStatus(ss schema.GossipStatus) *GossipUpdateOne {
+func (guo *GossipUpdateOne) SetStatus(ss schematype.GossipStatus) *GossipUpdateOne {
 	guo.mutation.SetStatus(ss)
 	return guo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (guo *GossipUpdateOne) SetNillableStatus(ss *schema.GossipStatus) *GossipUpdateOne {
+func (guo *GossipUpdateOne) SetNillableStatus(ss *schematype.GossipStatus) *GossipUpdateOne {
 	if ss != nil {
 		guo.SetStatus(*ss)
 	}

@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -138,7 +138,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.TreeNodeStatus) error {
+func StatusValidator(s schematype.TreeNodeStatus) error {
 	switch s {
 	case "CREATING", "AVAILABLE", "FROZEN_BY_ISSUER", "TRANSFER_LOCKED", "SPLIT_LOCKED", "SPLITTED", "AGGREGATED", "ON_CHAIN", "AGGREGATE_LOCK", "EXITED", "INVESTIGATION", "LOST", "REIMBURSED":
 		return nil

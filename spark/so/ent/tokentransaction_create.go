@@ -11,7 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
@@ -71,13 +72,13 @@ func (ttc *TokenTransactionCreate) SetOperatorSignature(b []byte) *TokenTransact
 }
 
 // SetStatus sets the "status" field.
-func (ttc *TokenTransactionCreate) SetStatus(sts schema.TokenTransactionStatus) *TokenTransactionCreate {
+func (ttc *TokenTransactionCreate) SetStatus(sts schematype.TokenTransactionStatus) *TokenTransactionCreate {
 	ttc.mutation.SetStatus(sts)
 	return ttc
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (ttc *TokenTransactionCreate) SetNillableStatus(sts *schema.TokenTransactionStatus) *TokenTransactionCreate {
+func (ttc *TokenTransactionCreate) SetNillableStatus(sts *schematype.TokenTransactionStatus) *TokenTransactionCreate {
 	if sts != nil {
 		ttc.SetStatus(*sts)
 	}
@@ -165,6 +166,25 @@ func (ttc *TokenTransactionCreate) SetNillableMintID(id *uuid.UUID) *TokenTransa
 // SetMint sets the "mint" edge to the TokenMint entity.
 func (ttc *TokenTransactionCreate) SetMint(t *TokenMint) *TokenTransactionCreate {
 	return ttc.SetMintID(t.ID)
+}
+
+// SetCreateID sets the "create" edge to the TokenCreate entity by ID.
+func (ttc *TokenTransactionCreate) SetCreateID(id uuid.UUID) *TokenTransactionCreate {
+	ttc.mutation.SetCreateID(id)
+	return ttc
+}
+
+// SetNillableCreateID sets the "create" edge to the TokenCreate entity by ID if the given value is not nil.
+func (ttc *TokenTransactionCreate) SetNillableCreateID(id *uuid.UUID) *TokenTransactionCreate {
+	if id != nil {
+		ttc = ttc.SetCreateID(*id)
+	}
+	return ttc
+}
+
+// SetCreate sets the "create" edge to the TokenCreate entity.
+func (ttc *TokenTransactionCreate) SetCreate(t *TokenCreate) *TokenTransactionCreate {
+	return ttc.SetCreateID(t.ID)
 }
 
 // Mutation returns the TokenTransactionMutation object of the builder.
@@ -359,6 +379,23 @@ func (ttc *TokenTransactionCreate) createSpec() (*TokenTransaction, *sqlgraph.Cr
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.token_transaction_mint = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := ttc.mutation.CreateIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   tokentransaction.CreateTable,
+			Columns: []string{tokentransaction.CreateColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tokencreate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.token_transaction_create = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

@@ -24,8 +24,8 @@ describe("TokenPubkeyAnnouncement", () => {
         () =>
           new TokenPubkeyAnnouncement(
             new TokenPubkey(TEST_TOKEN_PUBKEY),
-            "12345678901234567", // 17 bytes - maximum
-            "TEST",
+            "1234567890123456", // 17 bytes - maximum
+            "TST",
             8,
             BigInt(1000),
             false,

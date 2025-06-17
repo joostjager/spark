@@ -3,7 +3,7 @@ import {
   getElectrsUrl,
 } from "../services/wallet-config.js";
 import { BitcoinNetwork } from "../types/index.js";
-import { getNetworkFromAddress } from "./network.js";
+import { Network, getNetworkFromAddress } from "./network.js";
 
 export async function getLatestDepositTxId(
   address: string,
@@ -41,4 +41,29 @@ export async function getLatestDepositTxId(
     return latestTx.txid;
   }
   return null;
+}
+
+export async function isTxBroadcast(
+  txid: string,
+  baseUrl: string,
+  network?: any,
+): Promise<boolean> {
+  const headers: Record<string, string> = {};
+
+  if (network === Network.REGTEST) {
+    const auth = btoa(
+      `${ELECTRS_CREDENTIALS.username}:${ELECTRS_CREDENTIALS.password}`,
+    );
+    headers["Authorization"] = `Basic ${auth}`;
+  }
+  const response = await fetch(`${baseUrl}/tx/${txid}`, {
+    headers,
+  });
+
+  const tx = await response.json();
+  if (tx.error) {
+    return false;
+  }
+
+  return true;
 }

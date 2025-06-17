@@ -10,3 +10,4 @@ export * from "./signing.js";
 export * from "./token-transactions.js";
 export * from "./transfer_package.js";
 export * from "./transaction.js";
+export * from "./unilateral-exit.js";

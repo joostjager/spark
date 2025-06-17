@@ -6,7 +6,7 @@ import (
 
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/enttest"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	testutil "github.com/lightsparkdev/spark/test_util"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -30,13 +30,13 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 
 	// Create block height records for both networks
 	_, err = tx.BlockHeight.Create().
-		SetNetwork(schema.NetworkMainnet).
+		SetNetwork(st.NetworkMainnet).
 		SetHeight(int64(blockHeight)).
 		Save(ctx)
 	testutil.OnErrFatal(t, err)
 
 	_, err = tx.BlockHeight.Create().
-		SetNetwork(schema.NetworkRegtest).
+		SetNetwork(st.NetworkRegtest).
 		SetHeight(int64(blockHeight)).
 		Save(ctx)
 	testutil.OnErrFatal(t, err)
@@ -44,7 +44,7 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 	t.Run("successful verification", func(t *testing.T) {
 		// Create signing keyshare first
 		signingKeyshare, err := tx.SigningKeyshare.Create().
-			SetStatus(schema.KeyshareStatusAvailable).
+			SetStatus(st.KeyshareStatusAvailable).
 			SetSecretShare([]byte("test_secret_share")).
 			SetPublicShares(map[string][]byte{"test": []byte("test_public_share")}).
 			SetPublicKey([]byte("test_public_key")).
@@ -63,9 +63,9 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create UTXO with sufficient confirmations
-		utxoBlockHeight := blockHeight - int(DepositConfirmationThreshold) + 1
+		utxoBlockHeight := blockHeight - int(DepositConfirmationThresholdRegtest) + 1
 		utxo, err := tx.Utxo.Create().
-			SetNetwork(schema.NetworkRegtest).
+			SetNetwork(st.NetworkRegtest).
 			SetTxid(txid).
 			SetVout(vout).
 			SetBlockHeight(int64(utxoBlockHeight)).
@@ -76,13 +76,13 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test verification
-		verifiedUtxo, err := VerifiedTargetUtxo(ctx, tx, schema.NetworkRegtest, txid, vout)
+		verifiedUtxo, err := VerifiedTargetUtxo(ctx, tx, st.NetworkRegtest, txid, vout)
 		require.NoError(t, err)
 		assert.Equal(t, utxo.ID, verifiedUtxo.ID)
 		assert.Equal(t, utxo.BlockHeight, verifiedUtxo.BlockHeight)
 
 		// Test verification in mainnet (should fail)
-		_, err = VerifiedTargetUtxo(ctx, tx, schema.NetworkMainnet, txid, vout)
+		_, err = VerifiedTargetUtxo(ctx, tx, st.NetworkMainnet, txid, vout)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "utxo not found")
 	})
@@ -90,7 +90,7 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 	t.Run("insufficient confirmations", func(t *testing.T) {
 		// Create signing keyshare first
 		signingKeyshare, err := tx.SigningKeyshare.Create().
-			SetStatus(schema.KeyshareStatusAvailable).
+			SetStatus(st.KeyshareStatusAvailable).
 			SetSecretShare([]byte("test_secret_share2")).
 			SetPublicShares(map[string][]byte{"test": []byte("test_public_share2")}).
 			SetPublicKey([]byte("test_public_key2")).
@@ -109,9 +109,9 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create UTXO with insufficient confirmations
-		utxoBlockHeight := blockHeight - int(DepositConfirmationThreshold) + 2
+		utxoBlockHeight := blockHeight - int(DepositConfirmationThresholdRegtest) + 2
 		_, err = tx.Utxo.Create().
-			SetNetwork(schema.NetworkRegtest).
+			SetNetwork(st.NetworkRegtest).
 			SetTxid([]byte("test_txid2")).
 			SetVout(1).
 			SetBlockHeight(int64(utxoBlockHeight)).
@@ -122,7 +122,7 @@ func TestVerifiedTargetUtxo(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test verification
-		_, err = VerifiedTargetUtxo(ctx, tx, schema.NetworkRegtest, []byte("test_txid2"), 1)
+		_, err = VerifiedTargetUtxo(ctx, tx, st.NetworkRegtest, []byte("test_txid2"), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "deposit tx doesn't have enough confirmations")
 	})

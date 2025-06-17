@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 )
@@ -38,13 +38,13 @@ func (usu *UtxoSwapUpdate) SetUpdateTime(t time.Time) *UtxoSwapUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (usu *UtxoSwapUpdate) SetStatus(sss schema.UtxoSwapStatus) *UtxoSwapUpdate {
+func (usu *UtxoSwapUpdate) SetStatus(sss schematype.UtxoSwapStatus) *UtxoSwapUpdate {
 	usu.mutation.SetStatus(sss)
 	return usu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (usu *UtxoSwapUpdate) SetNillableStatus(sss *schema.UtxoSwapStatus) *UtxoSwapUpdate {
+func (usu *UtxoSwapUpdate) SetNillableStatus(sss *schematype.UtxoSwapStatus) *UtxoSwapUpdate {
 	if sss != nil {
 		usu.SetStatus(*sss)
 	}
@@ -52,13 +52,13 @@ func (usu *UtxoSwapUpdate) SetNillableStatus(sss *schema.UtxoSwapStatus) *UtxoSw
 }
 
 // SetRequestType sets the "request_type" field.
-func (usu *UtxoSwapUpdate) SetRequestType(ssrt schema.UtxoSwapRequestType) *UtxoSwapUpdate {
+func (usu *UtxoSwapUpdate) SetRequestType(ssrt schematype.UtxoSwapRequestType) *UtxoSwapUpdate {
 	usu.mutation.SetRequestType(ssrt)
 	return usu
 }
 
 // SetNillableRequestType sets the "request_type" field if the given value is not nil.
-func (usu *UtxoSwapUpdate) SetNillableRequestType(ssrt *schema.UtxoSwapRequestType) *UtxoSwapUpdate {
+func (usu *UtxoSwapUpdate) SetNillableRequestType(ssrt *schematype.UtxoSwapRequestType) *UtxoSwapUpdate {
 	if ssrt != nil {
 		usu.SetRequestType(*ssrt)
 	}
@@ -423,13 +423,13 @@ func (usuo *UtxoSwapUpdateOne) SetUpdateTime(t time.Time) *UtxoSwapUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (usuo *UtxoSwapUpdateOne) SetStatus(sss schema.UtxoSwapStatus) *UtxoSwapUpdateOne {
+func (usuo *UtxoSwapUpdateOne) SetStatus(sss schematype.UtxoSwapStatus) *UtxoSwapUpdateOne {
 	usuo.mutation.SetStatus(sss)
 	return usuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (usuo *UtxoSwapUpdateOne) SetNillableStatus(sss *schema.UtxoSwapStatus) *UtxoSwapUpdateOne {
+func (usuo *UtxoSwapUpdateOne) SetNillableStatus(sss *schematype.UtxoSwapStatus) *UtxoSwapUpdateOne {
 	if sss != nil {
 		usuo.SetStatus(*sss)
 	}
@@ -437,13 +437,13 @@ func (usuo *UtxoSwapUpdateOne) SetNillableStatus(sss *schema.UtxoSwapStatus) *Ut
 }
 
 // SetRequestType sets the "request_type" field.
-func (usuo *UtxoSwapUpdateOne) SetRequestType(ssrt schema.UtxoSwapRequestType) *UtxoSwapUpdateOne {
+func (usuo *UtxoSwapUpdateOne) SetRequestType(ssrt schematype.UtxoSwapRequestType) *UtxoSwapUpdateOne {
 	usuo.mutation.SetRequestType(ssrt)
 	return usuo
 }
 
 // SetNillableRequestType sets the "request_type" field if the given value is not nil.
-func (usuo *UtxoSwapUpdateOne) SetNillableRequestType(ssrt *schema.UtxoSwapRequestType) *UtxoSwapUpdateOne {
+func (usuo *UtxoSwapUpdateOne) SetNillableRequestType(ssrt *schematype.UtxoSwapRequestType) *UtxoSwapUpdateOne {
 	if ssrt != nil {
 		usuo.SetRequestType(*ssrt)
 	}

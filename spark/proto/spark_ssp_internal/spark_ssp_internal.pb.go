@@ -10,8 +10,7 @@ import (
 	spark "github.com/lightsparkdev/spark/proto/spark"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/emptypb"
-	_ "google.golang.org/protobuf/types/known/timestamppb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -112,17 +111,579 @@ func (x *QueryLostNodesResponse) GetNodes() []*spark.TreeNode {
 	return nil
 }
 
+type MagicSwapRequest struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	TransferId                string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	OwnerIdentityPublicKey    []byte                 `protobuf:"bytes,2,opt,name=owner_identity_public_key,json=ownerIdentityPublicKey,proto3" json:"owner_identity_public_key,omitempty"`
+	ReceiverIdentityPublicKey []byte                 `protobuf:"bytes,3,opt,name=receiver_identity_public_key,json=receiverIdentityPublicKey,proto3" json:"receiver_identity_public_key,omitempty"`
+	TransferPackage           *spark.TransferPackage `protobuf:"bytes,4,opt,name=transfer_package,json=transferPackage,proto3" json:"transfer_package,omitempty"`
+	SwapLeafIds               []string               `protobuf:"bytes,5,rep,name=swap_leaf_ids,json=swapLeafIds,proto3" json:"swap_leaf_ids,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *MagicSwapRequest) Reset() {
+	*x = MagicSwapRequest{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MagicSwapRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MagicSwapRequest) ProtoMessage() {}
+
+func (x *MagicSwapRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MagicSwapRequest.ProtoReflect.Descriptor instead.
+func (*MagicSwapRequest) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MagicSwapRequest) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *MagicSwapRequest) GetOwnerIdentityPublicKey() []byte {
+	if x != nil {
+		return x.OwnerIdentityPublicKey
+	}
+	return nil
+}
+
+func (x *MagicSwapRequest) GetReceiverIdentityPublicKey() []byte {
+	if x != nil {
+		return x.ReceiverIdentityPublicKey
+	}
+	return nil
+}
+
+func (x *MagicSwapRequest) GetTransferPackage() *spark.TransferPackage {
+	if x != nil {
+		return x.TransferPackage
+	}
+	return nil
+}
+
+func (x *MagicSwapRequest) GetSwapLeafIds() []string {
+	if x != nil {
+		return x.SwapLeafIds
+	}
+	return nil
+}
+
+type MagicSwapResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SwapTransfer        *spark.Transfer        `protobuf:"bytes,1,opt,name=swap_transfer,json=swapTransfer,proto3" json:"swap_transfer,omitempty"`
+	CounterSwapTransfer *spark.Transfer        `protobuf:"bytes,2,opt,name=counter_swap_transfer,json=counterSwapTransfer,proto3" json:"counter_swap_transfer,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *MagicSwapResponse) Reset() {
+	*x = MagicSwapResponse{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MagicSwapResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MagicSwapResponse) ProtoMessage() {}
+
+func (x *MagicSwapResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MagicSwapResponse.ProtoReflect.Descriptor instead.
+func (*MagicSwapResponse) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *MagicSwapResponse) GetSwapTransfer() *spark.Transfer {
+	if x != nil {
+		return x.SwapTransfer
+	}
+	return nil
+}
+
+func (x *MagicSwapResponse) GetCounterSwapTransfer() *spark.Transfer {
+	if x != nil {
+		return x.CounterSwapTransfer
+	}
+	return nil
+}
+
+type GetStuckTransfersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Before        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=before,proto3" json:"before,omitempty"`
+	Limit         int64                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int64                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStuckTransfersRequest) Reset() {
+	*x = GetStuckTransfersRequest{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStuckTransfersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStuckTransfersRequest) ProtoMessage() {}
+
+func (x *GetStuckTransfersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStuckTransfersRequest.ProtoReflect.Descriptor instead.
+func (*GetStuckTransfersRequest) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetStuckTransfersRequest) GetBefore() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *GetStuckTransfersRequest) GetLimit() int64 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetStuckTransfersRequest) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type GetStuckTransfersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transfers     []*StuckTransfer       `protobuf:"bytes,1,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	Offset        int64                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStuckTransfersResponse) Reset() {
+	*x = GetStuckTransfersResponse{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStuckTransfersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStuckTransfersResponse) ProtoMessage() {}
+
+func (x *GetStuckTransfersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStuckTransfersResponse.ProtoReflect.Descriptor instead.
+func (*GetStuckTransfersResponse) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetStuckTransfersResponse) GetTransfers() []*StuckTransfer {
+	if x != nil {
+		return x.Transfers
+	}
+	return nil
+}
+
+func (x *GetStuckTransfersResponse) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type QueryStuckTransferRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryStuckTransferRequest) Reset() {
+	*x = QueryStuckTransferRequest{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryStuckTransferRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryStuckTransferRequest) ProtoMessage() {}
+
+func (x *QueryStuckTransferRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryStuckTransferRequest.ProtoReflect.Descriptor instead.
+func (*QueryStuckTransferRequest) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *QueryStuckTransferRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type QueryStuckTransferResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transfer      *StuckTransfer         `protobuf:"bytes,1,opt,name=transfer,proto3" json:"transfer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryStuckTransferResponse) Reset() {
+	*x = QueryStuckTransferResponse{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryStuckTransferResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryStuckTransferResponse) ProtoMessage() {}
+
+func (x *QueryStuckTransferResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryStuckTransferResponse.ProtoReflect.Descriptor instead.
+func (*QueryStuckTransferResponse) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *QueryStuckTransferResponse) GetTransfer() *StuckTransfer {
+	if x != nil {
+		return x.Transfer
+	}
+	return nil
+}
+
+type CancelStuckTransferRequest struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Id                     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	OwnerIdentityPublicKey []byte                 `protobuf:"bytes,2,opt,name=owner_identity_public_key,json=ownerIdentityPublicKey,proto3" json:"owner_identity_public_key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *CancelStuckTransferRequest) Reset() {
+	*x = CancelStuckTransferRequest{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStuckTransferRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStuckTransferRequest) ProtoMessage() {}
+
+func (x *CancelStuckTransferRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStuckTransferRequest.ProtoReflect.Descriptor instead.
+func (*CancelStuckTransferRequest) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CancelStuckTransferRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CancelStuckTransferRequest) GetOwnerIdentityPublicKey() []byte {
+	if x != nil {
+		return x.OwnerIdentityPublicKey
+	}
+	return nil
+}
+
+type CancelStuckTransferResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transfer      *spark.Transfer        `protobuf:"bytes,1,opt,name=transfer,proto3" json:"transfer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelStuckTransferResponse) Reset() {
+	*x = CancelStuckTransferResponse{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStuckTransferResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStuckTransferResponse) ProtoMessage() {}
+
+func (x *CancelStuckTransferResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStuckTransferResponse.ProtoReflect.Descriptor instead.
+func (*CancelStuckTransferResponse) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CancelStuckTransferResponse) GetTransfer() *spark.Transfer {
+	if x != nil {
+		return x.Transfer
+	}
+	return nil
+}
+
+type StuckTransfer struct {
+	state                       protoimpl.MessageState                  `protogen:"open.v1"`
+	Transfer                    *spark.Transfer                         `protobuf:"bytes,1,opt,name=transfer,proto3" json:"transfer,omitempty"`
+	SigningKeysharePublicShares map[string]*SigningKeysharePublicShares `protobuf:"bytes,2,rep,name=signing_keyshare_public_shares,json=signingKeysharePublicShares,proto3" json:"signing_keyshare_public_shares,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *StuckTransfer) Reset() {
+	*x = StuckTransfer{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StuckTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StuckTransfer) ProtoMessage() {}
+
+func (x *StuckTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StuckTransfer.ProtoReflect.Descriptor instead.
+func (*StuckTransfer) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *StuckTransfer) GetTransfer() *spark.Transfer {
+	if x != nil {
+		return x.Transfer
+	}
+	return nil
+}
+
+func (x *StuckTransfer) GetSigningKeysharePublicShares() map[string]*SigningKeysharePublicShares {
+	if x != nil {
+		return x.SigningKeysharePublicShares
+	}
+	return nil
+}
+
+type SigningKeysharePublicShares struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PublicShares  map[string][]byte      `protobuf:"bytes,1,rep,name=public_shares,json=publicShares,proto3" json:"public_shares,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SigningKeysharePublicShares) Reset() {
+	*x = SigningKeysharePublicShares{}
+	mi := &file_spark_ssp_internal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SigningKeysharePublicShares) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SigningKeysharePublicShares) ProtoMessage() {}
+
+func (x *SigningKeysharePublicShares) ProtoReflect() protoreflect.Message {
+	mi := &file_spark_ssp_internal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SigningKeysharePublicShares.ProtoReflect.Descriptor instead.
+func (*SigningKeysharePublicShares) Descriptor() ([]byte, []int) {
+	return file_spark_ssp_internal_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SigningKeysharePublicShares) GetPublicShares() map[string][]byte {
+	if x != nil {
+		return x.PublicShares
+	}
+	return nil
+}
+
 var File_spark_ssp_internal_proto protoreflect.FileDescriptor
 
 const file_spark_ssp_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18spark_ssp_internal.proto\x12\tspark_ssp\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\vspark.proto\"K\n" +
+	"\x18spark_ssp_internal.proto\x12\tspark_ssp\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\vspark.proto\"K\n" +
 	"\x15QueryLostNodesRequest\x122\n" +
 	"\x15owner_identity_pubkey\x18\x01 \x01(\fR\x13ownerIdentityPubkey\"?\n" +
 	"\x16QueryLostNodesResponse\x12%\n" +
-	"\x05nodes\x18\x01 \x03(\v2\x0f.spark.TreeNodeR\x05nodes2t\n" +
+	"\x05nodes\x18\x01 \x03(\v2\x0f.spark.TreeNodeR\x05nodes\"\x96\x02\n" +
+	"\x10MagicSwapRequest\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\x129\n" +
+	"\x19owner_identity_public_key\x18\x02 \x01(\fR\x16ownerIdentityPublicKey\x12?\n" +
+	"\x1creceiver_identity_public_key\x18\x03 \x01(\fR\x19receiverIdentityPublicKey\x12A\n" +
+	"\x10transfer_package\x18\x04 \x01(\v2\x16.spark.TransferPackageR\x0ftransferPackage\x12\"\n" +
+	"\rswap_leaf_ids\x18\x05 \x03(\tR\vswapLeafIds\"\x8e\x01\n" +
+	"\x11MagicSwapResponse\x124\n" +
+	"\rswap_transfer\x18\x01 \x01(\v2\x0f.spark.TransferR\fswapTransfer\x12C\n" +
+	"\x15counter_swap_transfer\x18\x02 \x01(\v2\x0f.spark.TransferR\x13counterSwapTransfer\"|\n" +
+	"\x18GetStuckTransfersRequest\x122\n" +
+	"\x06before\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x06before\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x03R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x03R\x06offset\"k\n" +
+	"\x19GetStuckTransfersResponse\x126\n" +
+	"\ttransfers\x18\x01 \x03(\v2\x18.spark_ssp.StuckTransferR\ttransfers\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x03R\x06offset\"+\n" +
+	"\x19QueryStuckTransferRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"R\n" +
+	"\x1aQueryStuckTransferResponse\x124\n" +
+	"\btransfer\x18\x01 \x01(\v2\x18.spark_ssp.StuckTransferR\btransfer\"g\n" +
+	"\x1aCancelStuckTransferRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\x19owner_identity_public_key\x18\x02 \x01(\fR\x16ownerIdentityPublicKey\"J\n" +
+	"\x1bCancelStuckTransferResponse\x12+\n" +
+	"\btransfer\x18\x01 \x01(\v2\x0f.spark.TransferR\btransfer\"\xb4\x02\n" +
+	"\rStuckTransfer\x12+\n" +
+	"\btransfer\x18\x01 \x01(\v2\x0f.spark.TransferR\btransfer\x12~\n" +
+	"\x1esigning_keyshare_public_shares\x18\x02 \x03(\v29.spark_ssp.StuckTransfer.SigningKeysharePublicSharesEntryR\x1bsigningKeysharePublicShares\x1av\n" +
+	" SigningKeysharePublicSharesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12<\n" +
+	"\x05value\x18\x02 \x01(\v2&.spark_ssp.SigningKeysharePublicSharesR\x05value:\x028\x01\"\xbd\x01\n" +
+	"\x1bSigningKeysharePublicShares\x12]\n" +
+	"\rpublic_shares\x18\x01 \x03(\v28.spark_ssp.SigningKeysharePublicShares.PublicSharesEntryR\fpublicShares\x1a?\n" +
+	"\x11PublicSharesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x012\xee\x03\n" +
 	"\x17SparkSspInternalService\x12Y\n" +
-	"\x10query_lost_nodes\x12 .spark_ssp.QueryLostNodesRequest\x1a!.spark_ssp.QueryLostNodesResponse\"\x00B0Z.github.com/lightsparkdev/spark/proto/spark_sspb\x06proto3"
+	"\x10query_lost_nodes\x12 .spark_ssp.QueryLostNodesRequest\x1a!.spark_ssp.QueryLostNodesResponse\"\x00\x12I\n" +
+	"\n" +
+	"magic_swap\x12\x1b.spark_ssp.MagicSwapRequest\x1a\x1c.spark_ssp.MagicSwapResponse\"\x00\x12b\n" +
+	"\x13get_stuck_transfers\x12#.spark_ssp.GetStuckTransfersRequest\x1a$.spark_ssp.GetStuckTransfersResponse\"\x00\x12_\n" +
+	"\x0equery_transfer\x12$.spark_ssp.QueryStuckTransferRequest\x1a%.spark_ssp.QueryStuckTransferResponse\"\x00\x12h\n" +
+	"\x15cancel_stuck_transfer\x12%.spark_ssp.CancelStuckTransferRequest\x1a&.spark_ssp.CancelStuckTransferResponse\"\x00B0Z.github.com/lightsparkdev/spark/proto/spark_sspb\x06proto3"
 
 var (
 	file_spark_ssp_internal_proto_rawDescOnce sync.Once
@@ -136,21 +697,55 @@ func file_spark_ssp_internal_proto_rawDescGZIP() []byte {
 	return file_spark_ssp_internal_proto_rawDescData
 }
 
-var file_spark_ssp_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_spark_ssp_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_spark_ssp_internal_proto_goTypes = []any{
-	(*QueryLostNodesRequest)(nil),  // 0: spark_ssp.QueryLostNodesRequest
-	(*QueryLostNodesResponse)(nil), // 1: spark_ssp.QueryLostNodesResponse
-	(*spark.TreeNode)(nil),         // 2: spark.TreeNode
+	(*QueryLostNodesRequest)(nil),       // 0: spark_ssp.QueryLostNodesRequest
+	(*QueryLostNodesResponse)(nil),      // 1: spark_ssp.QueryLostNodesResponse
+	(*MagicSwapRequest)(nil),            // 2: spark_ssp.MagicSwapRequest
+	(*MagicSwapResponse)(nil),           // 3: spark_ssp.MagicSwapResponse
+	(*GetStuckTransfersRequest)(nil),    // 4: spark_ssp.GetStuckTransfersRequest
+	(*GetStuckTransfersResponse)(nil),   // 5: spark_ssp.GetStuckTransfersResponse
+	(*QueryStuckTransferRequest)(nil),   // 6: spark_ssp.QueryStuckTransferRequest
+	(*QueryStuckTransferResponse)(nil),  // 7: spark_ssp.QueryStuckTransferResponse
+	(*CancelStuckTransferRequest)(nil),  // 8: spark_ssp.CancelStuckTransferRequest
+	(*CancelStuckTransferResponse)(nil), // 9: spark_ssp.CancelStuckTransferResponse
+	(*StuckTransfer)(nil),               // 10: spark_ssp.StuckTransfer
+	(*SigningKeysharePublicShares)(nil), // 11: spark_ssp.SigningKeysharePublicShares
+	nil,                                 // 12: spark_ssp.StuckTransfer.SigningKeysharePublicSharesEntry
+	nil,                                 // 13: spark_ssp.SigningKeysharePublicShares.PublicSharesEntry
+	(*spark.TreeNode)(nil),              // 14: spark.TreeNode
+	(*spark.TransferPackage)(nil),       // 15: spark.TransferPackage
+	(*spark.Transfer)(nil),              // 16: spark.Transfer
+	(*timestamppb.Timestamp)(nil),       // 17: google.protobuf.Timestamp
 }
 var file_spark_ssp_internal_proto_depIdxs = []int32{
-	2, // 0: spark_ssp.QueryLostNodesResponse.nodes:type_name -> spark.TreeNode
-	0, // 1: spark_ssp.SparkSspInternalService.query_lost_nodes:input_type -> spark_ssp.QueryLostNodesRequest
-	1, // 2: spark_ssp.SparkSspInternalService.query_lost_nodes:output_type -> spark_ssp.QueryLostNodesResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	14, // 0: spark_ssp.QueryLostNodesResponse.nodes:type_name -> spark.TreeNode
+	15, // 1: spark_ssp.MagicSwapRequest.transfer_package:type_name -> spark.TransferPackage
+	16, // 2: spark_ssp.MagicSwapResponse.swap_transfer:type_name -> spark.Transfer
+	16, // 3: spark_ssp.MagicSwapResponse.counter_swap_transfer:type_name -> spark.Transfer
+	17, // 4: spark_ssp.GetStuckTransfersRequest.before:type_name -> google.protobuf.Timestamp
+	10, // 5: spark_ssp.GetStuckTransfersResponse.transfers:type_name -> spark_ssp.StuckTransfer
+	10, // 6: spark_ssp.QueryStuckTransferResponse.transfer:type_name -> spark_ssp.StuckTransfer
+	16, // 7: spark_ssp.CancelStuckTransferResponse.transfer:type_name -> spark.Transfer
+	16, // 8: spark_ssp.StuckTransfer.transfer:type_name -> spark.Transfer
+	12, // 9: spark_ssp.StuckTransfer.signing_keyshare_public_shares:type_name -> spark_ssp.StuckTransfer.SigningKeysharePublicSharesEntry
+	13, // 10: spark_ssp.SigningKeysharePublicShares.public_shares:type_name -> spark_ssp.SigningKeysharePublicShares.PublicSharesEntry
+	11, // 11: spark_ssp.StuckTransfer.SigningKeysharePublicSharesEntry.value:type_name -> spark_ssp.SigningKeysharePublicShares
+	0,  // 12: spark_ssp.SparkSspInternalService.query_lost_nodes:input_type -> spark_ssp.QueryLostNodesRequest
+	2,  // 13: spark_ssp.SparkSspInternalService.magic_swap:input_type -> spark_ssp.MagicSwapRequest
+	4,  // 14: spark_ssp.SparkSspInternalService.get_stuck_transfers:input_type -> spark_ssp.GetStuckTransfersRequest
+	6,  // 15: spark_ssp.SparkSspInternalService.query_transfer:input_type -> spark_ssp.QueryStuckTransferRequest
+	8,  // 16: spark_ssp.SparkSspInternalService.cancel_stuck_transfer:input_type -> spark_ssp.CancelStuckTransferRequest
+	1,  // 17: spark_ssp.SparkSspInternalService.query_lost_nodes:output_type -> spark_ssp.QueryLostNodesResponse
+	3,  // 18: spark_ssp.SparkSspInternalService.magic_swap:output_type -> spark_ssp.MagicSwapResponse
+	5,  // 19: spark_ssp.SparkSspInternalService.get_stuck_transfers:output_type -> spark_ssp.GetStuckTransfersResponse
+	7,  // 20: spark_ssp.SparkSspInternalService.query_transfer:output_type -> spark_ssp.QueryStuckTransferResponse
+	9,  // 21: spark_ssp.SparkSspInternalService.cancel_stuck_transfer:output_type -> spark_ssp.CancelStuckTransferResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_spark_ssp_internal_proto_init() }
@@ -164,7 +759,7 @@ func file_spark_ssp_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_spark_ssp_internal_proto_rawDesc), len(file_spark_ssp_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

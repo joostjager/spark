@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -49,6 +49,8 @@ const (
 	FieldConfirmedWithdrawBlockHash = "confirmed_withdraw_block_hash"
 	// FieldNetwork holds the string denoting the network field in the database.
 	FieldNetwork = "network"
+	// FieldTokenIdentifier holds the string denoting the token_identifier field in the database.
+	FieldTokenIdentifier = "token_identifier"
 	// EdgeRevocationKeyshare holds the string denoting the revocation_keyshare edge name in mutations.
 	EdgeRevocationKeyshare = "revocation_keyshare"
 	// EdgeOutputCreatedTokenTransaction holds the string denoting the output_created_token_transaction edge name in mutations.
@@ -99,6 +101,7 @@ var Columns = []string{
 	FieldSpentRevocationSecret,
 	FieldConfirmedWithdrawBlockHash,
 	FieldNetwork,
+	FieldTokenIdentifier,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "token_outputs"
@@ -142,7 +145,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.TokenOutputStatus) error {
+func StatusValidator(s schematype.TokenOutputStatus) error {
 	switch s {
 	case "CREATED_STARTED", "CREATED_STARTED_CANCELLED", "CREATED_SIGNED", "CREATED_SIGNED_CANCELLED", "CREATED_FINALIZED", "SPENT_STARTED", "SPENT_SIGNED", "SPENT_FINALIZED":
 		return nil
@@ -152,7 +155,7 @@ func StatusValidator(s schema.TokenOutputStatus) error {
 }
 
 // NetworkValidator is a validator for the "network" field enum values. It is called by the builders before save.
-func NetworkValidator(n schema.Network) error {
+func NetworkValidator(n schematype.Network) error {
 	switch n {
 	case "UNSPECIFIED", "MAINNET", "REGTEST", "TESTNET", "SIGNET":
 		return nil

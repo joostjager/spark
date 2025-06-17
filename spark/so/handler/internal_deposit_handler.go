@@ -20,7 +20,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
@@ -144,9 +144,9 @@ func (h *InternalDepositHandler) FinalizeTreeCreation(ctx context.Context, req *
 			SetNetwork(schemaNetwork)
 
 		if markNodeAsAvailable {
-			treeMutator.SetStatus(schema.TreeStatusAvailable)
+			treeMutator.SetStatus(st.TreeStatusAvailable)
 		} else {
-			treeMutator.SetStatus(schema.TreeStatusPending)
+			treeMutator.SetStatus(st.TreeStatusPending)
 		}
 
 		tree, err = treeMutator.Save(ctx)
@@ -162,7 +162,7 @@ func (h *InternalDepositHandler) FinalizeTreeCreation(ctx context.Context, req *
 		if err != nil {
 			return err
 		}
-		markNodeAsAvailable = tree.Status == schema.TreeStatusAvailable
+		markNodeAsAvailable = tree.Status == st.TreeStatusAvailable
 	}
 
 	for _, node := range req.Nodes {
@@ -197,12 +197,12 @@ func (h *InternalDepositHandler) FinalizeTreeCreation(ctx context.Context, req *
 
 		if markNodeAsAvailable {
 			if len(node.RawRefundTx) > 0 {
-				nodeMutator.SetStatus(schema.TreeNodeStatusAvailable)
+				nodeMutator.SetStatus(st.TreeNodeStatusAvailable)
 			} else {
-				nodeMutator.SetStatus(schema.TreeNodeStatusSplitted)
+				nodeMutator.SetStatus(st.TreeNodeStatusSplitted)
 			}
 		} else {
-			nodeMutator.SetStatus(schema.TreeNodeStatusCreating)
+			nodeMutator.SetStatus(st.TreeNodeStatusCreating)
 		}
 
 		_, err = nodeMutator.Save(ctx)
@@ -250,6 +250,9 @@ func (h *InternalDepositHandler) FinalizeTreeCreation(ctx context.Context, req *
 //   - UTXO swap already registered
 //   - Failed to create transfer
 func (h *InternalDepositHandler) CreateUtxoSwap(ctx context.Context, config *so.Config, reqWithSignature *pbinternal.CreateUtxoSwapRequest) (*pbinternal.CreateUtxoSwapResponse, error) {
+	ctx, span := tracer.Start(ctx, "InternalDepositHandler.CreateUtxoSwap")
+	defer span.End()
+
 	logger := logging.GetLoggerFromContext(ctx)
 	req := reqWithSignature.Request
 	logger.Info("Start CreateUtxoSwap request for on-chain utxo", "request", logging.FormatProto("create_utxo_swap_request", reqWithSignature))
@@ -373,7 +376,7 @@ func (h *InternalDepositHandler) CreateUtxoSwap(ctx context.Context, config *so.
 	// Check that the utxo swap is not already registered
 	utxoSwap, err := db.UtxoSwap.Query().
 		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
-		Where(utxoswap.StatusNEQ(schema.UtxoSwapStatusCancelled)).
+		Where(utxoswap.StatusNEQ(st.UtxoSwapStatusCancelled)).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to check if utxo swap is already registered: %w", err)
@@ -403,11 +406,11 @@ func (h *InternalDepositHandler) CreateUtxoSwap(ctx context.Context, config *so.
 		}
 	}
 	utxoSwap, err = db.UtxoSwap.Create().
-		SetStatus(schema.UtxoSwapStatusCreated).
+		SetStatus(st.UtxoSwapStatusCreated).
 		// utxo
 		SetUtxo(targetUtxo).
 		// quote
-		SetRequestType(schema.UtxoSwapFromProtoRequestType(req.RequestType)).
+		SetRequestType(st.UtxoSwapFromProtoRequestType(req.RequestType)).
 		SetCreditAmountSats(totalAmount).
 		// quote signing bytes are the sighash of the spend tx if SSP is not used
 		SetSspSignature(quoteSigningBytes).
@@ -426,6 +429,9 @@ func (h *InternalDepositHandler) CreateUtxoSwap(ctx context.Context, config *so.
 	depositAddress, err := targetUtxo.QueryDepositAddress().Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get utxo deposit address: %w", err)
+	}
+	if !depositAddress.IsStatic {
+		return nil, fmt.Errorf("unable to claim a deposit to a non-static address: %w", err)
 	}
 	_, err = db.DepositAddress.UpdateOneID(depositAddress.ID).AddUtxoswaps(utxoSwap).Save(ctx)
 	if err != nil {
@@ -580,20 +586,23 @@ func CreateUserStatement(
 }
 
 func CancelUtxoSwap(ctx context.Context, utxoSwap *ent.UtxoSwap) error {
-	if utxoSwap.Status == schema.UtxoSwapStatusCompleted {
+	if utxoSwap.Status == st.UtxoSwapStatusCompleted {
 		return fmt.Errorf("utxo swap is already completed")
 	}
-	if _, err := utxoSwap.Update().SetStatus(schema.UtxoSwapStatusCancelled).Save(ctx); err != nil {
+	if _, err := utxoSwap.Update().SetStatus(st.UtxoSwapStatusCancelled).Save(ctx); err != nil {
 		return fmt.Errorf("unable to cancel utxo swap: %w", err)
 	}
 	return nil
 }
 
 func CompleteUtxoSwap(ctx context.Context, utxoSwap *ent.UtxoSwap) error {
-	if utxoSwap.Status == schema.UtxoSwapStatusCancelled {
+	ctx, span := tracer.Start(ctx, "InternalDepositHandler.CompleteUtxoSwap")
+	defer span.End()
+
+	if utxoSwap.Status == st.UtxoSwapStatusCancelled {
 		return fmt.Errorf("utxo swap is already cancelled")
 	}
-	if utxoSwap.RequestType != schema.UtxoSwapRequestTypeRefund {
+	if utxoSwap.RequestType != st.UtxoSwapRequestTypeRefund {
 		transfer, needUpdate, err := GetTransferFromUtxoSwap(ctx, utxoSwap)
 		if err != nil {
 			return fmt.Errorf("unable to get transfer from utxo swap: %w", err)
@@ -606,11 +615,11 @@ func CompleteUtxoSwap(ctx context.Context, utxoSwap *ent.UtxoSwap) error {
 		}
 
 		// generally having a transfer attached is enough, checking for failure statuses is a sanity check
-		if transfer.Status == schema.TransferStatusExpired || transfer.Status == schema.TransferStatusReturned {
+		if transfer.Status == st.TransferStatusExpired || transfer.Status == st.TransferStatusReturned {
 			return fmt.Errorf("transfer is expired or returned")
 		}
 	}
-	if _, err := utxoSwap.Update().SetStatus(schema.UtxoSwapStatusCompleted).Save(ctx); err != nil {
+	if _, err := utxoSwap.Update().SetStatus(st.UtxoSwapStatusCompleted).Save(ctx); err != nil {
 		return fmt.Errorf("unable to complete utxo swap: %w", err)
 	}
 	return nil
@@ -666,7 +675,7 @@ func (h *InternalDepositHandler) RollbackUtxoSwap(ctx context.Context, _ *so.Con
 
 	utxoSwap, err := db.UtxoSwap.Query().
 		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
-		Where(utxoswap.Or(utxoswap.StatusEQ(schema.UtxoSwapStatusCreated), utxoswap.StatusEQ(schema.UtxoSwapStatusCompleted))).
+		Where(utxoswap.Or(utxoswap.StatusEQ(st.UtxoSwapStatusCreated), utxoswap.StatusEQ(st.UtxoSwapStatusCompleted))).
 		// The identity public key of the coordinator that created the utxo swap.
 		// It's been verified above.
 		Where(utxoswap.CoordinatorIdentityPublicKeyEQ(req.CoordinatorPublicKey)).
@@ -785,7 +794,7 @@ func (h *InternalDepositHandler) UtxoSwapCompleted(ctx context.Context, _ *so.Co
 
 	utxoSwap, err := db.UtxoSwap.Query().
 		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
-		Where(utxoswap.StatusEQ(schema.UtxoSwapStatusCreated)).
+		Where(utxoswap.StatusEQ(st.UtxoSwapStatusCreated)).
 		// The identity public key of the coordinator that created the utxo swap.
 		// It's been verified above.
 		Where(utxoswap.CoordinatorIdentityPublicKeyEQ(req.CoordinatorPublicKey)).
@@ -847,6 +856,9 @@ func CompleteSwapForUtxoWithOtherOperators(ctx context.Context, config *so.Confi
 }
 
 func (h *InternalDepositHandler) CompleteSwapForAllOperators(ctx context.Context, config *so.Config, request *pbinternal.UtxoSwapCompletedRequest) error {
+	ctx, span := tracer.Start(ctx, "InternalDepositHandler.CompleteSwapForAllOperators")
+	defer span.End()
+
 	// Try to complete with other operators first.
 	if err := CompleteSwapForUtxoWithOtherOperators(ctx, config, request); err != nil {
 		return err
@@ -898,11 +910,52 @@ func CreateSwapForUtxoWithOtherOperators(ctx context.Context, config *so.Config,
 }
 
 func (h *InternalDepositHandler) CreateSwapForAllOperators(ctx context.Context, config *so.Config, request *pbinternal.CreateUtxoSwapRequest) error {
+	ctx, span := tracer.Start(ctx, "InternalDepositHandler.CreateSwapForAllOperators")
+	defer span.End()
+
 	// Try to complete with other operators first.
 	if err := CreateSwapForUtxoWithOtherOperators(ctx, config, request); err != nil {
 		return err
 	}
 	// If other operators return success, we can complete the swap in self.
 	_, err := h.CreateUtxoSwap(ctx, config, request)
+	return err
+}
+
+func (h *InternalDepositHandler) RollbackSwapForAllOperators(ctx context.Context, config *so.Config, request *pbinternal.CreateUtxoSwapRequest) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	req := request.Request
+	// Sign a statement that this coordinator is rolling back the utxo swap.
+	rollbackUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
+		UtxoSwapStatementTypeRollback,
+		hex.EncodeToString(req.OnChainUtxo.Txid),
+		req.OnChainUtxo.Vout,
+		common.Network(req.OnChainUtxo.Network),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create rollback utxo swap statement: %w", err)
+	}
+	rollbackUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), rollbackUtxoSwapRequestMessageHash)
+	allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
+	_, err = helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
+		conn, err := operator.NewGRPCConnection()
+		if err != nil {
+			logger.Error("Failed to connect to operator for rollback utxo swap", "error", err)
+			return nil, err
+		}
+		defer conn.Close()
+
+		client := pbinternal.NewSparkInternalServiceClient(conn)
+		internalResp, err := client.RollbackUtxoSwap(ctx, &pbinternal.RollbackUtxoSwapRequest{
+			CoordinatorPublicKey: config.IdentityPublicKey(),
+			Signature:            rollbackUtxoSwapRequestSignature.Serialize(),
+			OnChainUtxo:          req.OnChainUtxo,
+		})
+		if err != nil {
+			logger.Error("Failed to execute rollback utxo swap task with operator", "operator", operator.Identifier, "error", err, "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
+			return nil, err
+		}
+		return internalResp, err
+	})
 	return err
 }

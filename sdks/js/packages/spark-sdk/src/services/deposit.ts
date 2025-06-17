@@ -20,6 +20,10 @@ import {
 import { subtractPublicKeys } from "../utils/keys.js";
 import { getNetwork } from "../utils/network.js";
 import { proofOfPossessionMessageHashForDepositAddress } from "../utils/proof.js";
+import {
+  DEFAULT_FEE_SATS,
+  getEphemeralAnchorOutput,
+} from "../utils/transaction.js";
 import { WalletConfigService } from "./config.js";
 import { ConnectionManager } from "./connection.js";
 
@@ -184,7 +188,7 @@ export class DepositService {
     vout,
   }: CreateTreeRootParams) {
     // Create a root tx
-    const rootTx = new Transaction();
+    const rootTx = new Transaction({ version: 3 });
     const output = depositTx.getOutput(vout);
     if (!output) {
       throw new ValidationError("Invalid deposit transaction output", {
@@ -203,6 +207,13 @@ export class DepositService {
       });
     }
 
+    // Calculate fee and adjust output amount
+    let outputAmount = amount;
+    /*if (outputAmount > DEFAULT_FEE_SATS) {
+      outputAmount = outputAmount - BigInt(DEFAULT_FEE_SATS);
+    }*/
+
+    // Create new output with fee-adjusted amount
     rootTx.addInput({
       txid: getTxId(depositTx),
       index: vout,
@@ -210,16 +221,21 @@ export class DepositService {
 
     rootTx.addOutput({
       script,
-      amount,
+      amount: outputAmount,
     });
+
+    rootTx.addOutput(getEphemeralAnchorOutput());
 
     const rootNonceCommitment =
       await this.config.signer.getRandomSigningCommitment();
     const rootTxSighash = getSigHashFromTx(rootTx, 0, output);
 
     // Create a refund tx
-    const refundTx = new Transaction();
+    const refundTx = new Transaction({ version: 3 });
     const sequence = (1 << 30) | INITIAL_TIME_LOCK;
+    /* if (outputAmount > DEFAULT_FEE_SATS) {
+      outputAmount = outputAmount - BigInt(DEFAULT_FEE_SATS);
+    }*/
     refundTx.addInput({
       txid: getTxId(rootTx),
       index: 0,
@@ -237,12 +253,14 @@ export class DepositService {
 
     refundTx.addOutput({
       script: refundPkScript,
-      amount: amount,
+      amount: outputAmount,
     });
+
+    refundTx.addOutput(getEphemeralAnchorOutput());
 
     const refundNonceCommitment =
       await this.config.signer.getRandomSigningCommitment();
-    const refundTxSighash = getSigHashFromTx(refundTx, 0, output);
+    const refundTxSighash = getSigHashFromTx(refundTx, 0, rootTx.getOutput(0));
 
     const sparkClient = await this.connectionManager.createSparkClient(
       this.config.getCoordinatorAddress(),

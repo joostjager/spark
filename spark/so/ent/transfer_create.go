@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/transferleaf"
 )
@@ -70,13 +70,13 @@ func (tc *TransferCreate) SetTotalValue(u uint64) *TransferCreate {
 }
 
 // SetStatus sets the "status" field.
-func (tc *TransferCreate) SetStatus(ss schema.TransferStatus) *TransferCreate {
+func (tc *TransferCreate) SetStatus(ss schematype.TransferStatus) *TransferCreate {
 	tc.mutation.SetStatus(ss)
 	return tc
 }
 
 // SetType sets the "type" field.
-func (tc *TransferCreate) SetType(st schema.TransferType) *TransferCreate {
+func (tc *TransferCreate) SetType(st schematype.TransferType) *TransferCreate {
 	tc.mutation.SetType(st)
 	return tc
 }

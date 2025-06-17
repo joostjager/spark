@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
@@ -59,7 +59,7 @@ func (tnc *TreeNodeCreate) SetValue(u uint64) *TreeNodeCreate {
 }
 
 // SetStatus sets the "status" field.
-func (tnc *TreeNodeCreate) SetStatus(sns schema.TreeNodeStatus) *TreeNodeCreate {
+func (tnc *TreeNodeCreate) SetStatus(sns schematype.TreeNodeStatus) *TreeNodeCreate {
 	tnc.mutation.SetStatus(sns)
 	return tnc
 }

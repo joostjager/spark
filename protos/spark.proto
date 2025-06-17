@@ -19,6 +19,7 @@ service SparkService {
 
     rpc start_transfer(StartTransferRequest) returns (StartTransferResponse) {}
     rpc finalize_transfer(FinalizeTransferRequest) returns (FinalizeTransferResponse) {}
+    rpc finalize_transfer_with_transfer_package(FinalizeTransferWithTransferPackageRequest) returns (FinalizeTransferResponse) {}
     rpc cancel_transfer(CancelTransferRequest) returns (CancelTransferResponse) {}
 
     rpc query_pending_transfers(TransferFilter) returns (QueryTransfersResponse) {}
@@ -368,6 +369,7 @@ message TokenTransaction {
 enum TokenTransactionStatus {
     TOKEN_TRANSACTION_STARTED = 0;
     TOKEN_TRANSACTION_SIGNED = 1;
+    TOKEN_TRANSACTION_REVEALED = 5;
     TOKEN_TRANSACTION_FINALIZED = 2;
     TOKEN_TRANSACTION_STARTED_CANCELLED = 3;
     TOKEN_TRANSACTION_SIGNED_CANCELLED = 4;
@@ -619,12 +621,13 @@ message StartUserSignedTransferRequest {
 
 
 message StartTransferRequest {
+    reserved 6;
+
     string transfer_id = 1;
     bytes owner_identity_public_key = 2;
     repeated LeafRefundTxSigningJob leaves_to_send = 3 [deprecated = true];
     bytes receiver_identity_public_key = 4;
     google.protobuf.Timestamp expiry_time = 5;
-    map<string, SecretProof> key_tweak_proofs = 6 [deprecated = true];
     // If this field is set, the leaves_to_send and key_tweak_proofs will be ignored.
     TransferPackage transfer_package = 7;
 }
@@ -668,6 +671,12 @@ message FinalizeTransferRequest {
     repeated SendLeafKeyTweak leaves_to_send = 3;
 }
 
+message FinalizeTransferWithTransferPackageRequest {
+    string transfer_id = 1;
+    bytes owner_identity_public_key = 2;
+    TransferPackage transfer_package = 3;
+}
+
 message FinalizeTransferResponse {
     Transfer transfer = 1;
 }
@@ -677,7 +686,7 @@ enum TransferStatus {
     TRANSFER_STATUS_SENDER_KEY_TWEAK_PENDING = 1;
     TRANSFER_STATUS_SENDER_KEY_TWEAKED = 2;
     TRANSFER_STATUS_RECEIVER_KEY_TWEAKED = 3;
-    TRANSFER_STATUSR_RECEIVER_REFUND_SIGNED = 4;
+    TRANSFER_STATUS_RECEIVER_REFUND_SIGNED = 4;
     TRANSFER_STATUS_COMPLETED = 5;
     TRANSFER_STATUS_EXPIRED = 6;
     TRANSFER_STATUS_RETURNED = 7;
@@ -1059,6 +1068,14 @@ message QueryBalanceResponse {
 
 message SparkAddress {
     bytes identity_public_key = 1;
+    PaymentIntentFields payment_intent_fields = 2;
+}
+
+message PaymentIntentFields {
+    bytes id = 1 [(validate.rules).bytes.len = 16]; 
+    optional bytes asset_identifier = 2;
+    bytes asset_amount = 3 [(validate.rules).bytes.max_len = 16]; // variable length uint128
+    optional string memo = 4 [(validate.rules).string.max_bytes = 120];
 }
 
 /**

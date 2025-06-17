@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 )
 
@@ -30,9 +30,9 @@ type Transfer struct {
 	// TotalValue holds the value of the "total_value" field.
 	TotalValue uint64 `json:"total_value,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TransferStatus `json:"status,omitempty"`
+	Status schematype.TransferStatus `json:"status,omitempty"`
 	// Type holds the value of the "type" field.
-	Type schema.TransferType `json:"type,omitempty"`
+	Type schematype.TransferType `json:"type,omitempty"`
 	// ExpiryTime holds the value of the "expiry_time" field.
 	ExpiryTime time.Time `json:"expiry_time,omitempty"`
 	// CompletionTime holds the value of the "completion_time" field.
@@ -131,13 +131,13 @@ func (t *Transfer) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				t.Status = schema.TransferStatus(value.String)
+				t.Status = schematype.TransferStatus(value.String)
 			}
 		case transfer.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
-				t.Type = schema.TransferType(value.String)
+				t.Type = schematype.TransferType(value.String)
 			}
 		case transfer.FieldExpiryTime:
 			if value, ok := values[i].(*sql.NullTime); !ok {

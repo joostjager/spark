@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 )
 
@@ -24,7 +24,7 @@ type TokenFreeze struct {
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TokenFreezeStatus `json:"status,omitempty"`
+	Status schematype.TokenFreezeStatus `json:"status,omitempty"`
 	// OwnerPublicKey holds the value of the "owner_public_key" field.
 	OwnerPublicKey []byte `json:"owner_public_key,omitempty"`
 	// TokenPublicKey holds the value of the "token_public_key" field.
@@ -90,7 +90,7 @@ func (tf *TokenFreeze) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				tf.Status = schema.TokenFreezeStatus(value.String)
+				tf.Status = schematype.TokenFreezeStatus(value.String)
 			}
 		case tokenfreeze.FieldOwnerPublicKey:
 			if value, ok := values[i].(*[]byte); !ok {

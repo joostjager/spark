@@ -22,7 +22,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/cooperativeexit"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
 	"github.com/lightsparkdev/spark/so/helper"
@@ -414,6 +414,13 @@ func handleBlock(
 		return err
 	}
 
+	if err := handleTokenUpdatesForBlock(ctx, lrc20Client, dbTx, txs, blockHeight, blockHash, network); err != nil {
+		// Error already logged in handleTokenUpdatesForBlock
+		if err != nil {
+			return err
+		}
+	}
+
 	confirmedTxHashSet, creditedAddresses, addressToUtxoMap, err := processTransactions(txs, networkParams)
 	if err != nil {
 		return err
@@ -465,7 +472,7 @@ func handleBlock(
 		if confirmedTxHashSet[txid] {
 			_, err = dbTx.TreeNode.UpdateOne(node).
 				SetNodeConfirmationHeight(uint64(blockHeight)).
-				SetStatus(schema.TreeNodeStatusOnChain).
+				SetStatus(st.TreeNodeStatusOnChain).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to update node status: %v", err)
@@ -486,7 +493,7 @@ func handleBlock(
 			if confirmedTxHashSet[refundTxid] {
 				_, err = dbTx.TreeNode.UpdateOne(node).
 					SetRefundConfirmationHeight(uint64(blockHeight)).
-					SetStatus(schema.TreeNodeStatusExited).
+					SetStatus(st.TreeNodeStatusExited).
 					Save(ctx)
 				if err != nil {
 					return fmt.Errorf("failed to update node refund status: %v", err)
@@ -560,7 +567,7 @@ func handleBlock(
 			Where(treenode.HasSigningKeyshareWith(signingkeyshare.ID(signingKeyShare.ID))).
 			// FIXME(mhr): Unblocking deployment. Is this what we should do if we encounter a tree node that
 			// has already been marked available (e.g. through `FinalizeNodeSignatures`)?
-			Where(treenode.StatusEQ(schema.TreeNodeStatusCreating)).
+			Where(treenode.StatusEQ(st.TreeNodeStatusCreating)).
 			Only(ctx)
 		if ent.IsNotFound(err) {
 			logger.Info("Deposit confirmed before tree creation or tree already available", "address", deposit.Address)
@@ -570,14 +577,14 @@ func handleBlock(
 			return err
 		}
 		logger.Info("Found tree node", "node", treeNode.ID)
-		if treeNode.Status != schema.TreeNodeStatusCreating {
+		if treeNode.Status != st.TreeNodeStatusCreating {
 			logger.Info("Expected tree node status to be creating", "status", treeNode.Status)
 		}
 		tree, err := treeNode.QueryTree().Only(ctx)
 		if err != nil {
 			return err
 		}
-		if tree.Status != schema.TreeStatusPending {
+		if tree.Status != st.TreeStatusPending {
 			logger.Info("Expected tree status to be pending", "status", tree.Status)
 			continue
 		}
@@ -590,7 +597,7 @@ func handleBlock(
 		}
 
 		_, err = dbTx.Tree.UpdateOne(tree).
-			SetStatus(schema.TreeStatusAvailable).
+			SetStatus(st.TreeStatusAvailable).
 			Save(ctx)
 		if err != nil {
 			return err
@@ -601,13 +608,13 @@ func handleBlock(
 			return err
 		}
 		for _, treeNode := range treeNodes {
-			if treeNode.Status != schema.TreeNodeStatusCreating {
+			if treeNode.Status != st.TreeNodeStatusCreating {
 				logger.Debug("Tree node is not in creating status", "node", treeNode.ID)
 				continue
 			}
 			if len(treeNode.RawRefundTx) > 0 {
 				_, err = dbTx.TreeNode.UpdateOne(treeNode).
-					SetStatus(schema.TreeNodeStatusAvailable).
+					SetStatus(st.TreeNodeStatusAvailable).
 					Save(ctx)
 				if err != nil {
 					return err
@@ -630,7 +637,7 @@ func handleBlock(
 				}
 			} else {
 				_, err = dbTx.TreeNode.UpdateOne(treeNode).
-					SetStatus(schema.TreeNodeStatusSplitted).
+					SetStatus(st.TreeNodeStatusSplitted).
 					Save(ctx)
 				if err != nil {
 					return err
@@ -717,7 +724,7 @@ func handleCoopExitConfirmation(ctx context.Context, coopExit *ent.CooperativeEx
 		}
 	}
 
-	_, err = transfer.Update().SetStatus(schema.TransferStatusSenderKeyTweaked).Save(ctx)
+	_, err = transfer.Update().SetStatus(st.TransferStatusSenderKeyTweaked).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update transfer status: %v", err)
 	}

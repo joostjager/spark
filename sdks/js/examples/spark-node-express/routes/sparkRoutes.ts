@@ -414,7 +414,7 @@ export const createSparkRouter = (
           invoice: string;
           maxFeeSats: number;
         };
-        const payment: LightningSendRequest | null =
+        const payment: LightningSendRequest | WalletTransfer =
           await wallet!.payLightningInvoice({ invoice, maxFeeSats });
         res.json({
           data: { payment },

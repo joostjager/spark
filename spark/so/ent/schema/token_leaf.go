@@ -5,47 +5,8 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
-
-// TokenLeafStatus is the status of a token leaf.
-type TokenLeafStatus string
-
-const (
-	// TokenLeafStatusCreating is the status of a leaf after the creation has started
-	// but before the transaction creating it has been signed.
-	TokenLeafStatusCreatedStarted TokenLeafStatus = "CREATED_STARTED"
-	// TokenLeafStatusSigned is the status after a leaf has been signed by the operator
-	// but before the transaction has been finalized.
-	TokenLeafStatusCreatedSigned TokenLeafStatus = "CREATED_SIGNED"
-	// TokenLeafStatusFinalized is the status if a transaction creating this leaf was signed
-	// but then cancelled due to a threshold of SOs not responding. These leaves are permanently invalid.
-	TokenLeafStatusCreatedSignedCancelled TokenLeafStatus = "CREATED_SIGNED_CANCELLED"
-	// TokenLeafStatusCreatedFinalized is the status after a leaf has been finalized by the
-	// operator and is ready for spending.
-	TokenLeafStatusCreatedFinalized TokenLeafStatus = "CREATED_FINALIZED"
-	// TokenLeafStatusSpentStarted is the status of a leaf after a tx has come in to start
-	// spending but before the transaction has been signed.
-	TokenLeafStatusSpentStarted TokenLeafStatus = "SPENT_STARTED"
-	// TokenLeafStatusSpent is the status of a leaf after the tx has been signed by the
-	// operator to spend it but before it is finalized.
-	TokenLeafStatusSpentSigned TokenLeafStatus = "SPENT_SIGNED"
-	// TokenLeafStatusSpentFinalized is the status of a leaf after the tx has been signed
-	// by the operator to spend it but before it is finalized.
-	TokenLeafStatusSpentFinalized TokenLeafStatus = "SPENT_FINALIZED"
-)
-
-// Values returns the values of the token leaf status.
-func (TokenLeafStatus) Values() []string {
-	return []string{
-		string(TokenLeafStatusCreatedStarted),
-		string(TokenLeafStatusCreatedSigned),
-		string(TokenLeafStatusCreatedSignedCancelled),
-		string(TokenLeafStatusCreatedFinalized),
-		string(TokenLeafStatusSpentStarted),
-		string(TokenLeafStatusSpentSigned),
-		string(TokenLeafStatusSpentFinalized),
-	}
-}
 
 // TokenLeaf is the schema for the token leafs table.
 type TokenLeaf struct {
@@ -62,7 +23,7 @@ func (TokenLeaf) Mixin() []ent.Mixin {
 // Fields are the fields for the token leafs table.
 func (TokenLeaf) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("status").GoType(TokenLeafStatus("")),
+		field.Enum("status").GoType(st.TokenLeafStatus("")),
 		field.Bytes("owner_public_key").NotEmpty().Immutable(),
 		field.Uint64("withdraw_bond_sats").Immutable(),
 		field.Uint64("withdraw_relative_block_locktime").Immutable(),
@@ -75,7 +36,7 @@ func (TokenLeaf) Fields() []ent.Field {
 		field.Int32("leaf_spent_transaction_input_vout").Optional(),
 		field.Bytes("leaf_spent_revocation_private_key").Optional(),
 		field.Bytes("confirmed_withdraw_block_hash").Optional(),
-		field.Enum("network").GoType(Network("")).Optional(),
+		field.Enum("network").GoType(st.Network("")).Optional(),
 	}
 }
 

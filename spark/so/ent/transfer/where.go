@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -293,19 +293,19 @@ func TotalValueLTE(v uint64) predicate.Transfer {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TransferStatus) predicate.Transfer {
+func StatusEQ(v schematype.TransferStatus) predicate.Transfer {
 	vc := v
 	return predicate.Transfer(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TransferStatus) predicate.Transfer {
+func StatusNEQ(v schematype.TransferStatus) predicate.Transfer {
 	vc := v
 	return predicate.Transfer(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TransferStatus) predicate.Transfer {
+func StatusIn(vs ...schematype.TransferStatus) predicate.Transfer {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -314,7 +314,7 @@ func StatusIn(vs ...schema.TransferStatus) predicate.Transfer {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TransferStatus) predicate.Transfer {
+func StatusNotIn(vs ...schematype.TransferStatus) predicate.Transfer {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -323,19 +323,19 @@ func StatusNotIn(vs ...schema.TransferStatus) predicate.Transfer {
 }
 
 // TypeEQ applies the EQ predicate on the "type" field.
-func TypeEQ(v schema.TransferType) predicate.Transfer {
+func TypeEQ(v schematype.TransferType) predicate.Transfer {
 	vc := v
 	return predicate.Transfer(sql.FieldEQ(FieldType, vc))
 }
 
 // TypeNEQ applies the NEQ predicate on the "type" field.
-func TypeNEQ(v schema.TransferType) predicate.Transfer {
+func TypeNEQ(v schematype.TransferType) predicate.Transfer {
 	vc := v
 	return predicate.Transfer(sql.FieldNEQ(FieldType, vc))
 }
 
 // TypeIn applies the In predicate on the "type" field.
-func TypeIn(vs ...schema.TransferType) predicate.Transfer {
+func TypeIn(vs ...schematype.TransferType) predicate.Transfer {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -344,7 +344,7 @@ func TypeIn(vs ...schema.TransferType) predicate.Transfer {
 }
 
 // TypeNotIn applies the NotIn predicate on the "type" field.
-func TypeNotIn(vs ...schema.TransferType) predicate.Transfer {
+func TypeNotIn(vs ...schematype.TransferType) predicate.Transfer {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

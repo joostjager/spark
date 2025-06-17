@@ -10,7 +10,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 )
@@ -31,16 +32,17 @@ type TokenTransaction struct {
 	// OperatorSignature holds the value of the "operator_signature" field.
 	OperatorSignature []byte `json:"operator_signature,omitempty"`
 	// Status holds the value of the "status" field.
-	Status schema.TokenTransactionStatus `json:"status,omitempty"`
+	Status schematype.TokenTransactionStatus `json:"status,omitempty"`
 	// ExpiryTime holds the value of the "expiry_time" field.
 	ExpiryTime time.Time `json:"expiry_time,omitempty"`
 	// CoordinatorPublicKey holds the value of the "coordinator_public_key" field.
 	CoordinatorPublicKey []byte `json:"coordinator_public_key,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TokenTransactionQuery when eager-loading is set.
-	Edges                  TokenTransactionEdges `json:"edges"`
-	token_transaction_mint *uuid.UUID
-	selectValues           sql.SelectValues
+	Edges                    TokenTransactionEdges `json:"edges"`
+	token_transaction_mint   *uuid.UUID
+	token_transaction_create *uuid.UUID
+	selectValues             sql.SelectValues
 }
 
 // TokenTransactionEdges holds the relations/edges for other nodes in the graph.
@@ -51,9 +53,11 @@ type TokenTransactionEdges struct {
 	CreatedOutput []*TokenOutput `json:"created_output,omitempty"`
 	// Mint holds the value of the mint edge.
 	Mint *TokenMint `json:"mint,omitempty"`
+	// Create holds the value of the create edge.
+	Create *TokenCreate `json:"create,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // SpentOutputOrErr returns the SpentOutput value or an error if the edge
@@ -85,6 +89,17 @@ func (e TokenTransactionEdges) MintOrErr() (*TokenMint, error) {
 	return nil, &NotLoadedError{edge: "mint"}
 }
 
+// CreateOrErr returns the Create value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TokenTransactionEdges) CreateOrErr() (*TokenCreate, error) {
+	if e.Create != nil {
+		return e.Create, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: tokencreate.Label}
+	}
+	return nil, &NotLoadedError{edge: "create"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*TokenTransaction) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -99,6 +114,8 @@ func (*TokenTransaction) scanValues(columns []string) ([]any, error) {
 		case tokentransaction.FieldID:
 			values[i] = new(uuid.UUID)
 		case tokentransaction.ForeignKeys[0]: // token_transaction_mint
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case tokentransaction.ForeignKeys[1]: // token_transaction_create
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
@@ -155,7 +172,7 @@ func (tt *TokenTransaction) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				tt.Status = schema.TokenTransactionStatus(value.String)
+				tt.Status = schematype.TokenTransactionStatus(value.String)
 			}
 		case tokentransaction.FieldExpiryTime:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -175,6 +192,13 @@ func (tt *TokenTransaction) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				tt.token_transaction_mint = new(uuid.UUID)
 				*tt.token_transaction_mint = *value.S.(*uuid.UUID)
+			}
+		case tokentransaction.ForeignKeys[1]:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field token_transaction_create", values[i])
+			} else if value.Valid {
+				tt.token_transaction_create = new(uuid.UUID)
+				*tt.token_transaction_create = *value.S.(*uuid.UUID)
 			}
 		default:
 			tt.selectValues.Set(columns[i], values[i])
@@ -202,6 +226,11 @@ func (tt *TokenTransaction) QueryCreatedOutput() *TokenOutputQuery {
 // QueryMint queries the "mint" edge of the TokenTransaction entity.
 func (tt *TokenTransaction) QueryMint() *TokenMintQuery {
 	return NewTokenTransactionClient(tt.config).QueryMint(tt)
+}
+
+// QueryCreate queries the "create" edge of the TokenTransaction entity.
+func (tt *TokenTransaction) QueryCreate() *TokenCreateQuery {
+	return NewTokenTransactionClient(tt.config).QueryCreate(tt)
 }
 
 // Update returns a builder for updating this TokenTransaction.

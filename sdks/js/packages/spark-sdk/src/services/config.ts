@@ -110,8 +110,12 @@ export class WalletConfigService
     return NetworkToProto[Network[this.config.network]];
   }
 
-  public shouldSignTokenTransactionsWithSchnorr(): boolean {
-    return this.config.useTokenTransactionSchnorrSignatures;
+  public getTokenSignatures(): "ECDSA" | "SCHNORR" {
+    return this.config.tokenSignatures;
+  }
+
+  public getTokenTransactionVersion(): "V0" | "V1" {
+    return this.config.tokenTransactionVersion;
   }
 
   public getElectrsUrl(): string {

@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -203,19 +203,19 @@ func OwnerIdentityPubkeyLTE(v []byte) predicate.Tree {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TreeStatus) predicate.Tree {
+func StatusEQ(v schematype.TreeStatus) predicate.Tree {
 	vc := v
 	return predicate.Tree(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TreeStatus) predicate.Tree {
+func StatusNEQ(v schematype.TreeStatus) predicate.Tree {
 	vc := v
 	return predicate.Tree(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TreeStatus) predicate.Tree {
+func StatusIn(vs ...schematype.TreeStatus) predicate.Tree {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -224,7 +224,7 @@ func StatusIn(vs ...schema.TreeStatus) predicate.Tree {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TreeStatus) predicate.Tree {
+func StatusNotIn(vs ...schematype.TreeStatus) predicate.Tree {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -233,19 +233,19 @@ func StatusNotIn(vs ...schema.TreeStatus) predicate.Tree {
 }
 
 // NetworkEQ applies the EQ predicate on the "network" field.
-func NetworkEQ(v schema.Network) predicate.Tree {
+func NetworkEQ(v schematype.Network) predicate.Tree {
 	vc := v
 	return predicate.Tree(sql.FieldEQ(FieldNetwork, vc))
 }
 
 // NetworkNEQ applies the NEQ predicate on the "network" field.
-func NetworkNEQ(v schema.Network) predicate.Tree {
+func NetworkNEQ(v schematype.Network) predicate.Tree {
 	vc := v
 	return predicate.Tree(sql.FieldNEQ(FieldNetwork, vc))
 }
 
 // NetworkIn applies the In predicate on the "network" field.
-func NetworkIn(vs ...schema.Network) predicate.Tree {
+func NetworkIn(vs ...schematype.Network) predicate.Tree {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -254,7 +254,7 @@ func NetworkIn(vs ...schema.Network) predicate.Tree {
 }
 
 // NetworkNotIn applies the NotIn predicate on the "network" field.
-func NetworkNotIn(vs ...schema.Network) predicate.Tree {
+func NetworkNotIn(vs ...schematype.Network) predicate.Tree {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

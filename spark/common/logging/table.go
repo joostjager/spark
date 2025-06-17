@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -124,6 +125,10 @@ func LogTable(
 			result["error.code"] = "Unknown"
 			result["error.message"] = err.Error()
 		}
+	}
+
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		result["grpc.client.user_agent"] = md.Get("user-agent")
 	}
 
 	logger := GetLoggerFromContext(ctx)

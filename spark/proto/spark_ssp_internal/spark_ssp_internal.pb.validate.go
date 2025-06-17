@@ -274,3 +274,1324 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = QueryLostNodesResponseValidationError{}
+
+// Validate checks the field values on MagicSwapRequest with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *MagicSwapRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on MagicSwapRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// MagicSwapRequestMultiError, or nil if none found.
+func (m *MagicSwapRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *MagicSwapRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TransferId
+
+	// no validation rules for OwnerIdentityPublicKey
+
+	// no validation rules for ReceiverIdentityPublicKey
+
+	if all {
+		switch v := interface{}(m.GetTransferPackage()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, MagicSwapRequestValidationError{
+					field:  "TransferPackage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, MagicSwapRequestValidationError{
+					field:  "TransferPackage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTransferPackage()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return MagicSwapRequestValidationError{
+				field:  "TransferPackage",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return MagicSwapRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// MagicSwapRequestMultiError is an error wrapping multiple validation errors
+// returned by MagicSwapRequest.ValidateAll() if the designated constraints
+// aren't met.
+type MagicSwapRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m MagicSwapRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m MagicSwapRequestMultiError) AllErrors() []error { return m }
+
+// MagicSwapRequestValidationError is the validation error returned by
+// MagicSwapRequest.Validate if the designated constraints aren't met.
+type MagicSwapRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e MagicSwapRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e MagicSwapRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e MagicSwapRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e MagicSwapRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e MagicSwapRequestValidationError) ErrorName() string { return "MagicSwapRequestValidationError" }
+
+// Error satisfies the builtin error interface
+func (e MagicSwapRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sMagicSwapRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = MagicSwapRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = MagicSwapRequestValidationError{}
+
+// Validate checks the field values on MagicSwapResponse with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *MagicSwapResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on MagicSwapResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// MagicSwapResponseMultiError, or nil if none found.
+func (m *MagicSwapResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *MagicSwapResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetSwapTransfer()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, MagicSwapResponseValidationError{
+					field:  "SwapTransfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, MagicSwapResponseValidationError{
+					field:  "SwapTransfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSwapTransfer()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return MagicSwapResponseValidationError{
+				field:  "SwapTransfer",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetCounterSwapTransfer()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, MagicSwapResponseValidationError{
+					field:  "CounterSwapTransfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, MagicSwapResponseValidationError{
+					field:  "CounterSwapTransfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetCounterSwapTransfer()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return MagicSwapResponseValidationError{
+				field:  "CounterSwapTransfer",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return MagicSwapResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// MagicSwapResponseMultiError is an error wrapping multiple validation errors
+// returned by MagicSwapResponse.ValidateAll() if the designated constraints
+// aren't met.
+type MagicSwapResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m MagicSwapResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m MagicSwapResponseMultiError) AllErrors() []error { return m }
+
+// MagicSwapResponseValidationError is the validation error returned by
+// MagicSwapResponse.Validate if the designated constraints aren't met.
+type MagicSwapResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e MagicSwapResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e MagicSwapResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e MagicSwapResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e MagicSwapResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e MagicSwapResponseValidationError) ErrorName() string {
+	return "MagicSwapResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e MagicSwapResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sMagicSwapResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = MagicSwapResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = MagicSwapResponseValidationError{}
+
+// Validate checks the field values on GetStuckTransfersRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetStuckTransfersRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetStuckTransfersRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetStuckTransfersRequestMultiError, or nil if none found.
+func (m *GetStuckTransfersRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetStuckTransfersRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetBefore()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetStuckTransfersRequestValidationError{
+					field:  "Before",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetStuckTransfersRequestValidationError{
+					field:  "Before",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetBefore()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetStuckTransfersRequestValidationError{
+				field:  "Before",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	// no validation rules for Limit
+
+	// no validation rules for Offset
+
+	if len(errors) > 0 {
+		return GetStuckTransfersRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetStuckTransfersRequestMultiError is an error wrapping multiple validation
+// errors returned by GetStuckTransfersRequest.ValidateAll() if the designated
+// constraints aren't met.
+type GetStuckTransfersRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetStuckTransfersRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetStuckTransfersRequestMultiError) AllErrors() []error { return m }
+
+// GetStuckTransfersRequestValidationError is the validation error returned by
+// GetStuckTransfersRequest.Validate if the designated constraints aren't met.
+type GetStuckTransfersRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetStuckTransfersRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetStuckTransfersRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetStuckTransfersRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetStuckTransfersRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetStuckTransfersRequestValidationError) ErrorName() string {
+	return "GetStuckTransfersRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetStuckTransfersRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetStuckTransfersRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetStuckTransfersRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetStuckTransfersRequestValidationError{}
+
+// Validate checks the field values on GetStuckTransfersResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GetStuckTransfersResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GetStuckTransfersResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GetStuckTransfersResponseMultiError, or nil if none found.
+func (m *GetStuckTransfersResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GetStuckTransfersResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetTransfers() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, GetStuckTransfersResponseValidationError{
+						field:  fmt.Sprintf("Transfers[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, GetStuckTransfersResponseValidationError{
+						field:  fmt.Sprintf("Transfers[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return GetStuckTransfersResponseValidationError{
+					field:  fmt.Sprintf("Transfers[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	// no validation rules for Offset
+
+	if len(errors) > 0 {
+		return GetStuckTransfersResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// GetStuckTransfersResponseMultiError is an error wrapping multiple validation
+// errors returned by GetStuckTransfersResponse.ValidateAll() if the
+// designated constraints aren't met.
+type GetStuckTransfersResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GetStuckTransfersResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GetStuckTransfersResponseMultiError) AllErrors() []error { return m }
+
+// GetStuckTransfersResponseValidationError is the validation error returned by
+// GetStuckTransfersResponse.Validate if the designated constraints aren't met.
+type GetStuckTransfersResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GetStuckTransfersResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GetStuckTransfersResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GetStuckTransfersResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GetStuckTransfersResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GetStuckTransfersResponseValidationError) ErrorName() string {
+	return "GetStuckTransfersResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GetStuckTransfersResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGetStuckTransfersResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GetStuckTransfersResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GetStuckTransfersResponseValidationError{}
+
+// Validate checks the field values on QueryStuckTransferRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *QueryStuckTransferRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on QueryStuckTransferRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// QueryStuckTransferRequestMultiError, or nil if none found.
+func (m *QueryStuckTransferRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *QueryStuckTransferRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	if len(errors) > 0 {
+		return QueryStuckTransferRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// QueryStuckTransferRequestMultiError is an error wrapping multiple validation
+// errors returned by QueryStuckTransferRequest.ValidateAll() if the
+// designated constraints aren't met.
+type QueryStuckTransferRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m QueryStuckTransferRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m QueryStuckTransferRequestMultiError) AllErrors() []error { return m }
+
+// QueryStuckTransferRequestValidationError is the validation error returned by
+// QueryStuckTransferRequest.Validate if the designated constraints aren't met.
+type QueryStuckTransferRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e QueryStuckTransferRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e QueryStuckTransferRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e QueryStuckTransferRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e QueryStuckTransferRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e QueryStuckTransferRequestValidationError) ErrorName() string {
+	return "QueryStuckTransferRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e QueryStuckTransferRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sQueryStuckTransferRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = QueryStuckTransferRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = QueryStuckTransferRequestValidationError{}
+
+// Validate checks the field values on QueryStuckTransferResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *QueryStuckTransferResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on QueryStuckTransferResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// QueryStuckTransferResponseMultiError, or nil if none found.
+func (m *QueryStuckTransferResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *QueryStuckTransferResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetTransfer()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, QueryStuckTransferResponseValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, QueryStuckTransferResponseValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTransfer()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return QueryStuckTransferResponseValidationError{
+				field:  "Transfer",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return QueryStuckTransferResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// QueryStuckTransferResponseMultiError is an error wrapping multiple
+// validation errors returned by QueryStuckTransferResponse.ValidateAll() if
+// the designated constraints aren't met.
+type QueryStuckTransferResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m QueryStuckTransferResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m QueryStuckTransferResponseMultiError) AllErrors() []error { return m }
+
+// QueryStuckTransferResponseValidationError is the validation error returned
+// by QueryStuckTransferResponse.Validate if the designated constraints aren't met.
+type QueryStuckTransferResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e QueryStuckTransferResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e QueryStuckTransferResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e QueryStuckTransferResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e QueryStuckTransferResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e QueryStuckTransferResponseValidationError) ErrorName() string {
+	return "QueryStuckTransferResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e QueryStuckTransferResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sQueryStuckTransferResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = QueryStuckTransferResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = QueryStuckTransferResponseValidationError{}
+
+// Validate checks the field values on CancelStuckTransferRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *CancelStuckTransferRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on CancelStuckTransferRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// CancelStuckTransferRequestMultiError, or nil if none found.
+func (m *CancelStuckTransferRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *CancelStuckTransferRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for OwnerIdentityPublicKey
+
+	if len(errors) > 0 {
+		return CancelStuckTransferRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// CancelStuckTransferRequestMultiError is an error wrapping multiple
+// validation errors returned by CancelStuckTransferRequest.ValidateAll() if
+// the designated constraints aren't met.
+type CancelStuckTransferRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m CancelStuckTransferRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m CancelStuckTransferRequestMultiError) AllErrors() []error { return m }
+
+// CancelStuckTransferRequestValidationError is the validation error returned
+// by CancelStuckTransferRequest.Validate if the designated constraints aren't met.
+type CancelStuckTransferRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e CancelStuckTransferRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e CancelStuckTransferRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e CancelStuckTransferRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e CancelStuckTransferRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e CancelStuckTransferRequestValidationError) ErrorName() string {
+	return "CancelStuckTransferRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e CancelStuckTransferRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sCancelStuckTransferRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = CancelStuckTransferRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = CancelStuckTransferRequestValidationError{}
+
+// Validate checks the field values on CancelStuckTransferResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *CancelStuckTransferResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on CancelStuckTransferResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// CancelStuckTransferResponseMultiError, or nil if none found.
+func (m *CancelStuckTransferResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *CancelStuckTransferResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetTransfer()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CancelStuckTransferResponseValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CancelStuckTransferResponseValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTransfer()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CancelStuckTransferResponseValidationError{
+				field:  "Transfer",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return CancelStuckTransferResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// CancelStuckTransferResponseMultiError is an error wrapping multiple
+// validation errors returned by CancelStuckTransferResponse.ValidateAll() if
+// the designated constraints aren't met.
+type CancelStuckTransferResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m CancelStuckTransferResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m CancelStuckTransferResponseMultiError) AllErrors() []error { return m }
+
+// CancelStuckTransferResponseValidationError is the validation error returned
+// by CancelStuckTransferResponse.Validate if the designated constraints
+// aren't met.
+type CancelStuckTransferResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e CancelStuckTransferResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e CancelStuckTransferResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e CancelStuckTransferResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e CancelStuckTransferResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e CancelStuckTransferResponseValidationError) ErrorName() string {
+	return "CancelStuckTransferResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e CancelStuckTransferResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sCancelStuckTransferResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = CancelStuckTransferResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = CancelStuckTransferResponseValidationError{}
+
+// Validate checks the field values on StuckTransfer with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *StuckTransfer) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on StuckTransfer with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in StuckTransferMultiError, or
+// nil if none found.
+func (m *StuckTransfer) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *StuckTransfer) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetTransfer()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, StuckTransferValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, StuckTransferValidationError{
+					field:  "Transfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTransfer()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return StuckTransferValidationError{
+				field:  "Transfer",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	{
+		sorted_keys := make([]string, len(m.GetSigningKeysharePublicShares()))
+		i := 0
+		for key := range m.GetSigningKeysharePublicShares() {
+			sorted_keys[i] = key
+			i++
+		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetSigningKeysharePublicShares()[key]
+			_ = val
+
+			// no validation rules for SigningKeysharePublicShares[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, StuckTransferValidationError{
+							field:  fmt.Sprintf("SigningKeysharePublicShares[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, StuckTransferValidationError{
+							field:  fmt.Sprintf("SigningKeysharePublicShares[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return StuckTransferValidationError{
+						field:  fmt.Sprintf("SigningKeysharePublicShares[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
+	}
+
+	if len(errors) > 0 {
+		return StuckTransferMultiError(errors)
+	}
+
+	return nil
+}
+
+// StuckTransferMultiError is an error wrapping multiple validation errors
+// returned by StuckTransfer.ValidateAll() if the designated constraints
+// aren't met.
+type StuckTransferMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m StuckTransferMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m StuckTransferMultiError) AllErrors() []error { return m }
+
+// StuckTransferValidationError is the validation error returned by
+// StuckTransfer.Validate if the designated constraints aren't met.
+type StuckTransferValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e StuckTransferValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e StuckTransferValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e StuckTransferValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e StuckTransferValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e StuckTransferValidationError) ErrorName() string { return "StuckTransferValidationError" }
+
+// Error satisfies the builtin error interface
+func (e StuckTransferValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sStuckTransfer.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = StuckTransferValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = StuckTransferValidationError{}
+
+// Validate checks the field values on SigningKeysharePublicShares with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *SigningKeysharePublicShares) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SigningKeysharePublicShares with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SigningKeysharePublicSharesMultiError, or nil if none found.
+func (m *SigningKeysharePublicShares) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SigningKeysharePublicShares) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for PublicShares
+
+	if len(errors) > 0 {
+		return SigningKeysharePublicSharesMultiError(errors)
+	}
+
+	return nil
+}
+
+// SigningKeysharePublicSharesMultiError is an error wrapping multiple
+// validation errors returned by SigningKeysharePublicShares.ValidateAll() if
+// the designated constraints aren't met.
+type SigningKeysharePublicSharesMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SigningKeysharePublicSharesMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SigningKeysharePublicSharesMultiError) AllErrors() []error { return m }
+
+// SigningKeysharePublicSharesValidationError is the validation error returned
+// by SigningKeysharePublicShares.Validate if the designated constraints
+// aren't met.
+type SigningKeysharePublicSharesValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SigningKeysharePublicSharesValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SigningKeysharePublicSharesValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SigningKeysharePublicSharesValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SigningKeysharePublicSharesValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SigningKeysharePublicSharesValidationError) ErrorName() string {
+	return "SigningKeysharePublicSharesValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e SigningKeysharePublicSharesValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSigningKeysharePublicShares.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SigningKeysharePublicSharesValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SigningKeysharePublicSharesValidationError{}

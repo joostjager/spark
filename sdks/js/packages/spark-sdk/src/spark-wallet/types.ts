@@ -1,16 +1,20 @@
 import type { Transaction } from "@scure/btc-signer";
-import type { SparkSigner } from "../signer/signer.js";
 import { ConfigOptions } from "../services/wallet-config.js";
+import type { SparkSigner } from "../signer/signer.js";
 
 export type CreateLightningInvoiceParams = {
   amountSats: number;
   memo?: string;
   expirySeconds?: number;
+  includeSparkAddress?: boolean;
+  receiverIdentityPubkey?: string;
+  descriptionHash?: string;
 };
 
 export type PayLightningInvoiceParams = {
   invoice: string;
   maxFeeSats: number;
+  preferSpark?: boolean;
 };
 
 export type TransferParams = {

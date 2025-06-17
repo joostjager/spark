@@ -1,24 +1,9 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { LRCWallet } from "@buildonspark/lrc20-sdk";
 import { NetworkType } from "@buildonspark/lrc20-sdk";
-import {
-  TokenPubkey,
-  Lrc20TransactionDto,
-  PubkeyFreezeAnnouncement,
-  TokenPubkeyAnnouncement,
-} from "@buildonspark/lrc20-sdk";
-import {
-  BasicAuth,
-  basicAuth,
-  ElectrsApi,
-  Lrc20JsonRPC,
-} from "@buildonspark/lrc20-sdk";
+import { TokenPubkey, TokenPubkeyAnnouncement } from "@buildonspark/lrc20-sdk";
 
-let wallet = new LRCWallet(
-  "4799979d5e417e3d6d00cf89a77d4f3c0354d295810326c6b0bf4b45aedb38f3",
-  bitcoin.networks.regtest,
-  NetworkType.REGTEST,
-);
+let wallet = new LRCWallet(bitcoin.networks.regtest, NetworkType.REGTEST);
 
 async function main() {
   await wallet.syncWallet();

@@ -11,6 +11,7 @@ import (
 	"github.com/lightsparkdev/spark/common/logging"
 	pbcommon "github.com/lightsparkdev/spark/proto/common"
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
+	pbgossip "github.com/lightsparkdev/spark/proto/gossip"
 	pbspark "github.com/lightsparkdev/spark/proto/spark"
 	pb "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
@@ -296,6 +297,12 @@ func (s *SparkInternalServer) InitiateTransfer(ctx context.Context, req *pb.Init
 	return errors.WrapWithGRPCError(&emptypb.Empty{}, transferHandler.InitiateTransfer(ctx, req))
 }
 
+// InitiateTransfer initiates a transfer by creating transfer and transfer_leaf
+func (s *SparkInternalServer) DeliverSenderKeyTweak(ctx context.Context, req *pb.DeliverSenderKeyTweakRequest) (*emptypb.Empty, error) {
+	transferHandler := handler.NewInternalTransferHandler(s.config)
+	return errors.WrapWithGRPCError(&emptypb.Empty{}, transferHandler.DeliverSenderKeyTweak(ctx, req))
+}
+
 // InitiateCooperativeExit initiates a cooperative exit.
 func (s *SparkInternalServer) InitiateCooperativeExit(ctx context.Context, req *pb.InitiateCooperativeExitRequest) (*emptypb.Empty, error) {
 	transferHandler := handler.NewInternalTransferHandler(s.config)
@@ -303,9 +310,9 @@ func (s *SparkInternalServer) InitiateCooperativeExit(ctx context.Context, req *
 }
 
 // ProvidePreimage provides the preimage for the given payment hash.
-func (s *SparkInternalServer) ProvidePreimage(ctx context.Context, req *pbspark.ProvidePreimageRequest) (*emptypb.Empty, error) {
+func (s *SparkInternalServer) ProvidePreimage(ctx context.Context, req *pb.ProvidePreimageRequest) (*emptypb.Empty, error) {
 	lightningHandler := handler.NewLightningHandler(s.config)
-	_, err := lightningHandler.ProvidePreimageInternal(ctx, req)
+	_, err := lightningHandler.ValidatePreimageInternal(ctx, req)
 	return errors.WrapWithGRPCError(&emptypb.Empty{}, err)
 }
 
@@ -318,13 +325,6 @@ func (s *SparkInternalServer) ReturnLightningPayment(ctx context.Context, req *p
 func (s *SparkInternalServer) StartTokenTransactionInternal(ctx context.Context, req *pb.StartTokenTransactionInternalRequest) (*emptypb.Empty, error) {
 	tokenTransactionHandler := handler.NewInternalTokenTransactionHandler(s.config, s.lrc20Client)
 	return errors.WrapWithGRPCError(tokenTransactionHandler.StartTokenTransactionInternal(ctx, s.config, req))
-}
-
-// CancelTransfer cancels a transfer from sender before key is tweaked.
-func (s *SparkInternalServer) CancelTransfer(ctx context.Context, req *pbspark.CancelTransferRequest) (*emptypb.Empty, error) {
-	transferHandler := handler.NewInternalTransferHandler(s.config)
-	_, err := transferHandler.CancelTransfer(ctx, req, handler.CancelTransferIntentInternal)
-	return errors.WrapWithGRPCError(&emptypb.Empty{}, err)
 }
 
 func (s *SparkInternalServer) InitiateSettleReceiverKeyTweak(ctx context.Context, req *pb.InitiateSettleReceiverKeyTweakRequest) (*emptypb.Empty, error) {
@@ -373,4 +373,9 @@ func (s *SparkInternalServer) QueryLeafSigningPubkeys(ctx context.Context, req *
 func (s *SparkInternalServer) ResolveLeafInvestigation(ctx context.Context, req *pb.ResolveLeafInvestigationRequest) (*emptypb.Empty, error) {
 	investigationHandler := handler.NewInvestigationHandler(s.config)
 	return errors.WrapWithGRPCError(investigationHandler.ResolveLeafInvestigation(ctx, req))
+}
+
+func (s *SparkInternalServer) Gossip(ctx context.Context, req *pbgossip.GossipMessage) (*emptypb.Empty, error) {
+	gossipHandler := handler.NewGossipHandler(s.config)
+	return errors.WrapWithGRPCError(&emptypb.Empty{}, gossipHandler.HandleGossipMessage(ctx, req, false))
 }

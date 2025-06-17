@@ -81,6 +81,7 @@ export class TokenPubkeyAnnouncement {
     const MIN_NAME_SIZE = 3;
     const MAX_SYMBOL_SIZE = 6;
     const MIN_SYMBOL_SIZE = 3;
+    const MAX_NAME_AND_SYMBOL_SIZE = 20;
 
     const nameBytes = Buffer.from(name, "utf-8").length;
     if (nameBytes < MIN_NAME_SIZE || nameBytes > MAX_NAME_SIZE) {
@@ -95,6 +96,11 @@ export class TokenPubkeyAnnouncement {
         `Byte length of token ticker: ${symbol} is out of range. ${symbolBytes}, must be between ${MIN_SYMBOL_SIZE} and ${MAX_SYMBOL_SIZE}`,
       );
     }
+
+    if (nameBytes + symbolBytes > MAX_NAME_AND_SYMBOL_SIZE) {
+      throw new Error(`Byte length of token ticker and token name has to be less than ${MAX_NAME_AND_SYMBOL_SIZE}`);
+    }
+
     this.tokenPubkey = tokenPubkey;
     this.name = name;
     this.symbol = symbol;
@@ -129,12 +135,6 @@ export class TokenPubkeyAnnouncement {
 
     const verifyValue = BigInt("0x" + maxSupplyBytes.toString("hex"));
     if (verifyValue !== this.maxSupply) {
-      console.error("Value mismatch:", {
-        original: this.maxSupply.toString(),
-        encoded: verifyValue.toString(),
-        buffer: maxSupplyBytes.toString("hex"),
-      });
-
       throw new Error(`MaxSupply value corruption: ${this.maxSupply} became ${verifyValue}`);
     }
 

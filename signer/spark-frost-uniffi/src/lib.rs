@@ -407,6 +407,7 @@ pub fn construct_node_tx(
     };
 
     // Construct the transaction with version 2 for Taproot support
+    // FIXME
     let new_tx = Transaction {
         version: Version::TWO,
         lock_time: LockTime::ZERO,

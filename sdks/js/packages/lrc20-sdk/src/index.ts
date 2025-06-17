@@ -119,8 +119,12 @@ export {
 export { LRCWallet } from "./lrc/wallet/index.ts";
 export type { HasLrc20WalletApiConfig, LRC20WalletApiConfig, MayHaveLrc20WalletApiConfig } from "./lrc/wallet/index.ts";
 
-export { ECPair, ecc } from "./bitcoin-core.ts";
+export type { TokenSigner } from "./lrc/signer/signer.ts";
+export { Receipt } from "./lrc/types/receipt.ts";
+
 export { toPsbtNetwork, toNetworkType, getNetwork, NetworkType, networks } from "./network/index.ts";
+
+export { fromPrivateKey } from "./bitcoin-core.ts";
 
 export { AddressType } from "./types.ts";
 export type {

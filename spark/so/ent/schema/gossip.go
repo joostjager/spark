@@ -4,21 +4,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
-
-type GossipStatus string
-
-const (
-	GossipStatusPending   GossipStatus = "PENDING"
-	GossipStatusDelivered GossipStatus = "DELIVERED"
-)
-
-func (GossipStatus) Values() []string {
-	return []string{
-		string(GossipStatusPending),
-		string(GossipStatusDelivered),
-	}
-}
 
 type Gossip struct {
 	ent.Schema
@@ -39,7 +26,7 @@ func (Gossip) Fields() []ent.Field {
 		// A bitmap of participants that have received the message, it maps with the order of participants.
 		field.Bytes("receipts").Nillable(),
 		// If all participants have received the message, the status is changed to DELIVERED.
-		field.Enum("status").GoType(GossipStatus("")).Default(string(GossipStatusPending)),
+		field.Enum("status").GoType(st.GossipStatus("")).Default(string(st.GossipStatusPending)),
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/lightsparkdev/spark/so/ent/preimageshare"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/signingnonce"
+	"github.com/lightsparkdev/spark/so/ent/tokencreate"
 	"github.com/lightsparkdev/spark/so/ent/tokenfreeze"
 	"github.com/lightsparkdev/spark/so/ent/tokenleaf"
 	"github.com/lightsparkdev/spark/so/ent/tokenmint"
@@ -302,6 +303,33 @@ func (f TraverseSigningNonce) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.SigningNonceQuery", q)
+}
+
+// The TokenCreateFunc type is an adapter to allow the use of ordinary function as a Querier.
+type TokenCreateFunc func(context.Context, *ent.TokenCreateQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f TokenCreateFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.TokenCreateQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.TokenCreateQuery", q)
+}
+
+// The TraverseTokenCreate type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseTokenCreate func(context.Context, *ent.TokenCreateQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseTokenCreate) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseTokenCreate) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.TokenCreateQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.TokenCreateQuery", q)
 }
 
 // The TokenFreezeFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -674,6 +702,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SigningKeyshareQuery, predicate.SigningKeyshare, signingkeyshare.OrderOption]{typ: ent.TypeSigningKeyshare, tq: q}, nil
 	case *ent.SigningNonceQuery:
 		return &query[*ent.SigningNonceQuery, predicate.SigningNonce, signingnonce.OrderOption]{typ: ent.TypeSigningNonce, tq: q}, nil
+	case *ent.TokenCreateQuery:
+		return &query[*ent.TokenCreateQuery, predicate.TokenCreate, tokencreate.OrderOption]{typ: ent.TypeTokenCreate, tq: q}, nil
 	case *ent.TokenFreezeQuery:
 		return &query[*ent.TokenFreezeQuery, predicate.TokenFreeze, tokenfreeze.OrderOption]{typ: ent.TypeTokenFreeze, tq: q}, nil
 	case *ent.TokenLeafQuery:

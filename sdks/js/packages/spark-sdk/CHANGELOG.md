@@ -1,5 +1,62 @@
 # @buildonspark/spark-sdk
 
+## 0.1.40
+
+### Patch Changes
+
+- Improved support for unilateral exits
+
+## 0.1.39
+
+### Patch Changes
+
+- - Update leaves swap to v2
+
+## 0.1.38
+
+### Patch Changes
+
+- - Export errors and utils from /native
+
+## 0.1.37
+
+### Patch Changes
+
+- - Return static deposit address instead of throwing error when trying to create after first time.
+  - Handle window undefined in buffer polyfill.
+  - Add static deposit transactions to get all transaction request.
+
+## 0.1.36
+
+### Patch Changes
+
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.57
+
+## 0.1.35
+
+### Patch Changes
+
+- Fixes
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.56
+
+## 0.1.34
+
+### Patch Changes
+
+- Add ability to create invoice for another spark user
+- Fixes
+- Updated dependencies
+  - @buildonspark/lrc20-sdk@0.0.55
+
+## 0.1.33
+
+### Patch Changes
+
+- - Remove some unneeded files to reduce package size
+  - Include Android binding libs
+
 ## 0.1.32
 
 ### Patch Changes

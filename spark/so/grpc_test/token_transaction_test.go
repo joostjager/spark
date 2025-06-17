@@ -27,13 +27,13 @@ import (
 // Test token amounts for various operations
 const (
 	// The expected maximum number of outputs which can be created in a single transaction.
-	ManyOutputsCount = 1000
+	ManyOutputsCount = utils.MaxInputOrOutputTokenTransactionOutputs
 	// Amount for first created output in issuance transaction
 	TestIssueOutput1Amount = 11111
 	// Amount for second created output in issuance transaction
 	TestIssueOutput2Amount = 22222
 	// Amount for second created output in multiple output issuance transaction
-	TestIssueMultiplePerOutputAmount = 1000
+	TestIssueMultiplePerOutputAmount = utils.MaxInputOrOutputTokenTransactionOutputs
 	// Amount for first (and only) created output in transfer transaction
 	TestTransferOutput1Amount = 33333
 	// Configured at SO level. We validate in the tests to ensure these are populated correctly
@@ -270,7 +270,7 @@ func TestQueryPartiallySpentTokenOutputsNotReturned(t *testing.T) {
 	)
 	require.NoError(t, err, "failed to start token transaction: %v", err)
 
-	mintTxHash, err := utils.HashTokenTransaction(broadcastMintResponse, false)
+	mintTxHash, err := utils.HashTokenTransactionV0(broadcastMintResponse, false)
 	require.NoError(t, err, "failed to hash token transaction: %v", err)
 
 	receiverPrivateKey, err := secp256k1.GeneratePrivateKey()
@@ -395,7 +395,7 @@ func TestBroadcastTokenTransactionMintAndTransferTokens(t *testing.T) {
 		}
 	}
 
-	finalIssueTokenTransactionHash, err := utils.HashTokenTransaction(finalIssueTokenTransaction, false)
+	finalIssueTokenTransactionHash, err := utils.HashTokenTransactionV0(finalIssueTokenTransaction, false)
 	if err != nil {
 		t.Fatalf("failed to hash final issuance token transaction: %v", err)
 	}
@@ -599,10 +599,10 @@ func TestBroadcastTokenTransactionMintAndTransferTokensLotsOfOutputs(t *testing.
 	require.NoError(t, err, "failed to broadcast issuance token transaction")
 	log.Printf("issuance broadcast finalized token transaction: %s", logging.FormatProto("token_transaction", finalIssueTokenTransactionSecond100))
 
-	finalIssueTokenTransactionHashFirst100, err := utils.HashTokenTransaction(finalIssueTokenTransactionFirst100, false)
+	finalIssueTokenTransactionHashFirst100, err := utils.HashTokenTransactionV0(finalIssueTokenTransactionFirst100, false)
 	require.NoError(t, err, "failed to hash final issuance token transaction")
 
-	finalIssueTokenTransactionHashSecond100, err := utils.HashTokenTransaction(finalIssueTokenTransactionSecond100, false)
+	finalIssueTokenTransactionHashSecond100, err := utils.HashTokenTransactionV0(finalIssueTokenTransactionSecond100, false)
 	require.NoError(t, err, "failed to hash final issuance token transaction")
 
 	// Create consolidation transaction
@@ -761,7 +761,7 @@ func TestFreezeAndUnfreezeTokens(t *testing.T) {
 	require.Equal(t, *expectedOutputID, freezeResponse.ImpactedOutputIds[0],
 		"frozen output ID %s does not match expected output ID %s", freezeResponse.ImpactedOutputIds[0], *expectedOutputID)
 
-	finalIssueTokenTransactionHash, err := utils.HashTokenTransaction(finalIssueTokenTransaction, false)
+	finalIssueTokenTransactionHash, err := utils.HashTokenTransactionV0(finalIssueTokenTransaction, false)
 	require.NoError(t, err, "failed to hash final transfer token transaction")
 
 	// Replace direct transaction creation with helper function call
@@ -859,10 +859,10 @@ func testMintTransactionSigningScenarios(t *testing.T, config *wallet.Config,
 
 		require.True(t, bytes.Equal(finalTxHash, finalTxHash2), "transaction hashes should be identical")
 
-		hash1, err := utils.HashTokenTransaction(startResp.FinalTokenTransaction, false)
+		hash1, err := utils.HashTokenTransactionV0(startResp.FinalTokenTransaction, false)
 		require.NoError(t, err, "failed to hash first final token transaction")
 
-		hash2, err := utils.HashTokenTransaction(startResp2.FinalTokenTransaction, false)
+		hash2, err := utils.HashTokenTransactionV0(startResp2.FinalTokenTransaction, false)
 		require.NoError(t, err, "failed to hash second final token transaction")
 
 		require.True(t, bytes.Equal(hash1, hash2), "final transactions should hash to identical values")
@@ -1104,7 +1104,7 @@ func testTransferTransactionSigningScenarios(t *testing.T, config *wallet.Config
 		signingOwnerPrivateKeys = startingOwnerPrivateKeys
 	}
 
-	finalIssueTokenTransactionHash, err := utils.HashTokenTransaction(finalIssueTokenTransaction, false)
+	finalIssueTokenTransactionHash, err := utils.HashTokenTransactionV0(finalIssueTokenTransaction, false)
 	require.NoError(t, err, "failed to hash final issuance token transaction")
 
 	transferTokenTransaction, _, err := createTestTokenTransferTransaction(config,
@@ -1134,10 +1134,10 @@ func testTransferTransactionSigningScenarios(t *testing.T, config *wallet.Config
 
 		require.True(t, bytes.Equal(transferFinalTxHash, transferFinalTxHash2), "transaction hashes should be identical")
 
-		hash1, err := utils.HashTokenTransaction(transferStartResp.FinalTokenTransaction, false)
+		hash1, err := utils.HashTokenTransactionV0(transferStartResp.FinalTokenTransaction, false)
 		require.NoError(t, err, "failed to hash first final token transaction")
 
-		hash2, err := utils.HashTokenTransaction(transferStartResp2.FinalTokenTransaction, false)
+		hash2, err := utils.HashTokenTransactionV0(transferStartResp2.FinalTokenTransaction, false)
 		require.NoError(t, err, "failed to hash second final token transaction")
 
 		require.True(t, bytes.Equal(hash1, hash2), "final transactions should hash to identical values")
@@ -1542,7 +1542,7 @@ func TestBroadcastTokenTransactionMintAndTransferTokensSchnorr(t *testing.T) {
 			"output %d: expected withdrawal relative block locktime %d, got %d", i, uint64(WithdrawalRelativeBlockLocktimeInConfig), output.GetWithdrawRelativeBlockLocktime())
 	}
 
-	finalIssueTokenTransactionHash, err := utils.HashTokenTransaction(finalIssueTokenTransaction, false)
+	finalIssueTokenTransactionHash, err := utils.HashTokenTransactionV0(finalIssueTokenTransaction, false)
 	require.NoError(t, err, "failed to hash final issuance token transaction")
 
 	transferTokenTransaction, _, err := createTestTokenTransferTransaction(config,
@@ -1607,7 +1607,7 @@ func TestBroadcastTokenTransactionWithInvalidPrevTxHash(t *testing.T) {
 	require.NoError(t, err, "failed to broadcast issuance token transaction")
 	log.Printf("issuance broadcast finalized token transaction: %s", logging.FormatProto("token_transaction", finalIssueTokenTransaction))
 
-	finalIssueTokenTransactionHash, err := utils.HashTokenTransaction(finalIssueTokenTransaction, false)
+	finalIssueTokenTransactionHash, err := utils.HashTokenTransactionV0(finalIssueTokenTransaction, false)
 	require.NoError(t, err, "failed to hash final issuance token transaction")
 
 	// Corrupt the transaction hash by adding a byte
@@ -1736,10 +1736,10 @@ func verifyDifferentTransactionOutputs(t *testing.T, firstTx, secondTx *pb.Token
 			"expected different revocation commitments when starting with different coordinator")
 	}
 
-	hash1, err := utils.HashTokenTransaction(firstTx, false)
+	hash1, err := utils.HashTokenTransactionV0(firstTx, false)
 	require.NoError(t, err, "failed to hash first final token transaction")
 
-	hash2, err := utils.HashTokenTransaction(secondTx, false)
+	hash2, err := utils.HashTokenTransactionV0(secondTx, false)
 	require.NoError(t, err, "failed to hash second final token transaction")
 
 	require.False(t, bytes.Equal(hash1, hash2),

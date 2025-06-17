@@ -233,6 +233,36 @@ var (
 			},
 		},
 	}
+	// TokenCreatesColumns holds the columns for the "token_creates" table.
+	TokenCreatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "issuer_public_key", Type: field.TypeBytes, Unique: true},
+		{Name: "wallet_provided_timestamp", Type: field.TypeUint64, Nullable: true},
+		{Name: "issuer_signature", Type: field.TypeBytes, Unique: true, Nullable: true},
+		{Name: "operator_specific_issuer_signature", Type: field.TypeBytes, Unique: true, Nullable: true},
+		{Name: "creation_entity_public_key", Type: field.TypeBytes},
+		{Name: "token_name", Type: field.TypeString},
+		{Name: "token_ticker", Type: field.TypeString},
+		{Name: "decimals", Type: field.TypeUint32},
+		{Name: "max_supply", Type: field.TypeBytes},
+		{Name: "is_freezable", Type: field.TypeBool},
+		{Name: "network", Type: field.TypeEnum, Enums: []string{"UNSPECIFIED", "MAINNET", "REGTEST", "TESTNET", "SIGNET"}},
+	}
+	// TokenCreatesTable holds the schema information for the "token_creates" table.
+	TokenCreatesTable = &schema.Table{
+		Name:       "token_creates",
+		Columns:    TokenCreatesColumns,
+		PrimaryKey: []*schema.Column{TokenCreatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "tokencreate_issuer_public_key",
+				Unique:  true,
+				Columns: []*schema.Column{TokenCreatesColumns[3]},
+			},
+		},
+	}
 	// TokenFreezesColumns holds the columns for the "token_freezes" table.
 	TokenFreezesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -333,6 +363,7 @@ var (
 		{Name: "wallet_provided_timestamp", Type: field.TypeUint64},
 		{Name: "issuer_signature", Type: field.TypeBytes},
 		{Name: "operator_specific_issuer_signature", Type: field.TypeBytes, Unique: true, Nullable: true},
+		{Name: "token_identifier", Type: field.TypeBytes, Nullable: true},
 	}
 	// TokenMintsTable holds the schema information for the "token_mints" table.
 	TokenMintsTable = &schema.Table{
@@ -359,6 +390,7 @@ var (
 		{Name: "spent_revocation_secret", Type: field.TypeBytes, Nullable: true},
 		{Name: "confirmed_withdraw_block_hash", Type: field.TypeBytes, Nullable: true},
 		{Name: "network", Type: field.TypeEnum, Nullable: true, Enums: []string{"UNSPECIFIED", "MAINNET", "REGTEST", "TESTNET", "SIGNET"}},
+		{Name: "token_identifier", Type: field.TypeBytes, Nullable: true},
 		{Name: "token_output_revocation_keyshare", Type: field.TypeUUID},
 		{Name: "token_output_output_created_token_transaction", Type: field.TypeUUID, Nullable: true},
 		{Name: "token_output_output_spent_token_transaction", Type: field.TypeUUID, Nullable: true},
@@ -371,19 +403,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "token_outputs_signing_keyshares_revocation_keyshare",
-				Columns:    []*schema.Column{TokenOutputsColumns[17]},
+				Columns:    []*schema.Column{TokenOutputsColumns[18]},
 				RefColumns: []*schema.Column{SigningKeysharesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "token_outputs_token_transactions_output_created_token_transaction",
-				Columns:    []*schema.Column{TokenOutputsColumns[18]},
+				Columns:    []*schema.Column{TokenOutputsColumns[19]},
 				RefColumns: []*schema.Column{TokenTransactionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "token_outputs_token_transactions_output_spent_token_transaction",
-				Columns:    []*schema.Column{TokenOutputsColumns[19]},
+				Columns:    []*schema.Column{TokenOutputsColumns[20]},
 				RefColumns: []*schema.Column{TokenTransactionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -393,6 +425,11 @@ var (
 				Name:    "tokenoutput_owner_public_key_token_public_key",
 				Unique:  false,
 				Columns: []*schema.Column{TokenOutputsColumns[4], TokenOutputsColumns[8]},
+			},
+			{
+				Name:    "tokenoutput_owner_public_key_token_identifier",
+				Unique:  false,
+				Columns: []*schema.Column{TokenOutputsColumns[4], TokenOutputsColumns[17]},
 			},
 			{
 				Name:    "tokenoutput_confirmed_withdraw_block_hash",
@@ -413,6 +450,7 @@ var (
 		{Name: "expiry_time", Type: field.TypeTime, Nullable: true},
 		{Name: "coordinator_public_key", Type: field.TypeBytes, Nullable: true},
 		{Name: "token_transaction_mint", Type: field.TypeUUID, Nullable: true},
+		{Name: "token_transaction_create", Type: field.TypeUUID, Nullable: true},
 	}
 	// TokenTransactionsTable holds the schema information for the "token_transactions" table.
 	TokenTransactionsTable = &schema.Table{
@@ -424,6 +462,12 @@ var (
 				Symbol:     "token_transactions_token_mints_mint",
 				Columns:    []*schema.Column{TokenTransactionsColumns[9]},
 				RefColumns: []*schema.Column{TokenMintsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "token_transactions_token_creates_create",
+				Columns:    []*schema.Column{TokenTransactionsColumns[10]},
+				RefColumns: []*schema.Column{TokenCreatesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
@@ -823,6 +867,7 @@ var (
 		PreimageSharesTable,
 		SigningKeysharesTable,
 		SigningNoncesTable,
+		TokenCreatesTable,
 		TokenFreezesTable,
 		TokenLeafsTable,
 		TokenMintsTable,
@@ -851,6 +896,7 @@ func init() {
 	TokenOutputsTable.ForeignKeys[1].RefTable = TokenTransactionsTable
 	TokenOutputsTable.ForeignKeys[2].RefTable = TokenTransactionsTable
 	TokenTransactionsTable.ForeignKeys[0].RefTable = TokenMintsTable
+	TokenTransactionsTable.ForeignKeys[1].RefTable = TokenCreatesTable
 	TokenTransactionReceiptsTable.ForeignKeys[0].RefTable = TokenMintsTable
 	TransferLeafsTable.ForeignKeys[0].RefTable = TransfersTable
 	TransferLeafsTable.ForeignKeys[1].RefTable = TreeNodesTable

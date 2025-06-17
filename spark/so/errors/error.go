@@ -84,3 +84,7 @@ func FailedPreconditionErrorf(format string, args ...any) error {
 func NotFoundErrorf(format string, args ...any) error {
 	return newGRPCError(codes.NotFound, fmt.Errorf(format, args...))
 }
+
+func UnavailableErrorf(format string, args ...any) error {
+	return newGRPCError(codes.Unavailable, fmt.Errorf(format, args...))
+}

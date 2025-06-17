@@ -6,6 +6,22 @@ import { Network } from "./network.js";
 
 const TIME_LOCK_INTERVAL = 100;
 
+// Default fee constants matching Go implementation
+const ESTIMATED_TX_SIZE = 191;
+const DEFAULT_SATS_PER_VBYTE = 5;
+export const DEFAULT_FEE_SATS = ESTIMATED_TX_SIZE * DEFAULT_SATS_PER_VBYTE;
+
+/**
+ * Subtracts the default fee from the amount if it's greater than the fee.
+ * Returns the original amount if it's less than or equal to the fee.
+ */
+export function maybeApplyFee(amount: bigint): bigint {
+  if (amount > BigInt(DEFAULT_FEE_SATS)) {
+    return amount - BigInt(DEFAULT_FEE_SATS);
+  }
+  return amount;
+}
+
 export function createRefundTx(
   sequence: number,
   nodeOutPoint: TransactionInput,
@@ -13,7 +29,10 @@ export function createRefundTx(
   receivingPubkey: Uint8Array,
   network: Network,
 ): Transaction {
-  const newRefundTx = new Transaction({ allowUnknownOutputs: true });
+  const newRefundTx = new Transaction({
+    version: 3,
+    allowUnknownOutputs: true,
+  });
   newRefundTx.addInput({
     ...nodeOutPoint,
     sequence,
@@ -25,6 +44,7 @@ export function createRefundTx(
     script: refundPkScript,
     amount: amountSats,
   });
+
   newRefundTx.addOutput(getEphemeralAnchorOutput());
 
   return newRefundTx;
@@ -55,8 +75,8 @@ export function getNextTransactionSequence(
     };
   }
 
-  if (nextTimelock <= 0) {
-    throw new ValidationError("timelock interval is less than or equal to 0", {
+  if (nextTimelock < 100) {
+    throw new ValidationError("timelock interval is less than 100", {
       field: "nextTimelock",
       value: nextTimelock,
     });

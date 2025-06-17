@@ -3,14 +3,40 @@ syntax = "proto3";
 package gossip;
 
 option go_package = "github.com/lightsparkdev/spark/proto/gossip";
+import "spark.proto";
 
 message GossipMessage {
     string message_id = 1;
     oneof message {
         GossipMessageCancelTransfer cancel_transfer = 2;
+        GossipMessageMagicSwap magic_swap = 3;
+        GossipMessageSettleSenderKeyTweak settle_sender_key_tweak = 4;
+        GossipMessageRollbackTransfer rollback_transfer = 5;
     }
 }
 
 message GossipMessageCancelTransfer {
     string transfer_id = 1;
+}
+
+// Rolling back a transfer reverts it to its initial state. Only transfers that
+// have not been key-tweaked by the sender are eligible for rollback.
+message GossipMessageRollbackTransfer {
+    string transfer_id = 1;
+}
+
+
+message GossipMessageMagicSwap {
+    string transfer_id = 1;
+    repeated string swap_leaf_ids = 2;
+    bytes sender_public_key = 3;
+    bytes receiver_public_key = 4;
+}
+
+message GossipMessageSettleSenderKeyTweak {
+    string transfer_id = 1;
+    // The key tweak proofs for the leaves that this message is to commit.
+    // This is a safe guard to ensure that we can detect mismatch key tweaks, but if the proofs
+    // don't match, there's no way to recover at this point.
+    map<string, spark.SecretProof> sender_key_tweak_proofs = 2;
 }

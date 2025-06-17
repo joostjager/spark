@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -94,7 +94,7 @@ var (
 )
 
 // NetworkValidator is a validator for the "network" field enum values. It is called by the builders before save.
-func NetworkValidator(n schema.Network) error {
+func NetworkValidator(n schematype.Network) error {
 	switch n {
 	case "UNSPECIFIED", "MAINNET", "REGTEST", "TESTNET", "SIGNET":
 		return nil

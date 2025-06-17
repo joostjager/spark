@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/common/logging"
@@ -19,9 +21,11 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
+	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/lrc20"
+	"github.com/lightsparkdev/spark/so/protoconverter"
 	"github.com/lightsparkdev/spark/so/utils"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -39,7 +43,7 @@ func NewInternalTokenTransactionHandler(config *so.Config, client *lrc20.Client)
 
 func (h *InternalTokenTransactionHandler) StartTokenTransactionInternal(ctx context.Context, config *so.Config, req *pbinternal.StartTokenTransactionInternalRequest) (*emptypb.Empty, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	partialTransactionHash, err := utils.HashTokenTransaction(req.FinalTokenTransaction, true)
+	partialTransactionHash, err := utils.HashTokenTransactionV0(req.FinalTokenTransaction, true)
 	if err != nil {
 		return nil, formatErrorWithTransactionProtoInternal("failed to compute transaction hash", req.FinalTokenTransaction, err)
 	}
@@ -117,11 +121,12 @@ func (h *InternalTokenTransactionHandler) StartTokenTransactionInternal(ctx cont
 	logger.Info("Final token transaction validated")
 
 	logger.Info("Verifying token transaction with LRC20 node")
-	err = h.VerifyTokenTransactionWithLrc20Node(ctx, req.FinalTokenTransaction)
+	err = h.lrc20Client.VerifySparkTx(ctx, req.FinalTokenTransaction)
 	if err != nil {
 		return nil, formatErrorWithTransactionProtoInternal("failed to verify token transaction with LRC20 node", req.FinalTokenTransaction, err)
 	}
 	logger.Info("Token transaction verified with LRC20 node")
+
 	// Save the token transaction, created output ents, and update the outputs to spend.
 	_, err = ent.CreateStartedTransactionEntities(ctx, req.FinalTokenTransaction, req.TokenTransactionSignatures, req.KeyshareIds, outputToSpendEnts, req.CoordinatorPublicKey, transactionExpiryTime)
 	if err != nil {
@@ -131,17 +136,312 @@ func (h *InternalTokenTransactionHandler) StartTokenTransactionInternal(ctx cont
 	return &emptypb.Empty{}, nil
 }
 
+// SignAndPersistTokenTransaction performs the core logic for signing a token transaction from coordination.
+// It validates the transaction, input signatures, signs the hash, updates the DB, and returns the signature bytes.
+func (h InternalTokenTransactionHandler) SignAndPersistTokenTransaction(
+	ctx context.Context,
+	config *so.Config,
+	tokenTransaction *ent.TokenTransaction,
+	finalTokenTransactionHash []byte,
+	operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature,
+) ([]byte, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+
+	if err := validateTokenTransactionForSigning(tokenTransaction); err != nil {
+		return nil, formatErrorWithTransactionEnt(err.Error(), tokenTransaction, err)
+	}
+
+	if err := validateOperatorSpecificSignatures(config.IdentityPublicKey(), operatorSpecificSignatures, tokenTransaction); err != nil {
+		return nil, err
+	}
+
+	if tokenTransaction.Status == st.TokenTransactionStatusSigned {
+		signature, err := h.regenerateOperatorSignatureForDuplicateRequest(ctx, config, tokenTransaction, finalTokenTransactionHash)
+		if err != nil {
+			return nil, err
+		}
+		return signature, nil
+	}
+
+	invalidOutputs := validateOutputs(tokenTransaction.Edges.CreatedOutput, st.TokenOutputStatusCreatedStarted)
+	if len(invalidOutputs) > 0 {
+		return nil, formatErrorWithTransactionEnt(fmt.Sprintf("%s: %s", errInvalidOutputs, strings.Join(invalidOutputs, "; ")), tokenTransaction, nil)
+	}
+
+	// If token outputs are being spent, verify the expected status of inputs and check for active freezes.
+	// For mints this is not necessary and will be skipped because it does not spend outputs.
+	if len(tokenTransaction.Edges.SpentOutput) > 0 {
+		invalidOutputs := validateInputs(tokenTransaction.Edges.SpentOutput, st.TokenOutputStatusSpentStarted)
+		if len(invalidOutputs) > 0 {
+			return nil, formatErrorWithTransactionEnt(fmt.Sprintf("%s: %s", errInvalidInputs, strings.Join(invalidOutputs, "; ")), tokenTransaction, nil)
+		}
+
+		// Collect owner public keys for freeze check.
+		ownerPublicKeys := make([][]byte, len(tokenTransaction.Edges.SpentOutput))
+		// Assumes that all token public keys are the same as the first output. This is asserted when validating
+		// in the StartTokenTransaction() step.
+		tokenPublicKey := tokenTransaction.Edges.SpentOutput[0].TokenPublicKey
+		for i, output := range tokenTransaction.Edges.SpentOutput {
+			ownerPublicKeys[i] = output.OwnerPublicKey
+		}
+
+		// Bulk query all input ids to ensure none of them are frozen.
+		activeFreezes, err := ent.GetActiveFreezes(ctx, ownerPublicKeys, tokenPublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", errFailedToQueryTokenFreezeStatus, err)
+		}
+
+		if len(activeFreezes) > 0 {
+			for _, freeze := range activeFreezes {
+				logger.Info("Found active freeze", "owner", freeze.OwnerPublicKey, "token", freeze.TokenPublicKey, "freeze_timestamp", freeze.WalletProvidedFreezeTimestamp)
+			}
+			return nil, fmt.Errorf("at least one input is frozen. Cannot proceed with transaction")
+		}
+	}
+
+	identityPrivateKey := secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey)
+	operatorSignature := ecdsa.Sign(identityPrivateKey, finalTokenTransactionHash)
+
+	// Order the signatures according to their index before updating the DB.
+	operatorSpecificSignatureMap := make(map[int][]byte, len(operatorSpecificSignatures))
+	for _, sig := range operatorSpecificSignatures {
+		inputIndex := int(sig.OwnerSignature.InputIndex)
+		operatorSpecificSignatureMap[inputIndex] = sig.OwnerSignature.Signature
+	}
+	operatorSpecificSignaturesArr := make([][]byte, len(operatorSpecificSignatureMap))
+	for i := 0; i < len(operatorSpecificSignatureMap); i++ {
+		operatorSpecificSignaturesArr[i] = operatorSpecificSignatureMap[i]
+	}
+	err := ent.UpdateSignedTransaction(ctx, tokenTransaction, operatorSpecificSignaturesArr, operatorSignature.Serialize())
+	if err != nil {
+		return nil, formatErrorWithTransactionEnt("failed to update outputs after signing", tokenTransaction, err)
+	}
+
+	return operatorSignature.Serialize(), nil
+}
+
+func validateTokenTransactionForSigning(tokenTransactionEnt *ent.TokenTransaction) error {
+	if tokenTransactionEnt.Status != st.TokenTransactionStatusStarted &&
+		tokenTransactionEnt.Status != st.TokenTransactionStatusSigned {
+		return fmt.Errorf("signing failed because transaction is not in correct state, expected %s or %s, current status: %s", st.TokenTransactionStatusStarted, st.TokenTransactionStatusSigned, tokenTransactionEnt.Status)
+	}
+	if !tokenTransactionEnt.ExpiryTime.IsZero() && time.Now().After(tokenTransactionEnt.ExpiryTime) {
+		return fmt.Errorf("signing failed because token transaction %s has expired at %s", tokenTransactionEnt.ID, tokenTransactionEnt.ExpiryTime.Format(time.RFC3339))
+	}
+	return nil
+}
+
+// validateOperatorSpecificSignatures validates the signatures in the request against the transaction hash
+// and verifies that the number of signatures matches the expected count based on transaction type
+func validateOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
+	if len(tokenTransaction.Edges.SpentOutput) > 0 {
+		return validateTransferOperatorSpecificSignatures(identityPublicKey, operatorSpecificSignatures, tokenTransaction)
+	}
+	return validateMintOperatorSpecificSignatures(identityPublicKey, operatorSpecificSignatures, tokenTransaction)
+}
+
+// validateTransferOperatorSpecificSignatures validates signatures for transfer transactions
+func validateTransferOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
+	if len(operatorSpecificSignatures) != len(tokenTransaction.Edges.SpentOutput) {
+		return formatErrorWithTransactionEnt(
+			fmt.Sprintf("expected %d signatures for transfer (one per input), but got %d",
+				len(tokenTransaction.Edges.SpentOutput), len(operatorSpecificSignatures)),
+			tokenTransaction, nil)
+	}
+	numInputs := len(tokenTransaction.Edges.SpentOutput)
+	signaturesByIndex := make([]*pb.OperatorSpecificOwnerSignature, numInputs)
+
+	// Sort signatures according to index position
+	for _, sig := range operatorSpecificSignatures {
+		index := int(sig.OwnerSignature.InputIndex)
+		if index < 0 || index >= numInputs {
+			return formatErrorWithTransactionEnt(
+				fmt.Sprintf(errInputIndexOutOfRange, index, numInputs-1),
+				tokenTransaction, nil)
+		}
+
+		if signaturesByIndex[index] != nil {
+			return formatErrorWithTransactionEnt(
+				fmt.Sprintf("duplicate signature for input index %d", index),
+				tokenTransaction, nil)
+		}
+
+		signaturesByIndex[index] = sig
+	}
+
+	for i := 0; i < numInputs; i++ {
+		if signaturesByIndex[i] == nil {
+			return formatErrorWithTransactionEnt(
+				fmt.Sprintf("missing signature for input index %d", i),
+				tokenTransaction, nil)
+		}
+	}
+
+	// Sort spent outputs by their index
+	spentOutputs := make([]*ent.TokenOutput, numInputs)
+	copy(spentOutputs, tokenTransaction.Edges.SpentOutput)
+	sort.Slice(spentOutputs, func(i, j int) bool {
+		return spentOutputs[i].SpentTransactionInputVout < spentOutputs[j].SpentTransactionInputVout
+	})
+
+	// Validate each signature against its corresponding output
+	for i, sig := range signaturesByIndex {
+		payloadHash, err := utils.HashOperatorSpecificTokenTransactionSignablePayload(sig.Payload)
+		if err != nil {
+			return fmt.Errorf("%s: %w", errFailedToHashRevocationKeyshares, err)
+		}
+
+		if !bytes.Equal(sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash) {
+			return fmt.Errorf(errTransactionHashMismatch,
+				sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash)
+		}
+
+		if !bytes.Equal(sig.Payload.OperatorIdentityPublicKey, identityPublicKey) {
+			return fmt.Errorf(errOperatorPublicKeyMismatch,
+				sig.Payload.OperatorIdentityPublicKey, identityPublicKey)
+		}
+
+		output := spentOutputs[i]
+		if err := utils.ValidateOwnershipSignature(
+			sig.OwnerSignature.Signature,
+			payloadHash,
+			output.OwnerPublicKey,
+		); err != nil {
+			return formatErrorWithTransactionEnt(errInvalidOwnerSignature, tokenTransaction, err)
+		}
+	}
+
+	return nil
+}
+
+// validateMintOperatorSpecificSignatures validates signatures for mint transactions
+func validateMintOperatorSpecificSignatures(identityPublicKey []byte, operatorSpecificSignatures []*pb.OperatorSpecificOwnerSignature, tokenTransaction *ent.TokenTransaction) error {
+	if len(operatorSpecificSignatures) != 1 {
+		return formatErrorWithTransactionEnt(
+			fmt.Sprintf("expected exactly 1 signature for mint, but got %d",
+				len(operatorSpecificSignatures)),
+			tokenTransaction, nil)
+	}
+
+	if tokenTransaction.Edges.Mint == nil {
+		return formatErrorWithTransactionEnt(
+			"mint record not found in db, but expected a mint for this transaction",
+			tokenTransaction, nil)
+	}
+
+	sig := operatorSpecificSignatures[0]
+
+	// Validate the signature payload
+	payloadHash, err := utils.HashOperatorSpecificTokenTransactionSignablePayload(sig.Payload)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errFailedToHashRevocationKeyshares, err)
+	}
+
+	if !bytes.Equal(sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash) {
+		return fmt.Errorf(errTransactionHashMismatch,
+			sig.Payload.FinalTokenTransactionHash, tokenTransaction.FinalizedTokenTransactionHash)
+	}
+
+	if len(sig.Payload.OperatorIdentityPublicKey) > 0 {
+		if !bytes.Equal(sig.Payload.OperatorIdentityPublicKey, identityPublicKey) {
+			return fmt.Errorf(errOperatorPublicKeyMismatch,
+				sig.Payload.OperatorIdentityPublicKey, identityPublicKey)
+		}
+	}
+
+	// Validate the signature using the issuer public key from the database
+	if err := utils.ValidateOwnershipSignature(
+		sig.OwnerSignature.Signature,
+		payloadHash,
+		tokenTransaction.Edges.Mint.IssuerPublicKey,
+	); err != nil {
+		return formatErrorWithTransactionEnt(errInvalidIssuerSignature, tokenTransaction, err)
+	}
+
+	return nil
+}
+
+// validateOutputs checks if all created outputs have the expected status
+func validateOutputs(outputs []*ent.TokenOutput, expectedStatus st.TokenOutputStatus) []string {
+	var invalidOutputs []string
+	for i, output := range outputs {
+		if output.Status != expectedStatus {
+			invalidOutputs = append(invalidOutputs, fmt.Sprintf("output %d has invalid status %s, expected %s",
+				i, output.Status, expectedStatus))
+		}
+	}
+	return invalidOutputs
+}
+
+// validateInputs checks if all spent outputs have the expected status and aren't withdrawn
+func validateInputs(outputs []*ent.TokenOutput, expectedStatus st.TokenOutputStatus) []string {
+	var invalidOutputs []string
+	for _, output := range outputs {
+		if output.Status != expectedStatus {
+			invalidOutputs = append(invalidOutputs, fmt.Sprintf("input %x has invalid status %s, expected %s",
+				output.ID, output.Status, expectedStatus))
+		}
+		if output.ConfirmedWithdrawBlockHash != nil {
+			invalidOutputs = append(invalidOutputs, fmt.Sprintf("input %x is already withdrawn",
+				output.ID))
+		}
+	}
+	return invalidOutputs
+}
+
+// regenerateOperatorSignatureForDuplicateRequest handles the case where a transaction has already been signed.
+// This allows for simpler wallet SDK logic such that if a Sign() call to one of the SOs failed,
+// the wallet SDK can retry with all SOs and get successful responses.
+func (h InternalTokenTransactionHandler) regenerateOperatorSignatureForDuplicateRequest(
+	ctx context.Context,
+	config *so.Config,
+	tokenTransaction *ent.TokenTransaction,
+	finalTokenTransactionHash []byte,
+) ([]byte, error) {
+	logWithTransactionEnt(ctx, "Regenerating response for a duplicate SignTokenTransaction() Call", tokenTransaction, slog.LevelDebug)
+
+	var invalidOutputs []string
+	isMint := tokenTransaction.Edges.Mint != nil
+	expectedCreatedOutputStatus := st.TokenOutputStatusCreatedSigned
+	if isMint {
+		expectedCreatedOutputStatus = st.TokenOutputStatusCreatedFinalized
+	}
+
+	invalidOutputs = validateOutputs(tokenTransaction.Edges.CreatedOutput, expectedCreatedOutputStatus)
+	if len(tokenTransaction.Edges.SpentOutput) > 0 {
+		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, st.TokenOutputStatusSpentSigned)...)
+	}
+	if len(invalidOutputs) > 0 {
+		return nil, formatErrorWithTransactionEnt(
+			fmt.Sprintf("%s: %s",
+				errInvalidOutputs,
+				strings.Join(invalidOutputs, "; ")),
+			tokenTransaction, nil)
+	}
+
+	if err := utils.ValidateOwnershipSignature(
+		tokenTransaction.OperatorSignature,
+		finalTokenTransactionHash,
+		config.IdentityPublicKey(),
+	); err != nil {
+		return nil, formatErrorWithTransactionEnt(errStoredOperatorSignatureInvalid, tokenTransaction, err)
+	}
+
+	logWithTransactionEnt(ctx, "Returning stored signature in response to repeat Sign() call", tokenTransaction, slog.LevelDebug)
+	return tokenTransaction.OperatorSignature, nil
+}
+
 func (h InternalTokenTransactionHandler) CancelOrFinalizeExpiredTokenTransaction(
 	ctx context.Context,
 	config *so.Config,
 	lockedTokenTransaction *ent.TokenTransaction,
 ) error {
 	// Verify that the transaction is in a cancellable state locally
-	if lockedTokenTransaction.Status != schema.TokenTransactionStatusSigned &&
-		lockedTokenTransaction.Status != schema.TokenTransactionStatusStarted {
+	if lockedTokenTransaction.Status != st.TokenTransactionStatusSigned &&
+		lockedTokenTransaction.Status != st.TokenTransactionStatusStarted {
 		return formatErrorWithTransactionEntInternal(
 			fmt.Sprintf(errInvalidTransactionStatus,
-				lockedTokenTransaction.Status, fmt.Sprintf("%s or %s", schema.TokenTransactionStatusStarted, schema.TokenTransactionStatusSigned)),
+				lockedTokenTransaction.Status, fmt.Sprintf("%s or %s", st.TokenTransactionStatusStarted, st.TokenTransactionStatusSigned)),
 			lockedTokenTransaction, nil)
 	}
 
@@ -261,16 +561,12 @@ func (h InternalTokenTransactionHandler) CancelOrFinalizeExpiredTokenTransaction
 	return nil
 }
 
-func (h *InternalTokenTransactionHandler) VerifyTokenTransactionWithLrc20Node(ctx context.Context, tokenTransaction *pb.TokenTransaction) error {
-	return h.lrc20Client.VerifySparkTx(ctx, tokenTransaction)
-}
-
 func ValidateMintSignature(
 	tokenTransaction *pb.TokenTransaction,
 	tokenTransactionSignatures *pb.TokenTransactionSignatures,
 ) error {
 	// Although this token transaction is final we pass in 'true' to generate the partial hash.
-	partialTokenTransactionHash, err := utils.HashTokenTransaction(tokenTransaction, true)
+	partialTokenTransactionHash, err := utils.HashTokenTransactionV0(tokenTransaction, true)
 	if err != nil {
 		return formatErrorWithTransactionProtoInternal("failed to hash token transaction", tokenTransaction, err)
 	}
@@ -328,23 +624,27 @@ func (h InternalTokenTransactionHandler) FinalizeTokenTransactionInternal(
 	config *so.Config,
 	req *pb.FinalizeTokenTransactionRequest,
 ) (*emptypb.Empty, error) {
-	tokenTransaction, err := ent.FetchAndLockTokenTransactionData(ctx, req.FinalTokenTransaction)
+	tokenProtoTokenTransaction, err := protoconverter.TokenProtoFromSparkTokenTransaction(req.FinalTokenTransaction)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert token transaction to spark token transaction: %w", err)
+	}
+	tokenTransaction, err := ent.FetchAndLockTokenTransactionData(ctx, tokenProtoTokenTransaction)
 	if err != nil {
 		return nil, formatErrorWithTransactionEnt(errFailedToFetchTransaction, tokenTransaction, err)
 	}
 
 	// Verify that the transaction is in a signed state before finalizing
-	if tokenTransaction.Status != schema.TokenTransactionStatusSigned {
+	if tokenTransaction.Status != st.TokenTransactionStatusSigned {
 		return nil, formatErrorWithTransactionEnt(
 			fmt.Sprintf(errInvalidTransactionStatus,
-				tokenTransaction.Status, schema.TokenTransactionStatusSigned),
+				tokenTransaction.Status, st.TokenTransactionStatusSigned),
 			tokenTransaction, nil)
 	}
 
 	// Verify status of created outputs and spent outputs
-	invalidOutputs := validateOutputs(tokenTransaction.Edges.CreatedOutput, schema.TokenOutputStatusCreatedSigned)
+	invalidOutputs := validateOutputs(tokenTransaction.Edges.CreatedOutput, st.TokenOutputStatusCreatedSigned)
 	if len(tokenTransaction.Edges.SpentOutput) > 0 {
-		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, schema.TokenOutputStatusSpentSigned)...)
+		invalidOutputs = append(invalidOutputs, validateInputs(tokenTransaction.Edges.SpentOutput, st.TokenOutputStatusSpentSigned)...)
 	}
 
 	if len(invalidOutputs) > 0 {
@@ -443,7 +743,7 @@ func ValidateTokenTransactionUsingPreviousTransactionData(
 		}
 
 		// TODO(DL-104): For now we allow the network to be nil to support old outputs. In the future we should require it to be set.
-		if outputEnt.Network != schema.Network("") {
+		if outputEnt.Network != st.Network("") {
 			entNetwork, err := outputEnt.Network.MarshalProto()
 			if err != nil {
 				return formatErrorWithTransactionProtoInternal("failed to marshal network", tokenTransaction, err)
@@ -470,7 +770,7 @@ func ValidateTokenTransactionUsingPreviousTransactionData(
 
 	// Validate that the ownership signatures match the ownership public keys in the outputs to spend.
 	// Although this token transaction is final we pass in 'true' to generate the partial hash.
-	partialTokenTransactionHash, err := utils.HashTokenTransaction(tokenTransaction, true)
+	partialTokenTransactionHash, err := utils.HashTokenTransactionV0(tokenTransaction, true)
 	if err != nil {
 		return fmt.Errorf("failed to hash token transaction: %w", err)
 	}
@@ -529,9 +829,9 @@ func validateOutputIsSpendable(index int, output *ent.TokenOutput) error {
 }
 
 // isSpendableOutputStatus checks if a output's status allows it to be spent.
-func isSpendableOutputStatus(status schema.TokenOutputStatus) bool {
-	return status == schema.TokenOutputStatusCreatedFinalized ||
-		status == schema.TokenOutputStatusSpentStarted
+func isSpendableOutputStatus(status st.TokenOutputStatus) bool {
+	return status == st.TokenOutputStatusCreatedFinalized ||
+		status == st.TokenOutputStatusSpentStarted
 }
 
 func validateFinalTokenTransaction(
@@ -569,6 +869,29 @@ func validateFinalTokenTransaction(
 		}
 		if output.GetWithdrawRelativeBlockLocktime() != expectedRelativeBlockLocktime {
 			return fmt.Errorf("withdrawal locktime mismatch for output %d", i)
+		}
+	}
+	return nil
+}
+
+func FinalizeTransferTransaction(ctx context.Context, tokenTransaction *ent.TokenTransaction) error {
+	if len(tokenTransaction.Edges.SpentOutput) > 0 {
+		// Reload the token transaction to get the latest state after signing
+		tokenTransaction, err := ent.GetDbFromContext(ctx).TokenTransaction.Query().
+			Where(tokentransaction.ID(tokenTransaction.ID)).
+			WithCreatedOutput().
+			WithSpentOutput(func(q *ent.TokenOutputQuery) {
+				// Needed to enable marshalling of the token transaction proto.
+				q.WithOutputCreatedTokenTransaction()
+			}).
+			WithMint().
+			Only(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to reload token transaction: %w", err)
+		}
+		err = ent.FinalizeTokenTransactionWithoutRevocationKeys(ctx, tokenTransaction)
+		if err != nil {
+			return fmt.Errorf("failed to finalize transaction: %w", err)
 		}
 	}
 	return nil

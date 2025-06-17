@@ -557,7 +557,8 @@ func TestTimelockExpirationAfterLightningTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// User creates an invoice
-	preimage, paymentHash := testPreimageHash(t)
+	invoiceSats := uint64(100)
+	preimage, paymentHash := testPreimageHash(t, invoiceSats)
 	defer cleanUp(t, userConfig, paymentHash)
 
 	fakeInvoiceCreator := &FakeLightningInvoiceCreator{
@@ -595,6 +596,7 @@ func TestTimelockExpirationAfterLightningTransfer(t *testing.T) {
 		nil,
 		feeSats,
 		true,
+		invoiceSats,
 	)
 	require.NoError(t, err)
 	require.Equal(t, response.Preimage, preimage[:])

@@ -14,20 +14,38 @@ import (
 	secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
+	tokenpb "github.com/lightsparkdev/spark/proto/spark_token"
+	"github.com/lightsparkdev/spark/so/protoconverter"
 )
 
 // MaxTokenOutputs defines the maximum number of input or token outputs allowed in a token transaction.
-const MaxInputOrOutputTokenTransactionOutputs = 1000
+const MaxInputOrOutputTokenTransactionOutputs = 500
 
 // Zero represents a big.Int with value 0, used for amount comparisons.
 var Zero = new(big.Int)
+
+func HashTokenTransaction(tokenTransaction *tokenpb.TokenTransaction, partialHash bool) ([]byte, error) {
+	if tokenTransaction == nil {
+		return nil, fmt.Errorf("token transaction cannot be nil")
+	}
+
+	if tokenTransaction.Version == 0 {
+		sparkTx, err := protoconverter.SparkTokenTransactionFromTokenProto(tokenTransaction)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert token transaction: %w", err)
+		}
+		return HashTokenTransactionV0(sparkTx, partialHash)
+	}
+
+	return nil, fmt.Errorf("unsupported token transaction version: %d", tokenTransaction.Version)
+}
 
 // hashTokenTransaction generates a SHA256 hash of the TokenTransaction by:
 // 1. Taking SHA256 of each field individually
 // 2. Concatenating all field hashes in order
 // 3. Taking SHA256 of the concatenated hashes
 // If partialHash is true generate a partial hash even if the provided transaction is final.
-func HashTokenTransaction(tokenTransaction *pb.TokenTransaction, partialHash bool) ([]byte, error) {
+func HashTokenTransactionV0(tokenTransaction *pb.TokenTransaction, partialHash bool) ([]byte, error) {
 	if tokenTransaction == nil {
 		return nil, fmt.Errorf("token transaction cannot be nil")
 	}

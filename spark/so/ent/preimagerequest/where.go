@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -203,19 +203,19 @@ func PaymentHashLTE(v []byte) predicate.PreimageRequest {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.PreimageRequestStatus) predicate.PreimageRequest {
+func StatusEQ(v schematype.PreimageRequestStatus) predicate.PreimageRequest {
 	vc := v
 	return predicate.PreimageRequest(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.PreimageRequestStatus) predicate.PreimageRequest {
+func StatusNEQ(v schematype.PreimageRequestStatus) predicate.PreimageRequest {
 	vc := v
 	return predicate.PreimageRequest(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.PreimageRequestStatus) predicate.PreimageRequest {
+func StatusIn(vs ...schematype.PreimageRequestStatus) predicate.PreimageRequest {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -224,7 +224,7 @@ func StatusIn(vs ...schema.PreimageRequestStatus) predicate.PreimageRequest {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.PreimageRequestStatus) predicate.PreimageRequest {
+func StatusNotIn(vs ...schematype.PreimageRequestStatus) predicate.PreimageRequest {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

@@ -838,6 +838,9 @@ describe("Transfer", () => {
       const receiverTransfer = pendingTransfer.transfers[0];
 
       expect(receiverTransfer!.id).toBe(senderTransfer.id);
+      expect(receiverTransfer!.expiryTime?.getTime() ?? 0).toBeLessThan(
+        Date.now(),
+      );
 
       const leafPrivKeyMap = await receiverWallet.verifyPendingTransfer(
         receiverTransfer!,
@@ -928,6 +931,10 @@ describe("Transfer", () => {
         senderTransfer.id,
       );
       expect(receiverTransfer!.id).toBe(senderTransfer.id);
+      expect(receiverTransfer!.expiryTime?.getTime() ?? 0).toBeLessThan(
+        Date.now(),
+      );
+
       const finalLeafPubKey = await senderWallet
         .getSigner()
         .generatePublicKey(sha256(rootNode.id));

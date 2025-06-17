@@ -1,10 +1,9 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { plainToInstance } from "class-transformer";
-import { ECPairInterface } from "ecpair";
-import { privateNegate, privateAdd, pointMultiply, pointAdd } from "@bitcoinerlab/secp256k1";
+import { pointMultiply, pointAdd } from "@bitcoinerlab/secp256k1";
 import { TokenPubkey } from "./token-pubkey.ts";
 import { TokenAmount } from "./token-amount.ts";
-import { EMPTY_TOKEN_PUBKEY, G, PARITY } from "../utils/constants.ts";
+import { EMPTY_TOKEN_PUBKEY, G } from "../utils/constants.ts";
 
 export class ReceiptDto {
   constructor(
@@ -65,24 +64,6 @@ export class Receipt {
 
   public isEmptyReceipt(): boolean {
     return this.tokenPubkey.pubkey.every((b) => b === 2);
-  }
-
-  public static receiptPrivateKey(keyPair: ECPairInterface, receipt: Receipt): Buffer {
-    // hash(hash(Y),UV)
-    const pxh = Receipt.receiptHash(receipt);
-    let innerKey = keyPair.publicKey!;
-    let privateKey = keyPair.privateKey!;
-
-    if (innerKey[0] === 3) {
-      innerKey = Buffer.concat([PARITY, innerKey.slice(1)]);
-      privateKey = Buffer.from(privateNegate(privateKey));
-    }
-
-    // hash(pxh, innerKey)
-    const pxhPubkey = bitcoin.crypto.sha256(Buffer.concat([pxh, innerKey]));
-
-    const receiptProof = privateAdd(privateKey, pxhPubkey)!;
-    return Buffer.from(receiptProof);
   }
 
   public static receiptHash(receipt: Receipt): Buffer {

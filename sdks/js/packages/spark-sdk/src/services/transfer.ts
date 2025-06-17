@@ -49,6 +49,7 @@ import {
   getEphemeralAnchorOutput,
   getNextTransactionSequence,
   getTransactionSequence,
+  maybeApplyFee,
 } from "../utils/transaction.js";
 import { getTransferPackageSigningPayload } from "../utils/transfer_package.js";
 import { WalletConfigService } from "./config.js";
@@ -156,6 +157,42 @@ export class BaseTransferService {
     return updatedTransfer;
   }
 
+  async deliverTransferPackage(
+    transfer: Transfer,
+    leaves: LeafKeyTweak[],
+    refundSignatureMap: Map<string, Uint8Array>,
+  ): Promise<Transfer> {
+    const keyTweakInputMap = await this.prepareSendTransferKeyTweaks(
+      transfer.id,
+      transfer.receiverIdentityPublicKey,
+      leaves,
+      refundSignatureMap,
+    );
+
+    const transferPackage = await this.prepareTransferPackage(
+      transfer.id,
+      keyTweakInputMap,
+      leaves,
+      transfer.receiverIdentityPublicKey,
+    );
+
+    const sparkClient = await this.connectionManager.createSparkClient(
+      this.config.getCoordinatorAddress(),
+    );
+
+    const response = await sparkClient.finalize_transfer_with_transfer_package({
+      transferId: transfer.id,
+      ownerIdentityPublicKey: await this.config.signer.getIdentityPublicKey(),
+      transferPackage,
+    });
+
+    if (!response.transfer) {
+      throw new ValidationError("No transfer response from operator");
+    }
+
+    return response.transfer;
+  }
+
   async sendTransferWithKeyTweaks(
     leaves: LeafKeyTweak[],
     receiverIdentityPubkey: Uint8Array,
@@ -187,7 +224,6 @@ export class BaseTransferService {
         transferId: transferID,
         ownerIdentityPublicKey: await this.config.signer.getIdentityPublicKey(),
         receiverIdentityPublicKey: receiverIdentityPubkey,
-        expiryTime: new Date(Date.now() + DEFAULT_EXPIRY_TIME),
         transferPackage,
       });
     } catch (error) {
@@ -538,6 +574,10 @@ export class TransferService extends BaseTransferService {
     super(config, connectionManager, signingService);
   }
 
+  /**
+   * @deprecated Use sendTransferWithKeyTweaks instead
+   * Deprecated in v0.1.32
+   */
   async sendTransfer(
     leaves: LeafKeyTweak[],
     receiverIdentityPubkey: Uint8Array,
@@ -613,6 +653,7 @@ export class TransferService extends BaseTransferService {
           TransferType.TRANSFER,
           TransferType.PREIMAGE_SWAP,
           TransferType.COOPERATIVE_EXIT,
+          TransferType.UTXO_SWAP,
         ],
         network: NetworkToProto[this.config.getNetwork()],
       });
@@ -1175,10 +1216,27 @@ export class TransferService extends BaseTransferService {
         throw Error("Could not fetch tx input");
       }
 
-      const newTx = new Transaction({ allowUnknownOutputs: true });
-      for (let j = 0; j < nodeTx.outputsLength; j++) {
-        newTx.addOutput(nodeTx.getOutput(j));
+      const newTx = new Transaction({ version: 3, allowUnknownOutputs: true });
+
+      // Apply fee to the main output
+      const originalOutput = nodeTx.getOutput(0);
+      if (!originalOutput) {
+        throw Error("Could not get original output");
       }
+
+      newTx.addOutput({
+        script: originalOutput.script!,
+        amount: originalOutput.amount!,
+      });
+
+      // Copy any additional outputs (like ephemeral anchors) without fee reduction
+      for (let j = 1; j < nodeTx.outputsLength; j++) {
+        const additionalOutput = nodeTx.getOutput(j);
+        if (additionalOutput) {
+          newTx.addOutput(additionalOutput);
+        }
+      }
+
       if (i === 0) {
         const currSequence = input.sequence;
 
@@ -1208,10 +1266,28 @@ export class TransferService extends BaseTransferService {
       throw Error("leaf does not have refund tx");
     }
     const refundTx = getTxFromRawTxBytes(leaf?.refundTx);
-    const newRefundTx = new Transaction({ allowUnknownOutputs: true });
+    const newRefundTx = new Transaction({
+      version: 3,
+      allowUnknownOutputs: true,
+    });
 
-    for (let j = 0; j < refundTx.outputsLength; j++) {
-      newRefundTx.addOutput(refundTx.getOutput(j));
+    // Apply fee to the refund output
+    const originalRefundOutput = refundTx.getOutput(0);
+    if (!originalRefundOutput) {
+      throw Error("Could not get original refund output");
+    }
+
+    newRefundTx.addOutput({
+      script: originalRefundOutput.script!,
+      amount: originalRefundOutput.amount!,
+    });
+
+    // Copy any additional outputs (like ephemeral anchors) without fee reduction
+    for (let j = 1; j < refundTx.outputsLength; j++) {
+      const additionalOutput = refundTx.getOutput(j);
+      if (additionalOutput) {
+        newRefundTx.addOutput(additionalOutput);
+      }
     }
 
     const refundTxInput = refundTx.getInput(0);
@@ -1343,10 +1419,12 @@ export class TransferService extends BaseTransferService {
       refundTxSignature: refundSignature,
     });
 
-    return await sparkClient.finalize_node_signatures({
+    const result = await sparkClient.finalize_node_signatures({
       intent: SignatureIntent.REFRESH,
       nodeSignatures,
     });
+
+    return result;
   }
 
   async extendTimelock(node: TreeNode, signingPubKey: Uint8Array) {
@@ -1361,9 +1439,24 @@ export class TransferService extends BaseTransferService {
 
     const { nextSequence: newNodeSequence } =
       getNextTransactionSequence(refundSequence);
-    const newNodeTx = new Transaction({ allowUnknownOutputs: true });
+    const newNodeTx = new Transaction({
+      version: 3,
+      allowUnknownOutputs: true,
+    });
     newNodeTx.addInput({ ...newNodeOutPoint, sequence: newNodeSequence });
-    newNodeTx.addOutput(nodeTx.getOutput(0));
+
+    // Apply fee to the new node transaction output
+    const originalOutput = nodeTx.getOutput(0);
+    if (!originalOutput) {
+      throw Error("Could not get original node output");
+    }
+
+    // const feeReducedAmount = maybeApplyFee(originalOutput.amount!);
+    newNodeTx.addOutput({
+      script: originalOutput.script!,
+      amount: originalOutput.amount!, // feeReducedAmount,
+    });
+
     newNodeTx.addOutput(getEphemeralAnchorOutput());
 
     const newRefundOutPoint: TransactionInput = {
@@ -1376,16 +1469,22 @@ export class TransferService extends BaseTransferService {
       throw new Error("Amount not found in extendTimelock");
     }
 
+    // Apply fee to the refund transaction as well
+    // const feeReducedRefundAmount = maybeApplyFee(amountSats);
     const newRefundTx = createRefundTx(
       initialSequence(),
       newRefundOutPoint,
-      amountSats,
+      amountSats, // feeReducedRefundAmount,
       signingPubKey,
       this.config.getNetwork(),
     );
 
     const nodeSighash = getSigHashFromTx(newNodeTx, 0, nodeTx.getOutput(0));
-    const refundSighash = getSigHashFromTx(newRefundTx, 0, nodeTx.getOutput(0));
+    const refundSighash = getSigHashFromTx(
+      newRefundTx,
+      0,
+      newNodeTx.getOutput(0),
+    );
 
     const newNodeSigningJob = {
       signingPublicKey: signingPubKey,
@@ -1478,5 +1577,117 @@ export class TransferService extends BaseTransferService {
         },
       ],
     });
+  }
+
+  async refreshTimelockRefundTx(node: TreeNode, signingPubKey: Uint8Array) {
+    const nodeTx = getTxFromRawTxBytes(node.nodeTx);
+    const refundTx = getTxFromRawTxBytes(node.refundTx);
+
+    const currSequence = refundTx.getInput(0).sequence || 0;
+    const { nextSequence } = getNextTransactionSequence(currSequence);
+
+    const newRefundTx = new Transaction({
+      version: 3,
+      allowUnknownOutputs: true,
+    });
+
+    // Apply fee to the refund output
+    const originalRefundOutput = refundTx.getOutput(0);
+    if (!originalRefundOutput) {
+      throw Error("Could not get original refund output");
+    }
+
+    newRefundTx.addOutput({
+      script: originalRefundOutput.script!,
+      amount: originalRefundOutput.amount!,
+    });
+
+    // Copy any additional outputs (like ephemeral anchors) without fee reduction
+    for (let j = 1; j < refundTx.outputsLength; j++) {
+      const additionalOutput = refundTx.getOutput(j);
+      if (additionalOutput) {
+        newRefundTx.addOutput(additionalOutput);
+      }
+    }
+
+    const refundTxInput = refundTx.getInput(0);
+    if (!refundTxInput) {
+      throw Error("refund tx doesn't have input");
+    }
+
+    newRefundTx.addInput({
+      ...refundTxInput,
+      sequence: nextSequence,
+    });
+
+    const refundSigningJob = {
+      signingPublicKey: signingPubKey,
+      rawTx: newRefundTx.toBytes(),
+      signingNonceCommitment:
+        await this.config.signer.getRandomSigningCommitment(),
+    };
+
+    const sparkClient = await this.connectionManager.createSparkClient(
+      this.config.getCoordinatorAddress(),
+    );
+
+    const response = await sparkClient.refresh_timelock({
+      leafId: node.id,
+      ownerIdentityPublicKey: await this.config.signer.getIdentityPublicKey(),
+      signingJobs: [refundSigningJob],
+    });
+
+    if (response.signingResults.length !== 1) {
+      throw Error(
+        `Expected 1 signing result, got ${response.signingResults.length}`,
+      );
+    }
+
+    const signingResult = response.signingResults[0];
+    if (!signingResult || !refundSigningJob.signingNonceCommitment) {
+      throw Error("Signing result or nonce commitment does not exist");
+    }
+
+    const rawTx = getTxFromRawTxBytes(refundSigningJob.rawTx);
+    const txOut = nodeTx.getOutput(0);
+
+    const rawTxSighash = getSigHashFromTx(rawTx, 0, txOut);
+
+    const userSignature = await this.config.signer.signFrost({
+      message: rawTxSighash,
+      privateAsPubKey: signingPubKey,
+      publicKey: signingPubKey,
+      verifyingKey: signingResult.verifyingKey,
+      selfCommitment: refundSigningJob.signingNonceCommitment,
+      statechainCommitments:
+        signingResult.signingResult?.signingNonceCommitments,
+      adaptorPubKey: new Uint8Array(),
+    });
+
+    const signature = await this.config.signer.aggregateFrost({
+      message: rawTxSighash,
+      statechainSignatures: signingResult.signingResult?.signatureShares,
+      statechainPublicKeys: signingResult.signingResult?.publicKeys,
+      verifyingKey: signingResult.verifyingKey,
+      statechainCommitments:
+        signingResult.signingResult?.signingNonceCommitments,
+      selfCommitment: refundSigningJob.signingNonceCommitment,
+      publicKey: signingPubKey,
+      selfSignature: userSignature,
+      adaptorPubKey: new Uint8Array(),
+    });
+
+    const result = await sparkClient.finalize_node_signatures({
+      intent: SignatureIntent.REFRESH,
+      nodeSignatures: [
+        {
+          nodeId: node.id,
+          nodeTxSignature: new Uint8Array(),
+          refundTxSignature: signature,
+        },
+      ],
+    });
+
+    return result;
   }
 }

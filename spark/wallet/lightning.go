@@ -24,6 +24,7 @@ func SwapNodesForPreimage(
 	invoiceString *string,
 	feeSats uint64,
 	isInboundPayment bool,
+	amountSats uint64,
 ) (*pb.InitiatePreimageSwapResponse, error) {
 	// SSP asks for signing commitment
 	conn, err := common.NewGRPCConnectionWithTestTLS(config.CoodinatorAddress(), nil)
@@ -92,14 +93,15 @@ func SwapNodesForPreimage(
 		return nil, fmt.Errorf("failed to generate transfer id: %v", err)
 	}
 	bolt11String := ""
-	var amountSats uint64
 	if invoiceString != nil {
 		bolt11String = *invoiceString
 		bolt11, err := decodepay.Decodepay(bolt11String)
 		if err != nil {
 			return nil, fmt.Errorf("unable to decode invoice: %v", err)
 		}
-		amountSats = uint64(bolt11.MSatoshi / 1000)
+		if bolt11.MSatoshi > 0 {
+			amountSats = uint64(bolt11.MSatoshi / 1000)
+		}
 	}
 	reason := pb.InitiatePreimageSwapRequest_REASON_SEND
 	if isInboundPayment {

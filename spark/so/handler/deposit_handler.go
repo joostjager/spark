@@ -7,8 +7,6 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/wire"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	"github.com/lightsparkdev/spark/common/logging"
@@ -19,16 +17,19 @@ import (
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
 	"github.com/lightsparkdev/spark/so/errors"
 	"github.com/lightsparkdev/spark/so/helper"
 	"github.com/lightsparkdev/spark/so/objects"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
-const DepositConfirmationThreshold = 2
+const DepositConfirmationThresholdRegtest = int64(1)
+
+const DepositConfirmationThresholdMainnet = int64(3)
 
 // The DepositHandler is responsible for handling deposit related requests.
 type DepositHandler struct {
@@ -328,9 +329,9 @@ func (o *DepositHandler) StartTreeCreation(ctx context.Context, config *so.Confi
 		SetBaseTxid(txid[:]).
 		SetVout(int16(req.OnChainUtxo.Vout))
 	if txConfirmed {
-		treeMutator.SetStatus(schema.TreeStatusAvailable)
+		treeMutator.SetStatus(st.TreeStatusAvailable)
 	} else {
-		treeMutator.SetStatus(schema.TreeStatusPending)
+		treeMutator.SetStatus(st.TreeStatusPending)
 	}
 	tree, err := treeMutator.Save(ctx)
 	if err != nil {
@@ -339,7 +340,7 @@ func (o *DepositHandler) StartTreeCreation(ctx context.Context, config *so.Confi
 	root, err := db.TreeNode.
 		Create().
 		SetTree(tree).
-		SetStatus(schema.TreeNodeStatusCreating).
+		SetStatus(st.TreeNodeStatusCreating).
 		SetOwnerIdentityPubkey(depositAddress.OwnerIdentityPubkey).
 		SetOwnerSigningPubkey(depositAddress.OwnerSigningPubkey).
 		SetValue(uint64(onChainOutput.Value)).
@@ -518,9 +519,9 @@ func (o *DepositHandler) StartDepositTreeCreation(ctx context.Context, config *s
 		SetVout(int16(req.OnChainUtxo.Vout))
 
 	if txConfirmed {
-		treeMutator.SetStatus(schema.TreeStatusAvailable)
+		treeMutator.SetStatus(st.TreeStatusAvailable)
 	} else {
-		treeMutator.SetStatus(schema.TreeStatusPending)
+		treeMutator.SetStatus(st.TreeStatusPending)
 	}
 	tree, err := treeMutator.Save(ctx)
 	if err != nil {
@@ -529,7 +530,7 @@ func (o *DepositHandler) StartDepositTreeCreation(ctx context.Context, config *s
 	treeNodeMutator := db.TreeNode.
 		Create().
 		SetTree(tree).
-		SetStatus(schema.TreeNodeStatusCreating).
+		SetStatus(st.TreeNodeStatusCreating).
 		SetOwnerIdentityPubkey(depositAddress.OwnerIdentityPubkey).
 		SetOwnerSigningPubkey(depositAddress.OwnerSigningPubkey).
 		SetValue(uint64(onChainOutput.Value)).
@@ -647,6 +648,10 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	if err := authz.EnforceSessionIdentityPublicKeyMatches(ctx, config, req.Transfer.OwnerIdentityPublicKey); err != nil {
 		return nil, err
 	}
+	ctx, span := tracer.Start(ctx, "DepositHandler.InitiateUtxoSwap", trace.WithAttributes(
+		transferTypeKey.String(string(req.RequestType)),
+	))
+	defer span.End()
 
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.Info("Start InitiateUtxoSwap request for on-chain utxo", "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout, "coordinator", config.Identifier)
@@ -665,7 +670,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 
 	utxoSwap, err := db.UtxoSwap.Query().
 		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
-		Where(utxoswap.StatusNEQ(schema.UtxoSwapStatusCancelled)).
+		Where(utxoswap.StatusNEQ(st.UtxoSwapStatusCancelled)).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to check if utxo swap is already completed: %w", err)
@@ -673,7 +678,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	if utxoSwap != nil {
 		// If the swap is completed and owned by the caller,
 		// idempotently return the result.
-		if utxoSwap.Status == schema.UtxoSwapStatusCompleted {
+		if utxoSwap.Status == st.UtxoSwapStatusCompleted {
 			spendTxSigningResult := &pb.SigningResult{}
 			err := proto.Unmarshal(utxoSwap.SpendTxSigningResult, spendTxSigningResult)
 			if err != nil {
@@ -691,13 +696,16 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 			if err != nil {
 				return nil, fmt.Errorf("failed to add public keys: %w", err)
 			}
-			transfer, err := utxoSwap.QueryTransfer().Only(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get transfer: %w", err)
-			}
-			transferProto, err := transfer.MarshalProto(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transfer: %w", err)
+			transferProto := &pb.Transfer{}
+			if utxoSwap.RequestType != st.UtxoSwapRequestTypeRefund {
+				transfer, err := utxoSwap.QueryTransfer().Only(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get transfer: %w", err)
+				}
+				transferProto, err = transfer.MarshalProto(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal transfer: %w", err)
+				}
 			}
 			nodeIDStr := depositAddress.NodeID.String()
 			return &pb.InitiateUtxoSwapResponse{
@@ -720,6 +728,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	// blocking any other swap requests. If this step fails, the caller will receive an error and
 	// the swap will be cancelled.
 	// **********************************************************************************************
+	internalDepositHandler := NewInternalDepositHandler(config)
 
 	// Sign a statement that this utxo swap is created by this coordinator.
 	// SOs will use it to mark the utxo swap as owned by this coordinator.
@@ -728,48 +737,26 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	if err != nil {
 		logger.Warn("Failed to get create utxo swap request, cron task to retry", "error", err)
 	} else {
-		h := NewInternalDepositHandler(config)
-		if err := h.CreateSwapForAllOperators(ctx, config, createdUtxoSwapRequest); err != nil {
+		if err := internalDepositHandler.CreateSwapForAllOperators(ctx, config, createdUtxoSwapRequest); err != nil {
 			originalErr := err
-			logger.Info("Failed to successfully execute create utxo swap task with all operators, rolling back", "error", originalErr)
+			logger.Info("Failed to successfully execute create utxo swap task with all operators, rolling back", "error", originalErr, "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
 
-			// Sign a statement that this coordinator is rolling back the utxo swap.
-			rollbackUtxoSwapRequestMessageHash, err := CreateUtxoSwapStatement(
-				UtxoSwapStatementTypeRollback,
-				hex.EncodeToString(req.OnChainUtxo.Txid),
-				req.OnChainUtxo.Vout,
-				common.Network(req.OnChainUtxo.Network),
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create utxo swap statement: %w", err)
+			if err := internalDepositHandler.RollbackSwapForAllOperators(ctx, config, createdUtxoSwapRequest); err != nil {
+				logger.Error("Failed to rollback utxo swap", "error", err, "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
 			}
-			rollbackUtxoSwapRequestSignature := ecdsa.Sign(secp256k1.PrivKeyFromBytes(config.IdentityPrivateKey), rollbackUtxoSwapRequestMessageHash)
-			allSelection := helper.OperatorSelection{Option: helper.OperatorSelectionOptionAll}
-			_, err = helper.ExecuteTaskWithAllOperators(ctx, config, &allSelection, func(ctx context.Context, operator *so.SigningOperator) (interface{}, error) {
-				conn, err := operator.NewGRPCConnection()
-				if err != nil {
-					logger.Error("Failed to connect to operator for rollback utxo swap", "error", err)
-					return nil, err
-				}
-				defer conn.Close()
 
-				client := pbinternal.NewSparkInternalServiceClient(conn)
-				internalResp, err := client.RollbackUtxoSwap(ctx, &pbinternal.RollbackUtxoSwapRequest{
-					CoordinatorPublicKey: config.IdentityPublicKey(),
-					Signature:            rollbackUtxoSwapRequestSignature.Serialize(),
-					OnChainUtxo:          req.OnChainUtxo,
-				})
-				if err != nil {
-					logger.Error("Failed to execute rollback utxo swap task with operator", "operator", operator.Identifier, "error", err)
-					return nil, err
-				}
-				return internalResp, err
-			})
-			if err != nil {
-				logger.Error("Failed to rollback utxo swap", "error", err)
-			}
+			logger.Error("UTXO swap rollback completed", "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
 			return nil, fmt.Errorf("failed to successfully execute create utxo swap task with all operators: %v", originalErr)
 		}
+	}
+	logger.Info("Created utxo swap", "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
+
+	utxoSwap, err = db.UtxoSwap.Query().
+		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
+		Where(utxoswap.StatusNEQ(st.UtxoSwapStatusCancelled)).
+		First(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get utxo swap: %w", err)
 	}
 
 	// **********************************************************************************************
@@ -782,17 +769,33 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 		transferResponse, err := transferHandler.startTransferInternal(
 			ctx,
 			req.Transfer,
-			schema.TransferTypeUtxoSwap,
+			st.TransferTypeUtxoSwap,
 			nil,
 		)
 		if err != nil {
+			if err := internalDepositHandler.RollbackSwapForAllOperators(ctx, config, createdUtxoSwapRequest); err != nil {
+				logger.Error("Failed to rollback utxo swap", "error", err)
+			}
 			return nil, fmt.Errorf("failed to create transfer: %w", err)
 		}
 		transfer = transferResponse.Transfer
 		if transfer == nil {
 			return nil, fmt.Errorf("create utxo swap task with operator %s returned nil transfer", config.Identifier)
 		}
-		logger.Info("UTXO swap transfer created", "transfer", transfer)
+
+		// The transfer is created, update the utxo swap with the transfer.
+		entTransfer, err := db.Transfer.Get(ctx, utxoSwap.RequestedTransferID)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get transfer from utxo swap: %w", err)
+		}
+		if entTransfer != nil {
+			_, err := utxoSwap.Update().SetTransfer(entTransfer).Save(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("unable to set transfer for utxo swap: %w", err)
+			}
+		}
+
+		logger.Info("UTXO swap transfer created", "transfer", transfer, "txid", hex.EncodeToString(req.OnChainUtxo.Txid), "vout", req.OnChainUtxo.Vout)
 	}
 
 	// **********************************************************************************************
@@ -804,8 +807,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	if err != nil {
 		logger.Warn("Failed to get complete swap for utxo request, cron task to retry", "error", err)
 	} else {
-		h := NewInternalDepositHandler(config)
-		if err := h.CompleteSwapForAllOperators(ctx, config, completedUtxoSwapRequest); err != nil {
+		if err := internalDepositHandler.CompleteSwapForAllOperators(ctx, config, completedUtxoSwapRequest); err != nil {
 			logger.Warn("Failed to mark a utxo swap as completed in all operators, cron task to retry", "error", err)
 		}
 	}
@@ -821,13 +823,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal spend tx signing result: %w", err)
 	}
-	utxoSwap, err = db.UtxoSwap.Query().
-		Where(utxoswap.HasUtxoWith(utxo.IDEQ(targetUtxo.ID))).
-		Where(utxoswap.StatusNEQ(schema.UtxoSwapStatusCancelled)).
-		First(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get utxo swap: %w", err)
-	}
+
 	_, err = db.UtxoSwap.UpdateOne(utxoSwap).SetSpendTxSigningResult(spendTxSigningResultBytes).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update utxo swap: %w", err)
@@ -841,7 +837,7 @@ func (o *DepositHandler) InitiateUtxoSwap(ctx context.Context, config *so.Config
 }
 
 // Verifies that an UTXO is confirmed on the blockchain and has sufficient confirmations.
-func VerifiedTargetUtxo(ctx context.Context, db *ent.Tx, schemaNetwork schema.Network, txid []byte, vout uint32) (*ent.Utxo, error) {
+func VerifiedTargetUtxo(ctx context.Context, db *ent.Tx, schemaNetwork st.Network, txid []byte, vout uint32) (*ent.Utxo, error) {
 	blockHeight, err := db.BlockHeight.Query().Where(
 		blockheight.NetworkEQ(schemaNetwork),
 	).Only(ctx)
@@ -856,7 +852,11 @@ func VerifiedTargetUtxo(ctx context.Context, db *ent.Tx, schemaNetwork schema.Ne
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target utxo: %w", err)
 	}
-	if blockHeight.Height-targetUtxo.BlockHeight+1 < DepositConfirmationThreshold {
+	threshold := DepositConfirmationThresholdMainnet
+	if schemaNetwork == st.NetworkRegtest {
+		threshold = DepositConfirmationThresholdRegtest
+	}
+	if blockHeight.Height-targetUtxo.BlockHeight+1 < threshold {
 		return nil, errors.FailedPreconditionErrorf("deposit tx doesn't have enough confirmations: confirmation height: %d current block height: %d", targetUtxo.BlockHeight, blockHeight.Height)
 	}
 	return targetUtxo, nil

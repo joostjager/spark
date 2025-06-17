@@ -7,6 +7,9 @@ export const RequestLightningReceive = `
     $payment_hash: Hash32!
     $expiry_secs: Int
     $memo: String
+    $include_spark_address: Boolean
+    $receiver_identity_pubkey: PublicKey
+    $description_hash: Hash32
   ) {
     request_lightning_receive(
       input: {
@@ -15,6 +18,9 @@ export const RequestLightningReceive = `
         payment_hash: $payment_hash
         expiry_secs: $expiry_secs
         memo: $memo
+        include_spark_address: $include_spark_address
+        receiver_identity_pubkey: $receiver_identity_pubkey
+        description_hash: $description_hash
       }
     ) {
       request {

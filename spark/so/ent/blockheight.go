@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/blockheight"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // BlockHeight is the model entity for the BlockHeight schema.
@@ -26,7 +26,7 @@ type BlockHeight struct {
 	// Height holds the value of the "height" field.
 	Height int64 `json:"height,omitempty"`
 	// Network holds the value of the "network" field.
-	Network      schema.Network `json:"network,omitempty"`
+	Network      schematype.Network `json:"network,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -86,7 +86,7 @@ func (bh *BlockHeight) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field network", values[i])
 			} else if value.Valid {
-				bh.Network = schema.Network(value.String)
+				bh.Network = schematype.Network(value.String)
 			}
 		default:
 			bh.selectValues.Set(columns[i], values[i])

@@ -8,7 +8,7 @@ import (
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // InternalExtendLeafHandler is the extend leaf handler for so internal.
@@ -50,7 +50,7 @@ func (h *InternalExtendLeafHandler) FinalizeExtendLeaf(ctx context.Context, req 
 		Create().
 		SetID(nodeID).
 		SetTreeID(treeID).
-		SetStatus(schema.TreeNodeStatusAvailable).
+		SetStatus(st.TreeNodeStatusAvailable).
 		SetOwnerIdentityPubkey(node.OwnerIdentityPubkey).
 		SetOwnerSigningPubkey(node.OwnerSigningPubkey).
 		SetValue(node.Value).
@@ -69,7 +69,7 @@ func (h *InternalExtendLeafHandler) FinalizeExtendLeaf(ctx context.Context, req 
 		TreeNode.
 		UpdateOneID(parentID).
 		SetRawRefundTx(nil).
-		SetStatus(schema.TreeNodeStatusSplitted).
+		SetStatus(st.TreeNodeStatusSplitted).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to nullify refund tx: %w", err)

@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokenoutput"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 )
@@ -38,13 +38,13 @@ func (tou *TokenOutputUpdate) SetUpdateTime(t time.Time) *TokenOutputUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (tou *TokenOutputUpdate) SetStatus(sos schema.TokenOutputStatus) *TokenOutputUpdate {
+func (tou *TokenOutputUpdate) SetStatus(sos schematype.TokenOutputStatus) *TokenOutputUpdate {
 	tou.mutation.SetStatus(sos)
 	return tou
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tou *TokenOutputUpdate) SetNillableStatus(sos *schema.TokenOutputStatus) *TokenOutputUpdate {
+func (tou *TokenOutputUpdate) SetNillableStatus(sos *schematype.TokenOutputStatus) *TokenOutputUpdate {
 	if sos != nil {
 		tou.SetStatus(*sos)
 	}
@@ -127,13 +127,13 @@ func (tou *TokenOutputUpdate) ClearConfirmedWithdrawBlockHash() *TokenOutputUpda
 }
 
 // SetNetwork sets the "network" field.
-func (tou *TokenOutputUpdate) SetNetwork(s schema.Network) *TokenOutputUpdate {
+func (tou *TokenOutputUpdate) SetNetwork(s schematype.Network) *TokenOutputUpdate {
 	tou.mutation.SetNetwork(s)
 	return tou
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (tou *TokenOutputUpdate) SetNillableNetwork(s *schema.Network) *TokenOutputUpdate {
+func (tou *TokenOutputUpdate) SetNillableNetwork(s *schematype.Network) *TokenOutputUpdate {
 	if s != nil {
 		tou.SetNetwork(*s)
 	}
@@ -312,6 +312,9 @@ func (tou *TokenOutputUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if tou.mutation.NetworkCleared() {
 		_spec.ClearField(tokenoutput.FieldNetwork, field.TypeEnum)
 	}
+	if tou.mutation.TokenIdentifierCleared() {
+		_spec.ClearField(tokenoutput.FieldTokenIdentifier, field.TypeBytes)
+	}
 	if tou.mutation.OutputCreatedTokenTransactionCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -397,13 +400,13 @@ func (touo *TokenOutputUpdateOne) SetUpdateTime(t time.Time) *TokenOutputUpdateO
 }
 
 // SetStatus sets the "status" field.
-func (touo *TokenOutputUpdateOne) SetStatus(sos schema.TokenOutputStatus) *TokenOutputUpdateOne {
+func (touo *TokenOutputUpdateOne) SetStatus(sos schematype.TokenOutputStatus) *TokenOutputUpdateOne {
 	touo.mutation.SetStatus(sos)
 	return touo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (touo *TokenOutputUpdateOne) SetNillableStatus(sos *schema.TokenOutputStatus) *TokenOutputUpdateOne {
+func (touo *TokenOutputUpdateOne) SetNillableStatus(sos *schematype.TokenOutputStatus) *TokenOutputUpdateOne {
 	if sos != nil {
 		touo.SetStatus(*sos)
 	}
@@ -486,13 +489,13 @@ func (touo *TokenOutputUpdateOne) ClearConfirmedWithdrawBlockHash() *TokenOutput
 }
 
 // SetNetwork sets the "network" field.
-func (touo *TokenOutputUpdateOne) SetNetwork(s schema.Network) *TokenOutputUpdateOne {
+func (touo *TokenOutputUpdateOne) SetNetwork(s schematype.Network) *TokenOutputUpdateOne {
 	touo.mutation.SetNetwork(s)
 	return touo
 }
 
 // SetNillableNetwork sets the "network" field if the given value is not nil.
-func (touo *TokenOutputUpdateOne) SetNillableNetwork(s *schema.Network) *TokenOutputUpdateOne {
+func (touo *TokenOutputUpdateOne) SetNillableNetwork(s *schematype.Network) *TokenOutputUpdateOne {
 	if s != nil {
 		touo.SetNetwork(*s)
 	}
@@ -700,6 +703,9 @@ func (touo *TokenOutputUpdateOne) sqlSave(ctx context.Context) (_node *TokenOutp
 	}
 	if touo.mutation.NetworkCleared() {
 		_spec.ClearField(tokenoutput.FieldNetwork, field.TypeEnum)
+	}
+	if touo.mutation.TokenIdentifierCleared() {
+		_spec.ClearField(tokenoutput.FieldTokenIdentifier, field.TypeBytes)
 	}
 	if touo.mutation.OutputCreatedTokenTransactionCleared() {
 		edge := &sqlgraph.EdgeSpec{

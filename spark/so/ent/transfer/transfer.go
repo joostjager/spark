@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -88,7 +88,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.TransferStatus) error {
+func StatusValidator(s schematype.TransferStatus) error {
 	switch s {
 	case "SENDER_INITIATED", "SENDER_INITIATED_COORDINATOR", "SENDER_KEY_TWEAK_PENDING", "SENDER_KEY_TWEAKED", "RECEIVER_KEY_TWEAKED", "RECEIVER_KEY_TWEAK_LOCKED", "RECEIVER_REFUND_SIGNED", "COMPLETED", "EXPIRED", "RETURNED", "RECEIVER_KEY_TWEAK_APPLIED":
 		return nil
@@ -98,7 +98,7 @@ func StatusValidator(s schema.TransferStatus) error {
 }
 
 // TypeValidator is a validator for the "type" field enum values. It is called by the builders before save.
-func TypeValidator(_type schema.TransferType) error {
+func TypeValidator(_type schematype.TransferType) error {
 	switch _type {
 	case "PREIMAGE_SWAP", "COOPERATIVE_EXIT", "TRANSFER", "SWAP", "COUNTER_SWAP", "UTXO_SWAP":
 		return nil

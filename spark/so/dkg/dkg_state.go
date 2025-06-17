@@ -12,7 +12,7 @@ import (
 	pbfrost "github.com/lightsparkdev/spark/proto/frost"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"google.golang.org/grpc"
 
 	// Import the sqlite driver
@@ -283,7 +283,7 @@ func (s *State) Round3(ctx context.Context, requestID string, frostConnection *g
 		keyID := deriveKeyIndex(batchID, uint16(i))
 		db.SigningKeyshare.Create().
 			SetID(keyID).
-			SetStatus(schema.KeyshareStatusAvailable).
+			SetStatus(st.KeyshareStatusAvailable).
 			SetMinSigners(int32(s.MinSigners)).
 			SetSecretShare(key.SecretShare).
 			SetPublicShares(key.PublicShares).

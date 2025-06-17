@@ -8100,52 +8100,6 @@ func (m *StartTransferRequest) validate(all bool) error {
 		}
 	}
 
-	{
-		sorted_keys := make([]string, len(m.GetKeyTweakProofs()))
-		i := 0
-		for key := range m.GetKeyTweakProofs() {
-			sorted_keys[i] = key
-			i++
-		}
-		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
-		for _, key := range sorted_keys {
-			val := m.GetKeyTweakProofs()[key]
-			_ = val
-
-			// no validation rules for KeyTweakProofs[key]
-
-			if all {
-				switch v := interface{}(val).(type) {
-				case interface{ ValidateAll() error }:
-					if err := v.ValidateAll(); err != nil {
-						errors = append(errors, StartTransferRequestValidationError{
-							field:  fmt.Sprintf("KeyTweakProofs[%v]", key),
-							reason: "embedded message failed validation",
-							cause:  err,
-						})
-					}
-				case interface{ Validate() error }:
-					if err := v.Validate(); err != nil {
-						errors = append(errors, StartTransferRequestValidationError{
-							field:  fmt.Sprintf("KeyTweakProofs[%v]", key),
-							reason: "embedded message failed validation",
-							cause:  err,
-						})
-					}
-				}
-			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
-				if err := v.Validate(); err != nil {
-					return StartTransferRequestValidationError{
-						field:  fmt.Sprintf("KeyTweakProofs[%v]", key),
-						reason: "embedded message failed validation",
-						cause:  err,
-					}
-				}
-			}
-
-		}
-	}
-
 	if all {
 		switch v := interface{}(m.GetTransferPackage()).(type) {
 		case interface{ ValidateAll() error }:
@@ -8972,6 +8926,145 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = FinalizeTransferRequestValidationError{}
+
+// Validate checks the field values on
+// FinalizeTransferWithTransferPackageRequest with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *FinalizeTransferWithTransferPackageRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on
+// FinalizeTransferWithTransferPackageRequest with the rules defined in the
+// proto definition for this message. If any rules are violated, the result is
+// a list of violation errors wrapped in
+// FinalizeTransferWithTransferPackageRequestMultiError, or nil if none found.
+func (m *FinalizeTransferWithTransferPackageRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *FinalizeTransferWithTransferPackageRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TransferId
+
+	// no validation rules for OwnerIdentityPublicKey
+
+	if all {
+		switch v := interface{}(m.GetTransferPackage()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, FinalizeTransferWithTransferPackageRequestValidationError{
+					field:  "TransferPackage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, FinalizeTransferWithTransferPackageRequestValidationError{
+					field:  "TransferPackage",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTransferPackage()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return FinalizeTransferWithTransferPackageRequestValidationError{
+				field:  "TransferPackage",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return FinalizeTransferWithTransferPackageRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// FinalizeTransferWithTransferPackageRequestMultiError is an error wrapping
+// multiple validation errors returned by
+// FinalizeTransferWithTransferPackageRequest.ValidateAll() if the designated
+// constraints aren't met.
+type FinalizeTransferWithTransferPackageRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m FinalizeTransferWithTransferPackageRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m FinalizeTransferWithTransferPackageRequestMultiError) AllErrors() []error { return m }
+
+// FinalizeTransferWithTransferPackageRequestValidationError is the validation
+// error returned by FinalizeTransferWithTransferPackageRequest.Validate if
+// the designated constraints aren't met.
+type FinalizeTransferWithTransferPackageRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e FinalizeTransferWithTransferPackageRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e FinalizeTransferWithTransferPackageRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e FinalizeTransferWithTransferPackageRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e FinalizeTransferWithTransferPackageRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e FinalizeTransferWithTransferPackageRequestValidationError) ErrorName() string {
+	return "FinalizeTransferWithTransferPackageRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e FinalizeTransferWithTransferPackageRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sFinalizeTransferWithTransferPackageRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = FinalizeTransferWithTransferPackageRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = FinalizeTransferWithTransferPackageRequestValidationError{}
 
 // Validate checks the field values on FinalizeTransferResponse with the rules
 // defined in the proto definition for this message. If any rules are
@@ -17306,6 +17399,35 @@ func (m *SparkAddress) validate(all bool) error {
 
 	// no validation rules for IdentityPublicKey
 
+	if all {
+		switch v := interface{}(m.GetPaymentIntentFields()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, SparkAddressValidationError{
+					field:  "PaymentIntentFields",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, SparkAddressValidationError{
+					field:  "PaymentIntentFields",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetPaymentIntentFields()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return SparkAddressValidationError{
+				field:  "PaymentIntentFields",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return SparkAddressMultiError(errors)
 	}
@@ -17382,6 +17504,149 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = SparkAddressValidationError{}
+
+// Validate checks the field values on PaymentIntentFields with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PaymentIntentFields) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PaymentIntentFields with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PaymentIntentFieldsMultiError, or nil if none found.
+func (m *PaymentIntentFields) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PaymentIntentFields) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(m.GetId()) != 16 {
+		err := PaymentIntentFieldsValidationError{
+			field:  "Id",
+			reason: "value length must be 16 bytes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(m.GetAssetAmount()) > 16 {
+		err := PaymentIntentFieldsValidationError{
+			field:  "AssetAmount",
+			reason: "value length must be at most 16 bytes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if m.AssetIdentifier != nil {
+		// no validation rules for AssetIdentifier
+	}
+
+	if m.Memo != nil {
+
+		if len(m.GetMemo()) > 120 {
+			err := PaymentIntentFieldsValidationError{
+				field:  "Memo",
+				reason: "value length must be at most 120 bytes",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return PaymentIntentFieldsMultiError(errors)
+	}
+
+	return nil
+}
+
+// PaymentIntentFieldsMultiError is an error wrapping multiple validation
+// errors returned by PaymentIntentFields.ValidateAll() if the designated
+// constraints aren't met.
+type PaymentIntentFieldsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PaymentIntentFieldsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PaymentIntentFieldsMultiError) AllErrors() []error { return m }
+
+// PaymentIntentFieldsValidationError is the validation error returned by
+// PaymentIntentFields.Validate if the designated constraints aren't met.
+type PaymentIntentFieldsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PaymentIntentFieldsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PaymentIntentFieldsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PaymentIntentFieldsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PaymentIntentFieldsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PaymentIntentFieldsValidationError) ErrorName() string {
+	return "PaymentIntentFieldsValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PaymentIntentFieldsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPaymentIntentFields.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PaymentIntentFieldsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PaymentIntentFieldsValidationError{}
 
 // Validate checks the field values on InitiateUtxoSwapRequest with the rules
 // defined in the proto definition for this message. If any rules are

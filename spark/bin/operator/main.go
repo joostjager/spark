@@ -34,6 +34,8 @@ import (
 	pbauthn "github.com/lightsparkdev/spark/proto/spark_authn"
 	pbinternal "github.com/lightsparkdev/spark/proto/spark_internal"
 	pbssp "github.com/lightsparkdev/spark/proto/spark_ssp_internal"
+	pbtoken "github.com/lightsparkdev/spark/proto/spark_token"
+	pbtokeninternal "github.com/lightsparkdev/spark/proto/spark_token_internal"
 	pbtree "github.com/lightsparkdev/spark/proto/spark_tree"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/authn"
@@ -448,6 +450,12 @@ func main() {
 
 	sparkServer := sparkgrpc.NewSparkServer(config, dbClient, lrc20Client, mockAction)
 	pbspark.RegisterSparkServiceServer(grpcServer, sparkServer)
+
+	sparkTokenServer := sparkgrpc.NewSparkTokenServer(config, config, dbClient, lrc20Client)
+	pbtoken.RegisterSparkTokenServiceServer(grpcServer, sparkTokenServer)
+
+	sparkTokenInternalServer := sparkgrpc.NewSparkTokenInternalServer(config, dbClient)
+	pbtokeninternal.RegisterSparkTokenInternalServiceServer(grpcServer, sparkTokenInternalServer)
 
 	treeServer := sparkgrpc.NewSparkTreeServer(config, dbClient)
 	pbtree.RegisterSparkTreeServiceServer(grpcServer, treeServer)

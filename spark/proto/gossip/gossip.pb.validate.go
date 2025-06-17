@@ -101,6 +101,129 @@ func (m *GossipMessage) validate(all bool) error {
 			}
 		}
 
+	case *GossipMessage_MagicSwap:
+		if v == nil {
+			err := GossipMessageValidationError{
+				field:  "Message",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetMagicSwap()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "MagicSwap",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "MagicSwap",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetMagicSwap()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return GossipMessageValidationError{
+					field:  "MagicSwap",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *GossipMessage_SettleSenderKeyTweak:
+		if v == nil {
+			err := GossipMessageValidationError{
+				field:  "Message",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetSettleSenderKeyTweak()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "SettleSenderKeyTweak",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "SettleSenderKeyTweak",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetSettleSenderKeyTweak()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return GossipMessageValidationError{
+					field:  "SettleSenderKeyTweak",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *GossipMessage_RollbackTransfer:
+		if v == nil {
+			err := GossipMessageValidationError{
+				field:  "Message",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetRollbackTransfer()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "RollbackTransfer",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, GossipMessageValidationError{
+						field:  "RollbackTransfer",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetRollbackTransfer()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return GossipMessageValidationError{
+					field:  "RollbackTransfer",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
 	default:
 		_ = v // ensures v is used
 	}
@@ -287,3 +410,369 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = GossipMessageCancelTransferValidationError{}
+
+// Validate checks the field values on GossipMessageRollbackTransfer with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GossipMessageRollbackTransfer) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GossipMessageRollbackTransfer with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// GossipMessageRollbackTransferMultiError, or nil if none found.
+func (m *GossipMessageRollbackTransfer) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GossipMessageRollbackTransfer) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TransferId
+
+	if len(errors) > 0 {
+		return GossipMessageRollbackTransferMultiError(errors)
+	}
+
+	return nil
+}
+
+// GossipMessageRollbackTransferMultiError is an error wrapping multiple
+// validation errors returned by GossipMessageRollbackTransfer.ValidateAll()
+// if the designated constraints aren't met.
+type GossipMessageRollbackTransferMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GossipMessageRollbackTransferMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GossipMessageRollbackTransferMultiError) AllErrors() []error { return m }
+
+// GossipMessageRollbackTransferValidationError is the validation error
+// returned by GossipMessageRollbackTransfer.Validate if the designated
+// constraints aren't met.
+type GossipMessageRollbackTransferValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GossipMessageRollbackTransferValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GossipMessageRollbackTransferValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GossipMessageRollbackTransferValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GossipMessageRollbackTransferValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GossipMessageRollbackTransferValidationError) ErrorName() string {
+	return "GossipMessageRollbackTransferValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GossipMessageRollbackTransferValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGossipMessageRollbackTransfer.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GossipMessageRollbackTransferValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GossipMessageRollbackTransferValidationError{}
+
+// Validate checks the field values on GossipMessageMagicSwap with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *GossipMessageMagicSwap) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GossipMessageMagicSwap with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// GossipMessageMagicSwapMultiError, or nil if none found.
+func (m *GossipMessageMagicSwap) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GossipMessageMagicSwap) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TransferId
+
+	// no validation rules for SenderPublicKey
+
+	// no validation rules for ReceiverPublicKey
+
+	if len(errors) > 0 {
+		return GossipMessageMagicSwapMultiError(errors)
+	}
+
+	return nil
+}
+
+// GossipMessageMagicSwapMultiError is an error wrapping multiple validation
+// errors returned by GossipMessageMagicSwap.ValidateAll() if the designated
+// constraints aren't met.
+type GossipMessageMagicSwapMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GossipMessageMagicSwapMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GossipMessageMagicSwapMultiError) AllErrors() []error { return m }
+
+// GossipMessageMagicSwapValidationError is the validation error returned by
+// GossipMessageMagicSwap.Validate if the designated constraints aren't met.
+type GossipMessageMagicSwapValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GossipMessageMagicSwapValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GossipMessageMagicSwapValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GossipMessageMagicSwapValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GossipMessageMagicSwapValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GossipMessageMagicSwapValidationError) ErrorName() string {
+	return "GossipMessageMagicSwapValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GossipMessageMagicSwapValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGossipMessageMagicSwap.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GossipMessageMagicSwapValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GossipMessageMagicSwapValidationError{}
+
+// Validate checks the field values on GossipMessageSettleSenderKeyTweak with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *GossipMessageSettleSenderKeyTweak) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on GossipMessageSettleSenderKeyTweak
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// GossipMessageSettleSenderKeyTweakMultiError, or nil if none found.
+func (m *GossipMessageSettleSenderKeyTweak) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *GossipMessageSettleSenderKeyTweak) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TransferId
+
+	{
+		sorted_keys := make([]string, len(m.GetSenderKeyTweakProofs()))
+		i := 0
+		for key := range m.GetSenderKeyTweakProofs() {
+			sorted_keys[i] = key
+			i++
+		}
+		sort.Slice(sorted_keys, func(i, j int) bool { return sorted_keys[i] < sorted_keys[j] })
+		for _, key := range sorted_keys {
+			val := m.GetSenderKeyTweakProofs()[key]
+			_ = val
+
+			// no validation rules for SenderKeyTweakProofs[key]
+
+			if all {
+				switch v := interface{}(val).(type) {
+				case interface{ ValidateAll() error }:
+					if err := v.ValidateAll(); err != nil {
+						errors = append(errors, GossipMessageSettleSenderKeyTweakValidationError{
+							field:  fmt.Sprintf("SenderKeyTweakProofs[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				case interface{ Validate() error }:
+					if err := v.Validate(); err != nil {
+						errors = append(errors, GossipMessageSettleSenderKeyTweakValidationError{
+							field:  fmt.Sprintf("SenderKeyTweakProofs[%v]", key),
+							reason: "embedded message failed validation",
+							cause:  err,
+						})
+					}
+				}
+			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+				if err := v.Validate(); err != nil {
+					return GossipMessageSettleSenderKeyTweakValidationError{
+						field:  fmt.Sprintf("SenderKeyTweakProofs[%v]", key),
+						reason: "embedded message failed validation",
+						cause:  err,
+					}
+				}
+			}
+
+		}
+	}
+
+	if len(errors) > 0 {
+		return GossipMessageSettleSenderKeyTweakMultiError(errors)
+	}
+
+	return nil
+}
+
+// GossipMessageSettleSenderKeyTweakMultiError is an error wrapping multiple
+// validation errors returned by
+// GossipMessageSettleSenderKeyTweak.ValidateAll() if the designated
+// constraints aren't met.
+type GossipMessageSettleSenderKeyTweakMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m GossipMessageSettleSenderKeyTweakMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m GossipMessageSettleSenderKeyTweakMultiError) AllErrors() []error { return m }
+
+// GossipMessageSettleSenderKeyTweakValidationError is the validation error
+// returned by GossipMessageSettleSenderKeyTweak.Validate if the designated
+// constraints aren't met.
+type GossipMessageSettleSenderKeyTweakValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e GossipMessageSettleSenderKeyTweakValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e GossipMessageSettleSenderKeyTweakValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e GossipMessageSettleSenderKeyTweakValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e GossipMessageSettleSenderKeyTweakValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e GossipMessageSettleSenderKeyTweakValidationError) ErrorName() string {
+	return "GossipMessageSettleSenderKeyTweakValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e GossipMessageSettleSenderKeyTweakValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sGossipMessageSettleSenderKeyTweak.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = GossipMessageSettleSenderKeyTweakValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = GossipMessageSettleSenderKeyTweakValidationError{}

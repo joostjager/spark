@@ -14,7 +14,8 @@ import (
 	pbspark "github.com/lightsparkdev/spark/proto/spark"
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/gossip"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/tokentransaction"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/tree"
@@ -28,8 +29,9 @@ import (
 )
 
 var (
-	defaultTaskTimeout = 1 * time.Minute
-	dkgTaskTimeout     = 3 * time.Minute
+	defaultTaskTimeout              = 1 * time.Minute
+	dkgTaskTimeout                  = 3 * time.Minute
+	deleteStaleTreeNodesTaskTimeout = 10 * time.Minute
 
 	errTaskTimeout = fmt.Errorf("task timed out")
 )
@@ -71,7 +73,7 @@ func AllTasks() []Task {
 				db := ent.GetDbFromContext(ctx)
 				query := db.Transfer.Query().Where(
 					transfer.And(
-						transfer.StatusIn(schema.TransferStatusSenderInitiated, schema.TransferStatusSenderKeyTweakPending),
+						transfer.StatusIn(st.TransferStatusSenderInitiated, st.TransferStatusSenderKeyTweakPending),
 						transfer.ExpiryTimeLT(time.Now()),
 						transfer.ExpiryTimeNEQ(time.Unix(0, 0)),
 					),
@@ -83,10 +85,7 @@ func AllTasks() []Task {
 				}
 
 				for _, transfer := range transfers {
-					_, err := h.CancelTransfer(ctx, &pbspark.CancelTransferRequest{
-						SenderIdentityPublicKey: transfer.SenderIdentityPubkey,
-						TransferId:              transfer.ID.String(),
-					}, handler.CancelTransferIntentTask)
+					err := h.CancelTransferInternal(ctx, transfer.ID.String())
 					if err != nil {
 						logger.Error("failed to cancel transfer", "error", err)
 					}
@@ -98,6 +97,7 @@ func AllTasks() []Task {
 		{
 			Name:         "delete_stale_pending_trees",
 			Duration:     1 * time.Hour,
+			Timeout:      &deleteStaleTreeNodesTaskTimeout,
 			RunInTestEnv: false,
 			Task: func(ctx context.Context, _ *so.Config, _ *lrc20.Client) error {
 				logger := logging.GetLoggerFromContext(ctx)
@@ -109,11 +109,11 @@ func AllTasks() []Task {
 				// 3. Belong to trees with status "PENDING"
 				query := tx.TreeNode.Query().Where(
 					treenode.And(
-						treenode.StatusEQ(schema.TreeNodeStatusCreating),
+						treenode.StatusEQ(st.TreeNodeStatusCreating),
 						treenode.CreateTimeLTE(time.Now().Add(-5*24*time.Hour)),
-						treenode.HasTreeWith(tree.StatusEQ(schema.TreeStatusPending)),
+						treenode.HasTreeWith(tree.StatusEQ(st.TreeStatusPending)),
 					),
-				)
+				).WithTree()
 
 				treeNodes, err := query.All(ctx)
 				if err != nil {
@@ -126,40 +126,35 @@ func AllTasks() []Task {
 					return nil
 				}
 
-				// Get Tree IDs + Tree Node IDs from results
-				treeIDSet := make(map[uuid.UUID]bool)
-				treeNodeIDs := []uuid.UUID{}
+				treeToTreeNodes := make(map[uuid.UUID][]uuid.UUID)
 				for _, node := range treeNodes {
-					treeIDSet[node.Edges.Tree.ID] = true
-					treeNodeIDs = append(treeNodeIDs, node.ID)
-				}
-				treeIDs := make([]uuid.UUID, 0, len(treeIDSet))
-				for id := range treeIDSet {
-					treeIDs = append(treeIDs, id)
+					treeID := node.Edges.Tree.ID
+					treeToTreeNodes[treeID] = append(treeToTreeNodes[treeID], node.ID)
 				}
 
-				// Log the tree nodes and trees that will be deleted
-				logger.Info("Deleting tree nodes with CREATING status older than 5 days.", "numTreeNodes", len(treeNodes), "numTrees", len(treeIDs))
+				for treeID, treeNodeIDs := range treeToTreeNodes {
+					logger.Info(fmt.Sprintf("Deleting stale tree %s along with associated tree nodes (%d in total).", treeID, len(treeNodeIDs)))
 
-				// Delete the tree nodes
-				numDeleted, err := tx.TreeNode.Delete().Where(
-					treenode.IDIn(treeNodeIDs...),
-				).Exec(ctx)
-				if err != nil {
-					logger.Error("failed to delete tree nodes", "error", err)
-					return err
-				}
-				logger.Info(fmt.Sprintf("Deleted %d tree nodes.", numDeleted))
+					numDeleted, err := tx.TreeNode.Delete().Where(
+						treenode.IDIn(treeNodeIDs...),
+					).Exec(ctx)
+					if err != nil {
+						logger.Error("failed to delete tree nodes", "tree_id", treeID, "error", err)
+						return err
+					}
 
-				// Delete the associated trees
-				numDeleted, err = tx.Tree.Delete().Where(
-					tree.IDIn(treeIDs...),
-				).Exec(ctx)
-				if err != nil {
-					logger.Error("failed to delete trees", "error", err)
-					return err
+					logger.Info(fmt.Sprintf("Deleted %d tree nodes.", numDeleted))
+
+					// Delete the associated trees
+					_, err = tx.Tree.Delete().Where(tree.IDEQ(treeID)).Exec(ctx)
+					if err != nil {
+						logger.Error("failed to delete tree", "tree_id", treeID, "error", err)
+						return err
+					}
+
+					logger.Info(fmt.Sprintf("Deleted tree %s.", treeID))
 				}
-				logger.Info(fmt.Sprintf("Deleted %d trees.", numDeleted))
+
 				return nil
 			},
 		},
@@ -173,7 +168,7 @@ func AllTasks() []Task {
 				db := ent.GetDbFromContext(ctx)
 				query := db.Transfer.Query().Where(
 					transfer.And(
-						transfer.StatusEQ(schema.TransferStatusSenderInitiatedCoordinator),
+						transfer.StatusEQ(st.TransferStatusSenderInitiatedCoordinator),
 					),
 				).Limit(1000)
 
@@ -216,7 +211,7 @@ func AllTasks() []Task {
 					tokentransaction.And(
 						// Transfer transactions are effectively pending in either STARTED or SIGNED state.
 						// Note that different SOs may have different states if SIGNED calls did not succeed with all SOs.
-						tokentransaction.StatusIn(schema.TokenTransactionStatusStarted, schema.TokenTransactionStatusSigned),
+						tokentransaction.StatusIn(st.TokenTransactionStatusStarted, st.TokenTransactionStatusSigned),
 						tokentransaction.Not(tokentransaction.HasMint()),
 						tokentransaction.ExpiryTimeLT(currentTime),
 						tokentransaction.ExpiryTimeNEQ(time.Unix(0, 0)),
@@ -254,6 +249,29 @@ func AllTasks() []Task {
 			},
 		},
 		{
+			Name:         "send_gossip",
+			Duration:     5 * time.Minute,
+			RunInTestEnv: true,
+			Task: func(ctx context.Context, config *so.Config, _ *lrc20.Client) error {
+				logger := logging.GetLoggerFromContext(ctx)
+				handler := handler.NewSendGossipHandler(config)
+				db := ent.GetDbFromContext(ctx)
+				query := db.Gossip.Query().Where(gossip.StatusEQ(st.GossipStatusPending)).Limit(1000)
+				gossips, err := query.ForUpdate().All(ctx)
+				if err != nil {
+					return err
+				}
+
+				for _, gossip := range gossips {
+					_, err := handler.SendGossipMessage(ctx, gossip)
+					if err != nil {
+						logger.Error("failed to send gossip", "error", err)
+					}
+				}
+				return nil
+			},
+		},
+		{
 			Name:         "complete_utxo_swap",
 			Duration:     1 * time.Minute,
 			RunInTestEnv: true,
@@ -262,7 +280,7 @@ func AllTasks() []Task {
 				db := ent.GetDbFromContext(ctx)
 
 				query := db.UtxoSwap.Query().
-					Where(utxoswap.StatusEQ(schema.UtxoSwapStatusCreated)).
+					Where(utxoswap.StatusEQ(st.UtxoSwapStatusCreated)).
 					Where(utxoswap.CoordinatorIdentityPublicKeyEQ(config.IdentityPublicKey())).
 					Order(utxoswap.ByCreateTime(sql.OrderDesc())).
 					Limit(100)
@@ -274,12 +292,17 @@ func AllTasks() []Task {
 
 				for _, utxoSwap := range utxoSwaps {
 					transfer, err := utxoSwap.QueryTransfer().Only(ctx)
-					if err != nil {
+					if err != nil && !ent.IsNotFound(err) {
 						logger.Error("failed to get transfer for a utxo swap", "error", err)
 						continue
 					}
-					logger.Debug("Found transfer for a utxo swap", "transfer_id", transfer.ID, "status", transfer.Status, "request_type", utxoSwap.RequestType)
-					if utxoSwap.RequestType == schema.UtxoSwapRequestTypeRefund || transfer.Status == schema.TransferStatusCompleted {
+					if transfer == nil && utxoSwap.RequestType != st.UtxoSwapRequestTypeRefund {
+						logger.Debug("No transfer found for a non-refund utxo swap", "utxo_swap_id", utxoSwap.ID)
+						continue
+					}
+					if utxoSwap.RequestType == st.UtxoSwapRequestTypeRefund || transfer.Status == st.TransferStatusCompleted {
+						logger.Debug("Marking utxo swap as completed", "utxo_swap_id", utxoSwap.ID)
+
 						utxo, err := utxoSwap.QueryUtxo().Only(ctx)
 						if err != nil {
 							return fmt.Errorf("unable to get utxo: %w", err)
@@ -349,10 +372,12 @@ func (t *Task) createWrappedTask() func(context.Context, *so.Config, *ent.Client
 			err = t.Task(ctx, config, lrc20Client)
 			if err != nil {
 				logger.Error("Task failed!", "error", err)
-				err = tx.Rollback()
-				if err != nil {
-					return err
+
+				rollbackErr := tx.Rollback()
+				if rollbackErr != nil {
+					logger.Warn("Failed to rollback transaction after task failure", "error", rollbackErr)
 				}
+
 				return err
 			}
 

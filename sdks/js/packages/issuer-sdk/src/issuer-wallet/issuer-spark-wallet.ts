@@ -10,8 +10,11 @@ import {
   decodeSparkAddress,
   encodeSparkAddress,
 } from "@buildonspark/spark-sdk/address";
-import { OutputWithPreviousTransactionData } from "@buildonspark/spark-sdk/proto/spark";
-import { Layer } from "@buildonspark/spark-sdk/proto/lrc20";
+import {
+  OutputWithPreviousTransactionData,
+  TokenTransaction as TokenTransactionV0,
+} from "@buildonspark/spark-sdk/proto/spark";
+import { TokenTransaction } from "@buildonspark/spark-sdk/proto/spark_token";
 import { ConfigOptions } from "@buildonspark/spark-sdk/services/wallet-config";
 import {
   bytesToHex,
@@ -24,9 +27,11 @@ import { TokenActivityResponse, TokenDistribution } from "../types.js";
 import { convertToTokenActivity } from "../utils/type-mappers.js";
 import { NotImplementedError } from "@buildonspark/spark-sdk";
 import {
+  Layer,
   ListAllTokenTransactionsCursor,
   OperationType,
 } from "@buildonspark/spark-sdk/proto/lrc20";
+import { SparkSigner } from "@buildonspark/spark-sdk/signer";
 
 const BURN_ADDRESS = "02".repeat(33);
 
@@ -55,13 +60,15 @@ export class IssuerSparkWallet extends SparkWallet {
    * @param options - Configuration options for the wallet
    * @returns An object containing the initialized wallet and initialization response
    */
-  public static async initialize(options: SparkWalletProps) {
-    const wallet = new IssuerSparkWallet(options.options);
+  public static async initialize({
+    mnemonicOrSeed,
+    accountNumber,
+    signer,
+    options,
+  }: SparkWalletProps) {
+    const wallet = new IssuerSparkWallet(options, signer);
 
-    const initResponse = await wallet.initWallet(
-      options.mnemonicOrSeed,
-      options.accountNumber,
-    );
+    const initResponse = await wallet.initWallet(mnemonicOrSeed, accountNumber);
 
     if (isNode) {
       wallet.wrapIssuerSparkWalletWithTracing();
@@ -112,8 +119,8 @@ export class IssuerSparkWallet extends SparkWallet {
     );
   }
 
-  protected constructor(configOptions?: ConfigOptions) {
-    super(configOptions);
+  protected constructor(configOptions?: ConfigOptions, signer?: SparkSigner) {
+    super(configOptions, signer);
     this.issuerTokenTransactionService = new IssuerTokenTransactionService(
       this.config,
       this.connectionManager,
@@ -182,13 +189,22 @@ export class IssuerSparkWallet extends SparkWallet {
    * @returns The transaction ID of the mint operation
    */
   public async mintTokens(tokenAmount: bigint): Promise<string> {
-    var tokenPublicKey = await super.getIdentityPublicKey();
+    const tokenPublicKey = await super.getIdentityPublicKey();
+    let tokenTransaction: TokenTransactionV0 | TokenTransaction;
 
-    const tokenTransaction =
-      await this.issuerTokenTransactionService.constructMintTokenTransaction(
-        hexToBytes(tokenPublicKey),
-        tokenAmount,
-      );
+    if (this.config.getTokenTransactionVersion() === "V0") {
+      tokenTransaction =
+        await this.issuerTokenTransactionService.constructMintTokenTransactionV0(
+          hexToBytes(tokenPublicKey),
+          tokenAmount,
+        );
+    } else {
+      tokenTransaction =
+        await this.issuerTokenTransactionService.constructMintTokenTransaction(
+          hexToBytes(tokenPublicKey),
+          tokenAmount,
+        );
+    }
 
     return await this.issuerTokenTransactionService.broadcastTokenTransaction(
       tokenTransaction,
@@ -232,7 +248,7 @@ export class IssuerSparkWallet extends SparkWallet {
       this.config.getNetworkType(),
     );
     const response = await this.tokenFreezeService!.freezeTokens(
-      hexToBytes(decodedOwnerPubkey),
+      hexToBytes(decodedOwnerPubkey.identityPublicKey),
       hexToBytes(tokenPublicKey),
     );
 
@@ -260,7 +276,7 @@ export class IssuerSparkWallet extends SparkWallet {
       this.config.getNetworkType(),
     );
     const response = await this.tokenFreezeService!.unfreezeTokens(
-      hexToBytes(decodedOwnerPubkey),
+      hexToBytes(decodedOwnerPubkey.identityPublicKey),
       hexToBytes(tokenPublicKey),
     );
     const tokenAmount = bytesToNumberBE(response.impactedTokenAmount);
@@ -420,6 +436,7 @@ export class IssuerSparkWallet extends SparkWallet {
     }
 
     await this.lrc20Wallet!.syncWallet();
+
     const tokenPublicKey = new TokenPubkey(this.lrc20Wallet!.pubkey);
 
     const announcement = new TokenPubkeyAnnouncement(
@@ -437,9 +454,11 @@ export class IssuerSparkWallet extends SparkWallet {
         feeRateSatsPerVb,
       );
 
-      return await this.lrc20Wallet!.broadcastRawBtcTransaction(
+      const txId = await this.lrc20Wallet!.broadcastRawBtcTransaction(
         tx.bitcoin_tx.toHex(),
       );
+
+      return txId;
     } catch (error) {
       throw new NetworkError(
         "Failed to broadcast announcement transaction on L1",

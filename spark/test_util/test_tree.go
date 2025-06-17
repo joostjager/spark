@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/wallet"
 )
 
@@ -21,7 +21,7 @@ const (
 
 func WaitForPendingDepositNode(ctx context.Context, sparkClient pb.SparkServiceClient, node *pb.TreeNode) (*pb.TreeNode, error) {
 	startTime := time.Now()
-	for node.Status != string(schema.TreeNodeStatusAvailable) {
+	for node.Status != string(st.TreeNodeStatusAvailable) {
 		if time.Since(startTime) >= DepositTimeout {
 			return nil, fmt.Errorf("timed out waiting for node to be available")
 		}

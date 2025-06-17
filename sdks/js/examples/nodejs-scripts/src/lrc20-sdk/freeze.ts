@@ -8,11 +8,7 @@ import {
 } from "@buildonspark/lrc20-sdk";
 import { JSONStringify } from "@buildonspark/lrc20-sdk";
 
-let wallet = new LRCWallet(
-  "4799979d5e417e3d6d00cf89a77d4f3c0354d295810326c6b0bf4b45aedb38f3",
-  bitcoin.networks.regtest,
-  NetworkType.REGTEST,
-);
+let wallet = new LRCWallet(bitcoin.networks.regtest, NetworkType.REGTEST);
 
 async function main() {
   await wallet.syncWallet();

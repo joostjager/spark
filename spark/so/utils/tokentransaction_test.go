@@ -3,11 +3,82 @@ package utils
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	pb "github.com/lightsparkdev/spark/proto/spark"
+	tokenpb "github.com/lightsparkdev/spark/proto/spark_token"
 	"google.golang.org/protobuf/proto"
 )
+
+type testTokenTransactionData struct {
+	tokenPublicKey []byte
+	identityPubKey []byte
+	operatorPubKey []byte
+	leafID         string
+	bondSats       uint64
+	locktime       uint64
+	tokenAmount    []byte
+}
+
+var testData = testTokenTransactionData{
+	tokenPublicKey: bytes.Repeat([]byte{0x01}, 33),
+	identityPubKey: bytes.Repeat([]byte{0x02}, 33),
+	operatorPubKey: bytes.Repeat([]byte{0x03}, 33),
+	leafID:         "db1a4e48-0fc5-4f6c-8a80-d9d6c561a436",
+	bondSats:       10000,
+	locktime:       100,
+	tokenAmount:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 232}, // 1000 in BE format
+}
+
+func createTestTransactions() (*tokenpb.TokenTransaction, *pb.TokenTransaction) {
+	tokenTx := &tokenpb.TokenTransaction{
+		TokenInputs: &tokenpb.TokenTransaction_MintInput{
+			MintInput: &tokenpb.TokenMintInput{
+				IssuerPublicKey:         testData.tokenPublicKey,
+				IssuerProvidedTimestamp: 100,
+			},
+		},
+		TokenOutputs: []*tokenpb.TokenOutput{
+			{
+				Id:                            &testData.leafID,
+				OwnerPublicKey:                testData.identityPubKey,
+				TokenPublicKey:                testData.tokenPublicKey,
+				TokenAmount:                   testData.tokenAmount,
+				RevocationCommitment:          testData.identityPubKey,
+				WithdrawBondSats:              &testData.bondSats,
+				WithdrawRelativeBlockLocktime: &testData.locktime,
+			},
+		},
+		SparkOperatorIdentityPublicKeys: [][]byte{testData.operatorPubKey},
+		Network:                         pb.Network_REGTEST,
+		Version:                         0,
+	}
+
+	sparkTx := &pb.TokenTransaction{
+		TokenInputs: &pb.TokenTransaction_MintInput{
+			MintInput: &pb.TokenMintInput{
+				IssuerPublicKey:         testData.tokenPublicKey,
+				IssuerProvidedTimestamp: 100,
+			},
+		},
+		TokenOutputs: []*pb.TokenOutput{
+			{
+				Id:                            &testData.leafID,
+				OwnerPublicKey:                testData.identityPubKey,
+				TokenPublicKey:                testData.tokenPublicKey,
+				TokenAmount:                   testData.tokenAmount,
+				RevocationCommitment:          testData.identityPubKey,
+				WithdrawBondSats:              &testData.bondSats,
+				WithdrawRelativeBlockLocktime: &testData.locktime,
+			},
+		},
+		SparkOperatorIdentityPublicKeys: [][]byte{testData.operatorPubKey},
+		Network:                         pb.Network_REGTEST,
+	}
+
+	return tokenTx, sparkTx
+}
 
 func TestHashTokenTransaction(t *testing.T) {
 	tokenPublicKey := []byte{
@@ -47,7 +118,7 @@ func TestHashTokenTransaction(t *testing.T) {
 		Network:                         pb.Network_REGTEST,
 	}
 
-	hash, err := HashTokenTransaction(partialTokenTransaction, false)
+	hash, err := HashTokenTransactionV0(partialTokenTransaction, false)
 	if err != nil {
 		t.Fatalf("failed to hash token transaction: %v", err)
 	}
@@ -63,7 +134,7 @@ func TestHashTokenTransaction(t *testing.T) {
 
 // TestHashTokenTransactionNil ensures an error is returned when HashTokenTransaction is called with a nil transaction.
 func TestHashTokenTransactionNil(t *testing.T) {
-	_, err := HashTokenTransaction(nil, false)
+	_, err := HashTokenTransactionV0(nil, false)
 	if err == nil {
 		t.Errorf("expected an error for nil token transaction, but got nil")
 	}
@@ -75,7 +146,7 @@ func TestHashTokenTransactionEmpty(t *testing.T) {
 		TokenOutputs:                    []*pb.TokenOutput{},
 		SparkOperatorIdentityPublicKeys: [][]byte{},
 	}
-	hash, err := HashTokenTransaction(tx, false)
+	hash, err := HashTokenTransactionV0(tx, false)
 	if err != nil {
 		t.Errorf("expected no error for empty transaction, got: %v", err)
 	}
@@ -145,22 +216,22 @@ func TestHashTokenTransactionUniqueHash(t *testing.T) {
 	finalTransferTokenTransaction.TokenOutputs[0].WithdrawRelativeBlockLocktime = &blockLocktime
 
 	// Hash all transactions
-	partialMintHash, err := HashTokenTransaction(partialMintTokenTransaction, true)
+	partialMintHash, err := HashTokenTransactionV0(partialMintTokenTransaction, true)
 	if err != nil {
 		t.Fatalf("failed to hash partial issuance transaction: %v", err)
 	}
 
-	partialTransferHash, err := HashTokenTransaction(partialTransferTokenTransaction, true)
+	partialTransferHash, err := HashTokenTransactionV0(partialTransferTokenTransaction, true)
 	if err != nil {
 		t.Fatalf("failed to hash partial transfer transaction: %v", err)
 	}
 
-	finalMintHash, err := HashTokenTransaction(finalMintTokenTransaction, false)
+	finalMintHash, err := HashTokenTransactionV0(finalMintTokenTransaction, false)
 	if err != nil {
 		t.Fatalf("failed to hash final issuance transaction: %v", err)
 	}
 
-	finalTransferHash, err := HashTokenTransaction(finalTransferTokenTransaction, false)
+	finalTransferHash, err := HashTokenTransactionV0(finalTransferTokenTransaction, false)
 	if err != nil {
 		t.Fatalf("failed to hash final transfer transaction: %v", err)
 	}
@@ -181,4 +252,129 @@ func TestHashTokenTransactionUniqueHash(t *testing.T) {
 		}
 		seen[hash] = true
 	}
+}
+
+func TestHashTokenTransactionVersioning(t *testing.T) {
+	// Create a basic token transaction
+	tokenTx := &tokenpb.TokenTransaction{
+		TokenInputs: &tokenpb.TokenTransaction_MintInput{
+			MintInput: &tokenpb.TokenMintInput{
+				IssuerPublicKey:         bytes.Repeat([]byte{0x01}, 33),
+				IssuerProvidedTimestamp: 100,
+			},
+		},
+		TokenOutputs: []*tokenpb.TokenOutput{
+			{
+				OwnerPublicKey: bytes.Repeat([]byte{0x02}, 33),
+				TokenPublicKey: bytes.Repeat([]byte{0x03}, 33),
+				TokenAmount:    []byte{0x01},
+			},
+		},
+		SparkOperatorIdentityPublicKeys: [][]byte{bytes.Repeat([]byte{0x04}, 33)},
+		Network:                         pb.Network_REGTEST,
+	}
+
+	t.Run("version 0", func(t *testing.T) {
+		tokenTx.Version = 0
+		hash, err := HashTokenTransaction(tokenTx, false)
+		if err != nil {
+			t.Errorf("unexpected error for version 0: %v", err)
+		}
+		if len(hash) == 0 {
+			t.Error("expected non-empty hash for version 0")
+		}
+	})
+
+	t.Run("version 1", func(t *testing.T) {
+		tokenTx.Version = 1
+		_, err := HashTokenTransaction(tokenTx, false)
+		if err == nil {
+			t.Error("expected error for version 1")
+		}
+		if !strings.Contains(err.Error(), "unsupported token transaction version") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+
+	t.Run("nil transaction", func(t *testing.T) {
+		_, err := HashTokenTransaction(nil, false)
+		if err == nil {
+			t.Error("expected error for nil transaction")
+		}
+		if !strings.Contains(err.Error(), "cannot be nil") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+}
+
+func TestHashTokenTransactionProtoEquivalence(t *testing.T) {
+	tokenTx, sparkTx := createTestTransactions()
+
+	t.Run("full hash equivalence", func(t *testing.T) {
+		tokenHash, err := HashTokenTransaction(tokenTx, false)
+		if err != nil {
+			t.Fatalf("failed to hash token transaction: %v", err)
+		}
+
+		sparkHash, err := HashTokenTransactionV0(sparkTx, false)
+		if err != nil {
+			t.Fatalf("failed to hash spark transaction: %v", err)
+		}
+
+		if !bytes.Equal(tokenHash, sparkHash) {
+			t.Errorf("hash mismatch between proto types\ntoken hash: %x\nspark hash: %x", tokenHash, sparkHash)
+		}
+	})
+
+	t.Run("partial hash equivalence", func(t *testing.T) {
+		tokenHash, err := HashTokenTransaction(tokenTx, true)
+		if err != nil {
+			t.Fatalf("failed to hash token transaction (partial): %v", err)
+		}
+
+		sparkHash, err := HashTokenTransactionV0(sparkTx, true)
+		if err != nil {
+			t.Fatalf("failed to hash spark transaction (partial): %v", err)
+		}
+
+		if !bytes.Equal(tokenHash, sparkHash) {
+			t.Errorf("hash mismatch between proto types\ntoken hash: %x\nspark hash: %x", tokenHash, sparkHash)
+		}
+	})
+}
+
+func TestHashTokenTransactionPartialVsFull(t *testing.T) {
+	tokenTx, sparkTx := createTestTransactions()
+
+	t.Run("token transaction partial vs full", func(t *testing.T) {
+		fullHash, err := HashTokenTransaction(tokenTx, false)
+		if err != nil {
+			t.Fatalf("failed to hash token transaction (full): %v", err)
+		}
+
+		partialHash, err := HashTokenTransaction(tokenTx, true)
+		if err != nil {
+			t.Fatalf("failed to hash token transaction (partial): %v", err)
+		}
+
+		if bytes.Equal(fullHash, partialHash) {
+			t.Error("full and partial hashes should be different for token transaction")
+		}
+	})
+
+	t.Run("spark transaction partial vs full", func(t *testing.T) {
+		fullHash, err := HashTokenTransactionV0(sparkTx, false)
+		if err != nil {
+			t.Fatalf("failed to hash spark transaction (full): %v", err)
+		}
+
+		partialHash, err := HashTokenTransactionV0(sparkTx, true)
+		if err != nil {
+			t.Fatalf("failed to hash spark transaction (partial): %v", err)
+		}
+
+		if bytes.Equal(fullHash, partialHash) {
+			t.Error("full and partial hashes should be different for spark transaction")
+		}
+	})
 }

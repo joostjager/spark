@@ -1,28 +1,29 @@
 {
   "name": "spark-node-express",
-  "version": "0.0.50",
+  "version": "0.0.58",
   "main": "dist/index.js",
   "type": "module",
   "private": true,
   "scripts": {
     "build": "tsc",
-    "start": "NODE_ENV=production NODE_OPTIONS=\"--loader ts-node/esm\" nodemon src/index.ts",
-    "start:dev": "NODE_ENV=development CONFIG_FILE=../../dev-regtest-config.json NODE_OPTIONS=\"--loader ts-node/esm\" nodemon src/index.ts",
+    "start": "cross-env NODE_ENV=production NODE_OPTIONS=\"--loader ts-node/esm\" nodemon src/index.ts",
+    "start:dev": "cross-env NODE_ENV=development CONFIG_FILE=../../dev-regtest-config.json NODE_OPTIONS=\"--loader ts-node/esm\" nodemon src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "description": "basic express server consuming the @buildonspark/spark-sdk and @buildonspark/issuer-sdk",
   "dependencies": {
-    "@buildonspark/issuer-sdk": "^0.0.63",
-    "@buildonspark/spark-sdk": "^0.1.32",
-    "@lightsparkdev/core": "^1.4.0",
+    "@buildonspark/issuer-sdk": "^0.0.71",
+    "@buildonspark/spark-sdk": "^0.1.40",
+    "@lightsparkdev/core": "^1.4.1",
     "@noble/curves": "^1.8.0",
     "express": "^4.21.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.2",
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",

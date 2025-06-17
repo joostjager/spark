@@ -10,7 +10,7 @@ import (
 	"github.com/lightsparkdev/spark/so"
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/signingkeyshare"
 	"github.com/lightsparkdev/spark/so/ent/tree"
 	"github.com/lightsparkdev/spark/so/ent/treenode"
@@ -36,9 +36,9 @@ func (h *TreeQueryHandler) QueryNodes(ctx context.Context, req *pb.QueryNodesReq
 	limit := int(req.GetLimit())
 	offset := int(req.GetOffset())
 
-	var network schema.Network
+	var network st.Network
 	if req.GetNetwork() == pb.Network_UNSPECIFIED {
-		network = schema.NetworkMainnet
+		network = st.NetworkMainnet
 	} else {
 		var err error
 		network, err = common.SchemaNetworkFromProtoNetwork(req.GetNetwork())
@@ -53,7 +53,7 @@ func (h *TreeQueryHandler) QueryNodes(ctx context.Context, req *pb.QueryNodesReq
 			return nil, fmt.Errorf("expect non-negative offset and limit")
 		}
 		query = query.
-			Where(treenode.StatusNotIn(schema.TreeNodeStatusCreating, schema.TreeNodeStatusSplitted, schema.TreeNodeStatusInvestigation, schema.TreeNodeStatusLost, schema.TreeNodeStatusReimbursed)).
+			Where(treenode.StatusNotIn(st.TreeNodeStatusCreating, st.TreeNodeStatusSplitted, st.TreeNodeStatusInvestigation, st.TreeNodeStatusLost, st.TreeNodeStatusReimbursed)).
 			Where(treenode.HasTreeWith(
 				tree.NetworkEQ(network),
 			)).
@@ -118,9 +118,9 @@ func (h *TreeQueryHandler) QueryNodes(ctx context.Context, req *pb.QueryNodesReq
 func (h *TreeQueryHandler) QueryBalance(ctx context.Context, req *pb.QueryBalanceRequest) (*pb.QueryBalanceResponse, error) {
 	db := ent.GetDbFromContext(ctx)
 
-	var network schema.Network
+	var network st.Network
 	if req.GetNetwork() == pb.Network_UNSPECIFIED {
-		network = schema.NetworkMainnet
+		network = st.NetworkMainnet
 	} else {
 		var err error
 		network, err = common.SchemaNetworkFromProtoNetwork(req.GetNetwork())
@@ -134,7 +134,7 @@ func (h *TreeQueryHandler) QueryBalance(ctx context.Context, req *pb.QueryBalanc
 		Where(treenode.HasTreeWith(
 			tree.NetworkEQ(network),
 		)).
-		Where(treenode.StatusEQ(schema.TreeNodeStatusAvailable)).
+		Where(treenode.StatusEQ(st.TreeNodeStatusAvailable)).
 		Where(treenode.OwnerIdentityPubkey(req.GetIdentityPublicKey()))
 
 	nodes, err := query.All(ctx)
@@ -300,7 +300,7 @@ func (h *TreeQueryHandler) QueryNodesDistribution(ctx context.Context, req *pb.Q
 	err := db.TreeNode.Query().
 		Where(
 			treenode.OwnerIdentityPubkey(req.GetOwnerIdentityPublicKey()),
-			treenode.StatusEQ(schema.TreeNodeStatusAvailable),
+			treenode.StatusEQ(st.TreeNodeStatusAvailable),
 		).
 		GroupBy(treenode.FieldValue).
 		Aggregate(ent.Count()).
@@ -332,7 +332,7 @@ func (h *TreeQueryHandler) QueryNodesByValue(ctx context.Context, req *pb.QueryN
 	query := db.TreeNode.Query()
 	query = query.
 		Where(treenode.OwnerIdentityPubkey(req.GetOwnerIdentityPublicKey())).
-		Where(treenode.StatusEQ(schema.TreeNodeStatusAvailable)).
+		Where(treenode.StatusEQ(st.TreeNodeStatusAvailable)).
 		Where(treenode.ValueEQ(uint64(req.GetValue()))).
 		Order(ent.Desc(treenode.FieldID))
 

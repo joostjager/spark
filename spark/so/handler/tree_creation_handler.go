@@ -15,7 +15,7 @@ import (
 	"github.com/lightsparkdev/spark/so/authz"
 	"github.com/lightsparkdev/spark/so/ent"
 	"github.com/lightsparkdev/spark/so/ent/depositaddress"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/helper"
 )
 
@@ -485,9 +485,9 @@ func (h *TreeCreationHandler) prepareSigningJobs(ctx context.Context, req *pb.Cr
 				SetBaseTxid(txid[:]).
 				SetVout(int16(req.GetOnChainUtxo().Vout))
 			if onchain {
-				treeMutator.SetStatus(schema.TreeStatusAvailable)
+				treeMutator.SetStatus(st.TreeStatusAvailable)
 			} else {
-				treeMutator.SetStatus(schema.TreeStatusPending)
+				treeMutator.SetStatus(st.TreeStatusPending)
 			}
 			tree, err = treeMutator.Save(ctx)
 			if err != nil {
@@ -516,7 +516,7 @@ func (h *TreeCreationHandler) prepareSigningJobs(ctx context.Context, req *pb.Cr
 			TreeNode.
 			Create().
 			SetTree(tree).
-			SetStatus(schema.TreeNodeStatusCreating).
+			SetStatus(st.TreeNodeStatusCreating).
 			SetOwnerIdentityPubkey(req.UserIdentityPublicKey).
 			SetOwnerSigningPubkey(currentElement.userPublicKey).
 			SetValue(uint64(currentElement.output.Value)).
@@ -692,11 +692,11 @@ func (h *TreeCreationHandler) updateParentNodeStatus(ctx context.Context, parent
 		return err
 	}
 
-	if parentNode.Status != schema.TreeNodeStatusAvailable {
+	if parentNode.Status != st.TreeNodeStatusAvailable {
 		return nil
 	}
 
-	err = db.TreeNode.UpdateOneID(parentNodeID).SetStatus(schema.TreeNodeStatusSplitted).Exec(ctx)
+	err = db.TreeNode.UpdateOneID(parentNodeID).SetStatus(st.TreeNodeStatusSplitted).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to update status of parent node: %w", err)
 	}

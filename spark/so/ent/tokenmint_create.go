@@ -75,6 +75,12 @@ func (tmc *TokenMintCreate) SetOperatorSpecificIssuerSignature(b []byte) *TokenM
 	return tmc
 }
 
+// SetTokenIdentifier sets the "token_identifier" field.
+func (tmc *TokenMintCreate) SetTokenIdentifier(b []byte) *TokenMintCreate {
+	tmc.mutation.SetTokenIdentifier(b)
+	return tmc
+}
+
 // SetID sets the "id" field.
 func (tmc *TokenMintCreate) SetID(u uuid.UUID) *TokenMintCreate {
 	tmc.mutation.SetID(u)
@@ -253,6 +259,10 @@ func (tmc *TokenMintCreate) createSpec() (*TokenMint, *sqlgraph.CreateSpec) {
 	if value, ok := tmc.mutation.OperatorSpecificIssuerSignature(); ok {
 		_spec.SetField(tokenmint.FieldOperatorSpecificIssuerSignature, field.TypeBytes, value)
 		_node.OperatorSpecificIssuerSignature = value
+	}
+	if value, ok := tmc.mutation.TokenIdentifier(); ok {
+		_spec.SetField(tokenmint.FieldTokenIdentifier, field.TypeBytes, value)
+		_node.TokenIdentifier = value
 	}
 	if nodes := tmc.mutation.TokenTransactionReceiptIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

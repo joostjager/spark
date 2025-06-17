@@ -36,7 +36,11 @@ memo?: string | undefined;
 **/
 receiverIdentityPubkey?: string | undefined;
 
-
+    /**
+ * The h tag of the invoice. This is the hash of a longer description to include in the lightning
+ * invoice. It is used in LNURL and UMA as the hash of the metadata.
+**/
+descriptionHash?: string | undefined;
 
 
 }
@@ -50,6 +54,7 @@ export const RequestLightningReceiveInputFromJson = (obj: any): RequestLightning
         expirySecs: obj["request_lightning_receive_input_expiry_secs"],
         memo: obj["request_lightning_receive_input_memo"],
         receiverIdentityPubkey: obj["request_lightning_receive_input_receiver_identity_pubkey"],
+        descriptionHash: obj["request_lightning_receive_input_description_hash"],
 
         } as RequestLightningReceiveInput;
 
@@ -63,7 +68,7 @@ request_lightning_receive_input_expiry_secs: obj.expirySecs,
 request_lightning_receive_input_memo: obj.memo,
 request_lightning_receive_input_receiver_identity_pubkey: obj.receiverIdentityPubkey,
 request_lightning_receive_input_include_spark_address: obj.includeSparkAddress,
-
+request_lightning_receive_input_description_hash: obj.descriptionHash,
         }
 
 }

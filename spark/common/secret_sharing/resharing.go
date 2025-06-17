@@ -7,8 +7,14 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
+// TODO: the spark operator has an index instead of a party ID.
+// that index can't be used as a shareID directly because it starts at zero.
+// some ideas for fixing that safely:
+//   rename PartyID to ShareID and check that it's not zero
+//   use function ShareIDFromPartyIndex to convert party ID before using it as a share ID
+
 // PartyID represents a unique identifier for each party
-type PartyID uint32
+type PartyID uint64
 
 // Scalar wrapper for secp256k1 scalars
 type Scalar = secp256k1.ModNScalar
@@ -294,7 +300,7 @@ func (n *NewShareHolder) verifySubshare(subshare *Scalar, commitment *Round1Payl
 
 	rightSide := p.Eval(j)
 
-	if !pointEqual(leftSide, rightSide) {
+	if !PointEqual(leftSide, rightSide) {
 		return errors.New("subshare verification failed")
 	}
 
@@ -319,7 +325,7 @@ func (n *NewShareHolder) verifySharesValid(receivedCommitments map[PartyID]*Roun
 
 	// Verify all secret commitments are the same
 	for partyID, commitment := range receivedCommitments {
-		if commitment.SecretCommitment == nil || !pointEqual(gk, commitment.SecretCommitment) {
+		if commitment.SecretCommitment == nil || !PointEqual(gk, commitment.SecretCommitment) {
 			return fmt.Errorf("inconsistent secret commitment from party %d", partyID)
 		}
 	}
@@ -340,7 +346,7 @@ func (n *NewShareHolder) verifySharesValid(receivedCommitments map[PartyID]*Roun
 
 	result := ReconstructPoint(pairs)
 
-	if !pointEqual(gk, result) {
+	if !PointEqual(gk, result) {
 		return errors.New("SHARES-VALID condition not satisfied")
 	}
 
@@ -348,7 +354,7 @@ func (n *NewShareHolder) verifySharesValid(receivedCommitments map[PartyID]*Roun
 }
 
 // TODO: Replace with secp256k1.EquivalentNonConst from newer module version.
-func pointEqual(p *Point, q *Point) bool {
+func PointEqual(p *Point, q *Point) bool {
 	// TODO: Do we need a special case for the neutral point?
 	p.ToAffine()
 	q.ToAffine()

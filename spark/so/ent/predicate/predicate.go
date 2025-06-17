@@ -30,6 +30,9 @@ type SigningKeyshare func(*sql.Selector)
 // SigningNonce is the predicate function for signingnonce builders.
 type SigningNonce func(*sql.Selector)
 
+// TokenCreate is the predicate function for tokencreate builders.
+type TokenCreate func(*sql.Selector)
+
 // TokenFreeze is the predicate function for tokenfreeze builders.
 type TokenFreeze func(*sql.Selector)
 

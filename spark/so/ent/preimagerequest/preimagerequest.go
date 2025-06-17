@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 const (
@@ -106,7 +106,7 @@ var (
 )
 
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s schema.PreimageRequestStatus) error {
+func StatusValidator(s schematype.PreimageRequestStatus) error {
 	switch s {
 	case "WAITING_FOR_PREIMAGE", "PREIMAGE_SHARED", "RETURNED":
 		return nil

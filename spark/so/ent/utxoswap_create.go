@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	"github.com/lightsparkdev/spark/so/ent/transfer"
 	"github.com/lightsparkdev/spark/so/ent/utxo"
 	"github.com/lightsparkdev/spark/so/ent/utxoswap"
@@ -53,13 +53,13 @@ func (usc *UtxoSwapCreate) SetNillableUpdateTime(t *time.Time) *UtxoSwapCreate {
 }
 
 // SetStatus sets the "status" field.
-func (usc *UtxoSwapCreate) SetStatus(sss schema.UtxoSwapStatus) *UtxoSwapCreate {
+func (usc *UtxoSwapCreate) SetStatus(sss schematype.UtxoSwapStatus) *UtxoSwapCreate {
 	usc.mutation.SetStatus(sss)
 	return usc
 }
 
 // SetRequestType sets the "request_type" field.
-func (usc *UtxoSwapCreate) SetRequestType(ssrt schema.UtxoSwapRequestType) *UtxoSwapCreate {
+func (usc *UtxoSwapCreate) SetRequestType(ssrt schematype.UtxoSwapRequestType) *UtxoSwapCreate {
 	usc.mutation.SetRequestType(ssrt)
 	return usc
 }

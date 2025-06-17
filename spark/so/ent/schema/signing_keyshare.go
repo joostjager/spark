@@ -4,25 +4,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
-
-// SigningKeyshareStatus is the status of a signing keyshare.
-type SigningKeyshareStatus string
-
-const (
-	// KeyshareStatusAvailable is the status of a signing keyshare that is available.
-	KeyshareStatusAvailable SigningKeyshareStatus = "AVAILABLE"
-	// KeyshareStatusInUse is the status of a signing keyshare that is in use.
-	KeyshareStatusInUse SigningKeyshareStatus = "IN_USE"
-)
-
-// Values returns the values of the signing keyshare status.
-func (SigningKeyshareStatus) Values() []string {
-	return []string{
-		string(KeyshareStatusAvailable),
-		string(KeyshareStatusInUse),
-	}
-}
 
 // SigningKeyshare holds the schema definition for the SigningKeyshare entity.
 type SigningKeyshare struct {
@@ -46,13 +29,26 @@ func (SigningKeyshare) Indexes() []ent.Index {
 // Fields are the fields for the signing keyshares table.
 func (SigningKeyshare) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("status").
-			GoType(SigningKeyshareStatus("")),
-		field.Bytes("secret_share"),
-		field.JSON("public_shares", map[string][]byte{}),
-		field.Bytes("public_key").Unique(),
-		field.Int32("min_signers"),
-		field.Uint64("coordinator_index"),
+		field.
+			Enum("status").
+			GoType(st.SigningKeyshareStatus("")).
+			Comment("The status of the signing keyshare (i.e. whether it is in use or not)."),
+		field.
+			Bytes("secret_share").
+			Comment("The secret share of the signing keyshare held by this SO."),
+		field.
+			JSON("public_shares", map[string][]byte{}).
+			Comment("A map from SO identifier to the public key of the secret share held by that SO."),
+		field.
+			Bytes("public_key").
+			Unique().
+			Comment("The public key of the combined secret represented by this signing keyshare."),
+		field.
+			Int32("min_signers").
+			Comment("The minimum number of signers required to produce a valid signature using this signing keyshare."),
+		field.
+			Uint64("coordinator_index").
+			Comment("The SO index that acts as the coordinator for all signatures using this signing keyshare."),
 	}
 }
 

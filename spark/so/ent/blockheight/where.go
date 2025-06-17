@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -192,19 +192,19 @@ func HeightLTE(v int64) predicate.BlockHeight {
 }
 
 // NetworkEQ applies the EQ predicate on the "network" field.
-func NetworkEQ(v schema.Network) predicate.BlockHeight {
+func NetworkEQ(v schematype.Network) predicate.BlockHeight {
 	vc := v
 	return predicate.BlockHeight(sql.FieldEQ(FieldNetwork, vc))
 }
 
 // NetworkNEQ applies the NEQ predicate on the "network" field.
-func NetworkNEQ(v schema.Network) predicate.BlockHeight {
+func NetworkNEQ(v schematype.Network) predicate.BlockHeight {
 	vc := v
 	return predicate.BlockHeight(sql.FieldNEQ(FieldNetwork, vc))
 }
 
 // NetworkIn applies the In predicate on the "network" field.
-func NetworkIn(vs ...schema.Network) predicate.BlockHeight {
+func NetworkIn(vs ...schematype.Network) predicate.BlockHeight {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -213,7 +213,7 @@ func NetworkIn(vs ...schema.Network) predicate.BlockHeight {
 }
 
 // NetworkNotIn applies the NotIn predicate on the "network" field.
-func NetworkNotIn(vs ...schema.Network) predicate.BlockHeight {
+func NetworkNotIn(vs ...schematype.Network) predicate.BlockHeight {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]

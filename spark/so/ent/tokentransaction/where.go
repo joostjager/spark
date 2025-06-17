@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/so/ent/predicate"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	"github.com/lightsparkdev/spark/so/ent/schema/schematype"
 )
 
 // ID filters vertices based on their ID field.
@@ -303,19 +303,19 @@ func OperatorSignatureNotNil() predicate.TokenTransaction {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v schema.TokenTransactionStatus) predicate.TokenTransaction {
+func StatusEQ(v schematype.TokenTransactionStatus) predicate.TokenTransaction {
 	vc := v
 	return predicate.TokenTransaction(sql.FieldEQ(FieldStatus, vc))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v schema.TokenTransactionStatus) predicate.TokenTransaction {
+func StatusNEQ(v schematype.TokenTransactionStatus) predicate.TokenTransaction {
 	vc := v
 	return predicate.TokenTransaction(sql.FieldNEQ(FieldStatus, vc))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...schema.TokenTransactionStatus) predicate.TokenTransaction {
+func StatusIn(vs ...schematype.TokenTransactionStatus) predicate.TokenTransaction {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -324,7 +324,7 @@ func StatusIn(vs ...schema.TokenTransactionStatus) predicate.TokenTransaction {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...schema.TokenTransactionStatus) predicate.TokenTransaction {
+func StatusNotIn(vs ...schematype.TokenTransactionStatus) predicate.TokenTransaction {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -503,6 +503,29 @@ func HasMint() predicate.TokenTransaction {
 func HasMintWith(preds ...predicate.TokenMint) predicate.TokenTransaction {
 	return predicate.TokenTransaction(func(s *sql.Selector) {
 		step := newMintStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCreate applies the HasEdge predicate on the "create" edge.
+func HasCreate() predicate.TokenTransaction {
+	return predicate.TokenTransaction(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, CreateTable, CreateColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCreateWith applies the HasEdge predicate on the "create" edge with a given conditions (other predicates).
+func HasCreateWith(preds ...predicate.TokenCreate) predicate.TokenTransaction {
+	return predicate.TokenTransaction(func(s *sql.Selector) {
+		step := newCreateStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

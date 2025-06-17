@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lightsparkdev/spark/common"
 	pb "github.com/lightsparkdev/spark/proto/spark"
-	"github.com/lightsparkdev/spark/so/ent/schema"
+	st "github.com/lightsparkdev/spark/so/ent/schema/schematype"
 	testutil "github.com/lightsparkdev/spark/test_util"
 	"github.com/lightsparkdev/spark/wallet"
 	"github.com/stretchr/testify/assert"
@@ -290,7 +290,7 @@ func TestStartDepositTreeCreationBasic(t *testing.T) {
 	rootNode, err := testutil.WaitForPendingDepositNode(ctx, sparkClient, resp.Nodes[0])
 	assert.NoError(t, err)
 	assert.Equal(t, rootNode.Id, leafID)
-	assert.Equal(t, rootNode.Status, string(schema.TreeNodeStatusAvailable))
+	assert.Equal(t, rootNode.Status, string(st.TreeNodeStatusAvailable))
 
 	unusedDepositAddresses, err = wallet.QueryUnusedDepositAddresses(ctx, config)
 	if err != nil {
@@ -607,7 +607,7 @@ func TestStartDepositTreeCreationConcurrentWithSameTx(t *testing.T) {
 	log.Printf("tree created: %v", resp)
 
 	for _, node := range resp.Nodes {
-		if node.Status == string(schema.TreeNodeStatusCreating) {
+		if node.Status == string(st.TreeNodeStatusCreating) {
 			t.Fatalf("tree node is in status TreeNodeStatusCreating %s", node.Id)
 		}
 	}
